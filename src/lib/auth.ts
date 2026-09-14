@@ -30,12 +30,19 @@ function parseRole(value: string | undefined): Role {
   return value && ALL_ROLES.includes(value as Role) ? (value as Role) : "owner";
 }
 
+function roleForLocalAccount(value: string | undefined): Role | undefined {
+  if (value === "client.voone.ai") return "owner";
+  if (value === "admin.voone.ai") return "voone_admin";
+  return undefined;
+}
+
 export async function getMockSession(): Promise<VooneSession> {
   const cookieStore = await cookies();
-  const role = parseRole(cookieStore.get("voone-dev-role")?.value);
+  const localAccount = cookieStore.get("voone-local-account")?.value;
+  const role = roleForLocalAccount(localAccount) ?? parseRole(cookieStore.get("voone-dev-role")?.value);
 
   return {
-    userId: "dev-user-001",
+    userId: localAccount ?? "dev-user-001",
     role,
     clinicId: "clinic-aurea",
     name: role === "voone_admin" ? "Voone Admin" : "Aurea Clinic Team",

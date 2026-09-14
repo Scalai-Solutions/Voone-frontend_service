@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, BadgeCheck, Building2, CreditCard, LayoutDashboard, QrCode, Search, Settings, Sparkles, Users } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth";
@@ -42,10 +44,18 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const reducedMotion = useReducedMotion();
 
   return (
-    <div className="min-h-screen bg-[#f6f0e8] text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 overflow-hidden border-r border-[#d9b477]/20 bg-[#130c0a] px-4 py-5 text-[#f9eedf] shadow-2xl xl:block">
+    <div className="relative isolate min-h-screen overflow-x-clip bg-[#f6f0e8] text-foreground">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_78%_10%,rgba(217,180,119,0.22),transparent_30%),radial-gradient(circle_at_18%_18%,rgba(239,220,213,0.8),transparent_34%),linear-gradient(180deg,#fbf4ee,#f3e6dc_58%,#eadbd1)]" />
+      <div className="voone-grain pointer-events-none fixed inset-0 -z-10 opacity-[0.035]" />
+      <motion.aside
+        initial={reducedMotion ? false : { opacity: 0, x: -24 }}
+        animate={reducedMotion ? undefined : { opacity: 1, x: 0 }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed inset-y-0 left-0 z-30 hidden w-72 overflow-hidden border-r border-[#d9b477]/20 bg-[#130c0a] px-4 py-5 text-[#f9eedf] shadow-[24px_0_80px_-54px_rgba(19,12,10,0.95)] xl:block"
+      >
         <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.07]" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(208,161,84,0.19),transparent_70%)]" />
         <Link href={homeHref} className="relative flex items-center gap-3 rounded-lg px-2 py-2">
@@ -62,17 +72,25 @@ export function AppShell({
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
-              <Link
+              <motion.div
                 key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-[#b8a69a] transition-all hover:bg-white/[0.06] hover:text-[#fff7ec]",
-                  active && "border border-[#e3bc76]/25 bg-[linear-gradient(135deg,rgba(213,169,99,0.2),rgba(255,255,255,0.03))] text-[#fff8ec] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                )}
+                initial={reducedMotion ? false : { opacity: 0, x: -10 }}
+                animate={reducedMotion ? undefined : { opacity: 1, x: 0 }}
+                transition={{ duration: 0.45, delay: 0.08 + navItems.indexOf(item) * 0.05, ease: [0.16, 1, 0.3, 1] }}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[#b8a69a] transition-all hover:translate-x-1 hover:bg-white/[0.06] hover:text-[#fff7ec]",
+                    active && "border border-[#e3bc76]/25 bg-[linear-gradient(135deg,rgba(213,169,99,0.2),rgba(255,255,255,0.03))] text-[#fff8ec] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  )}
+                >
+                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-[#d7b274] transition-colors group-hover:bg-white/[0.1]", active && "bg-[#e3bc76]/18 text-[#f4d59a]")}> 
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  {item.label}
+                </Link>
+              </motion.div>
             );
           })}
         </nav>
@@ -83,19 +101,28 @@ export function AppShell({
             {session.name}
           </div>
           <p className="mt-1 text-xs capitalize text-[#aa9687]">{session.role.replace("_", " ")}</p>
+          <LogoutButton variant="secondary" className="mt-4 rounded-md bg-[#fffaf3]" />
         </div>
-      </aside>
+      </motion.aside>
 
       <div className="xl:pl-72">
-        <header className="sticky top-0 z-20 border-b border-[#d9c9b6] bg-[#f6f0e8]/92 px-4 py-4 backdrop-blur-xl md:px-8">
+        <motion.header
+          initial={reducedMotion ? false : { opacity: 0, y: -14 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.62, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+          className="sticky top-0 z-20 border-b border-[#d9c9b6]/80 bg-[#f6f0e8]/82 px-4 py-4 shadow-[0_18px_60px_-48px_rgba(67,48,43,0.7)] backdrop-blur-xl md:px-8"
+        >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a47845]">{area}</p>
               <h1 className="font-serif text-2xl font-semibold tracking-wide md:text-3xl">Good morning, {session.name.split(" ")[0]}</h1>
             </div>
-            <Badge variant="outline" className="w-fit border-[#cbaa75] bg-[#fffaf3] capitalize text-[#765533] shadow-sm">
-              {session.role.replace("_", " ")}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="w-fit border-[#cbaa75] bg-[#fffaf3] capitalize text-[#765533] shadow-sm">
+                {session.role.replace("_", " ")}
+              </Badge>
+              <LogoutButton className="rounded-xl bg-[#fffaf3]" />
+            </div>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:hidden">
             {navItems.map((item) => {
@@ -117,12 +144,17 @@ export function AppShell({
               );
             })}
           </nav>
-        </header>
+        </motion.header>
 
-        <main className="relative overflow-hidden px-4 py-7 md:px-8 md:py-9">
+        <motion.main
+          initial={reducedMotion ? false : { opacity: 0, y: 18 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          className="relative overflow-hidden px-4 py-7 md:px-8 md:py-9"
+        >
           <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.025]" />
           <div className="relative">{children}</div>
-        </main>
+        </motion.main>
       </div>
     </div>
   );

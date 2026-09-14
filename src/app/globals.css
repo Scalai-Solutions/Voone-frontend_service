@@ -113,6 +113,25 @@ textarea {
   scrollbar-width: none;
 }
 
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 32s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
 .voone-panel {
   border: 1px solid var(--border);
   backdrop-filter: blur(16px);

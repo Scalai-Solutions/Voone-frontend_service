@@ -12,7 +12,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Tenants" title={clinic.name} description={`${clinic.city} - ${clinic.plan} plan`} action={{ href: `/dashboard/templates/new?clinicId=${clinic.id}`, label: "Create template" }} />
+      <PageHeader eyebrow="Tenants" title={clinic.name} description={`${clinic.city} - ${clinic.plan} plan`} action={{ href: "/dashboard/templates", label: "Choose template" }} />
 
       <section className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-lg"><CardHeader><CardTitle className="text-sm text-muted-foreground">Members</CardTitle></CardHeader><CardContent><p className="text-3xl font-semibold">{clinic.members}</p></CardContent></Card>

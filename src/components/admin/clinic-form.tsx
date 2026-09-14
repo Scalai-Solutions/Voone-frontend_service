@@ -33,9 +33,9 @@ export function ClinicForm() {
           <CardTitle>{clinic.name} is ready for setup</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
-          <p>Create the clinic&apos;s first wallet template next, scoped to this tenant.</p>
+          <p>Choose the clinic&apos;s wallet template next, scoped to this tenant.</p>
           <Button asChild>
-            <Link href={`/dashboard/templates/new?clinicId=${clinic.id}`}>Create first template</Link>
+            <Link href="/dashboard/templates">Choose template</Link>
           </Button>
         </CardContent>
       </Card>

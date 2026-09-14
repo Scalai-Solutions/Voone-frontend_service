@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { CreditCard, LayoutDashboard, QrCode, Settings, Sparkles, Users } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth";
@@ -107,9 +108,14 @@ export function ClinicDashboardShell({
               <p className="text-sm font-semibold">{session.name}</p>
               <p className="text-xs text-muted-foreground">Aurea Clinic</p>
             </div>
+            <LogoutButton className="rounded-2xl border-border/70 bg-white/55" />
           </div>
         </motion.div>
       </header>
+
+      <div className="fixed bottom-3 left-3 z-50 xl:hidden">
+        <LogoutButton className="rounded-2xl border-white/70 bg-background/90 shadow-xl backdrop-blur" />
+      </div>
 
       <main className={cn("relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8", compactScan ? "h-screen overflow-hidden pb-3 pt-[5.75rem]" : "min-h-screen pb-16 pt-24")}>
         {children}

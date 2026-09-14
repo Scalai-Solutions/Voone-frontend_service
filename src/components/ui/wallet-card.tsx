@@ -68,9 +68,9 @@ const DEFAULT: WalletCardData = {
 };
 
 /** Voone loyalty pass that opens on click — a closed Wallet card that expands with more info. */
-export function WalletCard({ data, theme = GOLD }: { data?: Partial<WalletCardData>; theme?: WalletCardTheme }) {
+export function WalletCard({ data, theme = GOLD, defaultExpanded = false, interactive = true }: { data?: Partial<WalletCardData>; theme?: WalletCardTheme; defaultExpanded?: boolean; interactive?: boolean }) {
   const d = { ...DEFAULT, ...data };
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(defaultExpanded);
   const ref = React.useRef<HTMLDivElement>(null);
 
   const mx = useMotionValue(0);
@@ -93,9 +93,12 @@ export function WalletCard({ data, theme = GOLD }: { data?: Partial<WalletCardDa
     <div ref={ref} className="relative select-none" style={{ perspective: 1000 }} onMouseMove={onMove} onMouseLeave={reset}>
       <motion.button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="block w-[320px] text-left cursor-pointer rounded-[26px] overflow-hidden shadow-[0_40px_90px_-30px_rgba(0,0,0,0.55)] border"
+        onClick={interactive ? () => setExpanded((v) => !v) : undefined}
+        aria-expanded={interactive ? expanded : undefined}
+        aria-hidden={interactive ? undefined : true}
+        disabled={!interactive}
+        tabIndex={interactive ? undefined : -1}
+        className={interactive ? "block w-[320px] text-left cursor-pointer rounded-[26px] overflow-hidden shadow-[0_40px_90px_-30px_rgba(0,0,0,0.55)] border" : "block w-[320px] text-left cursor-default rounded-[26px] overflow-hidden shadow-[0_40px_90px_-30px_rgba(0,0,0,0.55)] border"}
         style={{ rotateX, rotateY, transformStyle: "preserve-3d", background: theme.bg, borderColor: theme.border }}
         animate={{ height: expanded ? 468 : 208 }}
         transition={{ type: "spring", stiffness: 320, damping: 34 }}

@@ -20,7 +20,7 @@ function getTimeGreeting() {
 
   if (hour < 12) return "Good morning Aurea, welcome back.";
   if (hour < 17) return "Good afternoon Aurea, welcome back.";
-  return "Good evening Aurea, welcome back.";
+  return "Good evening Aurea.";
 }
 
 export function DashboardMotion({ overview, primaryTemplate }: { overview: DashboardOverview; primaryTemplate: Template }) {

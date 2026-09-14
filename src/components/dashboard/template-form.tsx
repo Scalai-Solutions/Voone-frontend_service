@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getTemplateStarterValues, scratchTemplateValues, type TemplateStarterId } from "@/components/dashboard/template-starters";
 import { saveTemplate, type Template } from "@/lib/api-client";
 
 const templateSchema = z.object({
@@ -38,22 +39,19 @@ function textColorFor(backgroundColor: string) {
   return luminance(backgroundColor) > 0.45 ? "#2b211c" : "#fff9f2";
 }
 
-export function TemplateForm({ initialTemplate }: { initialTemplate?: Template }) {
+export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: Template; starter?: TemplateStarterId }) {
   const queryClient = useQueryClient();
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [savedTemplate, setSavedTemplate] = React.useState<Template | null>(null);
   const [previewProvider, setPreviewProvider] = React.useState<"apple" | "google">("google");
+  const starterValues = getTemplateStarterValues(starter);
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateSchema),
     defaultValues: {
-      name: initialTemplate?.name ?? "",
-      clinicBranding: initialTemplate?.clinicBranding ?? "",
-      backgroundColor: initialTemplate?.backgroundColor ?? "#ead0bd",
-      pointsLabel: initialTemplate?.pointsLabel ?? "Beauty Balance",
-      tierLabel: initialTemplate?.tierLabel ?? "Gold Member",
-      benefits: initialTemplate?.benefits ?? "",
-      infoText: initialTemplate?.infoText ?? "",
+      ...scratchTemplateValues,
+      ...initialTemplate,
+      ...starterValues,
     },
   });
 
@@ -104,7 +102,7 @@ export function TemplateForm({ initialTemplate }: { initialTemplate?: Template }
         <section className="voone-panel p-5">
           <div className="relative">
             <div>
-              <p className="voone-kicker">{initialTemplate ? "Edit template" : "Create template"}</p>
+              <p className="voone-kicker">Edit template</p>
               <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Pass details</h1>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">

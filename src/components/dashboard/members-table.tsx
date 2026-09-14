@@ -6,7 +6,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from "@tanstack/react-table";
-import { Download, QrCode, Search, Sparkles, UserPlus, Users, WalletCards } from "lucide-react";
+import { Download, Filter, QrCode, Search, Sparkles, UserPlus, Users, WalletCards } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/page-kit";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
@@ -44,6 +44,7 @@ const columns = [
 export function MembersTable() {
   const [tierFilter, setTierFilter] = useReactState("all");
   const [walletFilter, setWalletFilter] = useReactState("all");
+  const [filtersOpen, setFiltersOpen] = useReactState(false);
   const members = useQuery({ queryKey: ["members"], queryFn: getMembers });
   const filteredMembers = (members.data ?? []).filter((member) => {
     const matchesTier = tierFilter === "all" || member.tier === tierFilter;
@@ -95,33 +96,30 @@ export function MembersTable() {
               onChange={(event) => table.setGlobalFilter(event.target.value)}
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {["all", ...tiers].map((tier) => (
-              <button
-                key={tier}
-                type="button"
-                className={`rounded-full border px-3 py-2 text-xs font-bold capitalize transition-colors ${tierFilter === tier ? "border-[#241612] bg-[#241612] text-white" : "border-border bg-white/55 text-muted-foreground hover:text-foreground"}`}
-                onClick={() => setTierFilter(tier)}
-              >
-                {tier}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              ["all", "All wallets"],
-              ["wallet-ready", "Wallet ready"],
-              ["needs-wallet", "Needs wallet"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={`rounded-full border px-3 py-2 text-xs font-bold transition-colors ${walletFilter === value ? "border-gold bg-gold text-white" : "border-border bg-white/55 text-muted-foreground hover:text-foreground"}`}
-                onClick={() => setWalletFilter(value)}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="relative">
+            <Button type="button" variant="outline" className="rounded-2xl" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+              <Filter className="mr-2 h-4 w-4" /> Filters
+            </Button>
+            {filtersOpen ? (
+              <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-border bg-[#fffaf3] p-4 text-sm shadow-[0_24px_70px_-40px_rgba(67,48,43,0.75)]">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-tier-filter">Tier</label>
+                  <select id="member-tier-filter" className="mt-2 h-10 w-full rounded-xl border border-input bg-white px-3 text-sm shadow-sm" value={tierFilter} onChange={(event) => setTierFilter(event.target.value)}>
+                    {["all", ...tiers].map((tier) => (
+                      <option key={tier} value={tier}>{tier === "all" ? "All tiers" : tier}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-4">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-wallet-filter">Wallet</label>
+                  <select id="member-wallet-filter" className="mt-2 h-10 w-full rounded-xl border border-input bg-white px-3 text-sm shadow-sm" value={walletFilter} onChange={(event) => setWalletFilter(event.target.value)}>
+                    <option value="all">All wallets</option>
+                    <option value="wallet-ready">Wallet ready</option>
+                    <option value="needs-wallet">Needs wallet</option>
+                  </select>
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline" className="rounded-2xl">
