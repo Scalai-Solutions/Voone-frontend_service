@@ -18,9 +18,9 @@ const reveal = {
 function getTimeGreeting() {
   const hour = new Date().getHours();
 
-  if (hour < 12) return "Good morning Aurea, welcome back.";
-  if (hour < 17) return "Good afternoon Aurea, welcome back.";
-  return "Good evening Aurea.";
+  if (hour < 12) return "Buenos días, Aurea. Bienvenida de nuevo.";
+  if (hour < 17) return "Buenas tardes, Aurea. Bienvenida de nuevo.";
+  return "Buenas noches, Aurea.";
 }
 
 export function DashboardMotion({ overview, primaryTemplate }: { overview: DashboardOverview; primaryTemplate: Template }) {
@@ -56,24 +56,24 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
 
         <div className="relative grid min-h-[calc(100vh-185px)] gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <div className="max-w-2xl">
-            <p className="voone-kicker">Every visit builds status.</p>
+            <p className="voone-kicker">Cada visita construye estatus.</p>
             <h1 className="mt-4 min-h-[7.8rem] font-serif text-5xl font-semibold tracking-tight text-white md:min-h-[9rem] md:text-6xl xl:text-[4.5rem]" aria-label={fullGreeting}>
               {displayedGreeting}
               {!reducedMotion ? <span className="ml-1 inline-block h-[0.82em] w-[3px] translate-y-1 bg-gold-light align-baseline animate-pulse" aria-hidden="true" /> : null}
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/64 md:text-lg">
-              Apple Wallet and Google Wallet passes sit at the center of the dashboard, so your team manages the club by looking at what members actually see.
+              Los pases de Apple Wallet y Google Wallet están en el centro del panel, para que tu equipo gestione el club viendo lo mismo que ven los miembros.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Metric label="Active members" value={overview.activeMembers.toLocaleString()} />
-              <Metric label="Monthly points" value={overview.pointsIssuedThisMonth.toLocaleString()} />
-              <Metric label="Wallet adds" value={overview.walletAdds.toLocaleString()} />
+              <Metric label="Miembros activos" value={overview.activeMembers.toLocaleString()} />
+              <Metric label="Puntos del mes" value={overview.pointsIssuedThisMonth.toLocaleString()} />
+              <Metric label="Altas Wallet" value={overview.walletAdds.toLocaleString()} />
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/dashboard/templates" className="group inline-flex items-center gap-2 rounded-2xl border border-white/18 bg-white/[0.08] px-5 py-3 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white/[0.16]">
-                Edit templates <ArrowUpRight className="h-4 w-4 text-gold-light transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                Editar plantillas <ArrowUpRight className="h-4 w-4 text-gold-light transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
             </div>
           </div>
@@ -91,7 +91,7 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
                   clinic: "AURÉA",
                   clinicSub: "APPLE WALLET",
                   member: "Verónica Navarro",
-                  tierLabel: "AUREA CLINIC",
+                  tierLabel: "CLÍNICA AUREA",
                   tier: "Gold",
                   points: "1.250",
                   balance: "€240",
@@ -114,7 +114,7 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
                   clinic: "AURÉA",
                   clinicSub: "GOOGLE WALLET",
                   member: "Álvaro Ferrer",
-                  tierLabel: "AUREA CLINIC",
+                  tierLabel: "CLÍNICA AUREA",
                   tier: "Diamond",
                   points: "4.980",
                   balance: "€620",
@@ -131,7 +131,7 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
               <p className="font-bold text-white">Apple Wallet</p>
-              <p className="text-xs text-gold-light/70">Aurea Clinic pass</p>
+              <p className="text-xs text-gold-light/70">Pase Clínica Aurea</p>
             </motion.div>
 
             <motion.div
@@ -140,7 +140,7 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
               transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
             >
               <p className="font-bold text-white">Google Wallet</p>
-              <p className="text-xs text-gold-light/70">Aurea Clinic pass</p>
+              <p className="text-xs text-gold-light/70">Pase Clínica Aurea</p>
             </motion.div>
           </div>
         </div>
@@ -149,17 +149,17 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
       </motion.section>
 
       <motion.section variants={reveal} transition={{ ...transition, delay: reducedMotion ? 0 : 0.12 }} className="grid gap-5 md:grid-cols-3">
-        <ActionCard href="/dashboard/templates" icon={CreditCard} title="Templates" text={`${primaryTemplate.name} is live for ${primaryTemplate.memberCount} members.`} />
-        <ActionCard href="/dashboard/members" icon={Users} title="Members" text="Search balances, wallet status, and visit history without leaving the studio." />
-        <ActionCard href="/dashboard/scan" icon={ScanLine} title="Reception mode" text="A full-screen scanning workflow built for phones and tablets." dark />
+        <ActionCard href="/dashboard/templates" icon={CreditCard} title="Plantillas" text={`${primaryTemplate.name} está activa para ${primaryTemplate.memberCount} miembros.`} />
+        <ActionCard href="/dashboard/members" icon={Users} title="Miembros" text="Busca saldos, estado Wallet e historial de visitas sin salir del estudio." />
+        <ActionCard href="/dashboard/scan" icon={ScanLine} title="Modo recepción" text="Un flujo de escaneo a pantalla completa para móviles y tablets." dark />
       </motion.section>
 
       <motion.section variants={reveal} transition={{ ...transition, delay: reducedMotion ? 0 : 0.2 }} className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
         <div className="voone-panel p-6 md:p-8">
           <div className="relative flex items-center justify-between">
             <div>
-              <p className="voone-kicker">Live activity</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">What changed today</h2>
+              <p className="voone-kicker">Actividad en vivo</p>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Cambios de hoy</h2>
             </div>
             <Sparkles className="h-6 w-6 text-gold" />
           </div>
@@ -182,14 +182,14 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
 
         <div className="voone-panel p-6 md:p-8">
           <div className="relative">
-            <p className="voone-kicker">Provider readiness</p>
+            <p className="voone-kicker">Estado de proveedores</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">{primaryTemplate.name}</h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">This template is the member-facing design used by the current wallet rollout.</p>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">Esta plantilla es el diseño que ven los miembros en el despliegue Wallet actual.</p>
             <div className="mt-6">
               <WalletStatusBadges statuses={primaryTemplate.walletStatus} />
             </div>
             <Link href="/dashboard/templates" className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-[#2a1c18] px-5 py-3 text-sm font-bold text-white transition-transform hover:-translate-y-0.5">
-              Manage templates <ArrowUpRight className="h-4 w-4 text-gold-light" />
+              Gestionar plantillas <ArrowUpRight className="h-4 w-4 text-gold-light" />
             </Link>
           </div>
         </div>
@@ -229,7 +229,7 @@ function FloatingScanButton() {
     <Link
       ref={buttonRef}
       href="/dashboard/scan"
-      aria-label="Open scan to credit"
+      aria-label="Abrir escaneo para acreditar puntos"
       className="absolute bottom-5 left-1/2 z-40 flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-full border border-white/45 bg-[linear-gradient(160deg,#f8ece0_0%,#f1dccd_48%,#e7c6b4_100%)] text-[#8a5b48] shadow-[0_26px_60px_-22px_rgba(231,198,180,0.95),inset_0_1px_1px_rgba(255,255,255,0.75)] transition-[filter] hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-light md:bottom-6 md:h-24 md:w-24"
     >
       <span className="absolute inset-2 rounded-full border border-[#c6a15b]/25 bg-white/10" />
@@ -273,7 +273,7 @@ function ActionCard({
         </span>
       </div>
       <div className="relative mt-8 flex items-center gap-2 font-serif text-3xl font-semibold tracking-tight">
-        Open <ArrowUpRight className="h-5 w-5 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+        Abrir <ArrowUpRight className="h-5 w-5 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
       </div>
     </Link>
   );

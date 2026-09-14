@@ -14,24 +14,31 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getClinics } from "@/lib/api-client";
 
+function formatPlan(plan: string) {
+  if (plan === "Launch") return "Lanzamiento";
+  if (plan === "Growth") return "Crecimiento";
+  if (plan === "Enterprise") return "Empresa";
+  return plan;
+}
+
 export function ClinicsList() {
   const [search, setSearch] = React.useState("");
   const reducedMotion = useReducedMotion();
   const clinics = useQuery({ queryKey: ["clinics"], queryFn: getClinics });
-  const filtered = clinics.data?.filter((clinic) => `${clinic.name} ${clinic.city} ${clinic.plan}`.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const filtered = clinics.data?.filter((clinic) => `${clinic.name} ${clinic.city} ${clinic.plan} ${formatPlan(clinic.plan)}`.toLowerCase().includes(search.toLowerCase())) ?? [];
 
   if (clinics.isLoading) return <Skeleton className="h-72 w-full" />;
-  if (clinics.error) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">Clinics could not load.</div>;
+  if (clinics.error) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar las clínicas.</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clinics or plans" className="h-11 rounded-2xl border-[#d9c9b6] bg-[#fffaf3]/86 pl-9 shadow-sm" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar clínicas o planes" className="h-11 rounded-2xl border-[#d9c9b6] bg-[#fffaf3]/86 pl-9 shadow-sm" />
         </div>
         <Button asChild className="rounded-2xl">
-          <Link href="/admin/clinics/new">Onboard clinic</Link>
+          <Link href="/admin/clinics/new">Dar de alta clínica</Link>
         </Button>
       </div>
       {filtered.length ? (
@@ -53,20 +60,20 @@ export function ClinicsList() {
                     <CardTitle className="mt-4 font-serif text-2xl tracking-tight">{clinic.name}</CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">{clinic.city}</p>
                   </div>
-                  <Badge variant={clinic.status === "active" ? "default" : "secondary"} className="capitalize">{clinic.status === "active" ? "Active" : "Setup"}</Badge>
+                  <Badge variant={clinic.status === "active" ? "default" : "secondary"} className="capitalize">{clinic.status === "active" ? "Activa" : "Configuración"}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-muted-foreground">
                 <div className="rounded-2xl border border-[#d9c9b6] bg-white/62 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Plan</p>
-                  <p className="mt-1 flex items-center gap-2 font-serif text-2xl font-semibold text-foreground"><Sparkles className="h-4 w-4 text-gold" />{clinic.plan}</p>
+                  <p className="mt-1 flex items-center gap-2 font-serif text-2xl font-semibold text-foreground"><Sparkles className="h-4 w-4 text-gold" />{formatPlan(clinic.plan)}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-foreground">
-                  <div className="rounded-2xl bg-secondary/78 p-3"><span className="flex items-center gap-2 text-2xl font-semibold"><Users className="h-4 w-4 text-gold" />{clinic.members}</span><span className="text-xs text-muted-foreground">Members</span></div>
-                  <div className="rounded-2xl bg-secondary/78 p-3"><span className="block text-2xl font-semibold">{clinic.templates}</span><span className="text-xs text-muted-foreground">Templates</span></div>
+                  <div className="rounded-2xl bg-secondary/78 p-3"><span className="flex items-center gap-2 text-2xl font-semibold"><Users className="h-4 w-4 text-gold" />{clinic.members}</span><span className="text-xs text-muted-foreground">Miembros</span></div>
+                  <div className="rounded-2xl bg-secondary/78 p-3"><span className="block text-2xl font-semibold">{clinic.templates}</span><span className="text-xs text-muted-foreground">Plantillas</span></div>
                 </div>
                 <Button asChild variant="outline" className="w-full rounded-2xl">
-                  <Link href={`/admin/clinics/${clinic.id}`}>Open clinic</Link>
+                  <Link href={`/admin/clinics/${clinic.id}`}>Abrir clínica</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -74,7 +81,7 @@ export function ClinicsList() {
           ))}
         </motion.div>
       ) : (
-        <EmptyState title="No clinics found" message="Try a different search, or onboard the next clinic." action={{ href: "/admin/clinics/new", label: "Onboard clinic" }} />
+        <EmptyState title="No se encontraron clínicas" message="Prueba otra búsqueda o da de alta la siguiente clínica." action={{ href: "/admin/clinics/new", label: "Dar de alta clínica" }} />
       )}
     </div>
   );

@@ -14,7 +14,7 @@ export default async function WalletStatusPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Wallet" title="Wallet status" description="Provider readiness and recent wallet API errors." />
+      <PageHeader eyebrow="Wallet" title="Estado Wallet" description="Disponibilidad de proveedores y errores recientes de la API Wallet." />
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="rounded-lg">
@@ -22,11 +22,11 @@ export default async function WalletStatusPage() {
             <CardTitle>Apple Wallet</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Badge variant={wallet.appleEnabled ? "default" : "secondary"}>{wallet.appleEnabled ? "Enabled" : "Coming soon"}</Badge>
+            <Badge variant={wallet.appleEnabled ? "default" : "secondary"}>{wallet.appleEnabled ? "Activo" : "Próximamente"}</Badge>
             <div className="rounded-lg border border-warning/40 bg-[#fff7e7] p-4">
-              <p className="text-sm font-medium">Certificate expiry</p>
-              <p className="mt-2 text-3xl font-semibold">{expiryDays} days</p>
-              <p className="mt-1 text-sm text-muted-foreground">Expires {new Date(wallet.appleCertificateExpiresAt).toLocaleDateString()}</p>
+              <p className="text-sm font-medium">Vencimiento del certificado</p>
+              <p className="mt-2 text-3xl font-semibold">{expiryDays} días</p>
+              <p className="mt-1 text-sm text-muted-foreground">Vence el {new Date(wallet.appleCertificateExpiresAt).toLocaleDateString("es-ES")}</p>
             </div>
           </CardContent>
         </Card>
@@ -36,15 +36,15 @@ export default async function WalletStatusPage() {
             <CardTitle>Google Wallet</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Badge variant={wallet.googlePublishingStatus === "live" ? "default" : "secondary"}>{wallet.googlePublishingStatus === "live" ? "Live" : "Demo access"}</Badge>
-            <p className="text-sm text-muted-foreground">Publishing access is read from the wallet status API when configured.</p>
+            <Badge variant={wallet.googlePublishingStatus === "live" ? "default" : "secondary"}>{wallet.googlePublishingStatus === "live" ? "Producción" : "Acceso demo"}</Badge>
+            <p className="text-sm text-muted-foreground">El acceso de publicación se lee desde la API de estado Wallet cuando está configurada.</p>
           </CardContent>
         </Card>
       </section>
 
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Recent API errors</CardTitle>
+          <CardTitle>Errores recientes de API</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {wallet.recentErrors.map((item) => (

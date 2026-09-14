@@ -14,9 +14,9 @@ import { Label } from "@/components/ui/label";
 import { createClinic, type Clinic } from "@/lib/api-client";
 
 const clinicSchema = z.object({
-  name: z.string().min(2, "Add the clinic name"),
-  city: z.string().min(2, "Add the city"),
-  plan: z.string().min(2, "Choose a plan"),
+  name: z.string().min(2, "Añade el nombre de la clínica"),
+  city: z.string().min(2, "Añade la ciudad"),
+  plan: z.string().min(2, "Elige un plan"),
 });
 
 type ClinicFormValues = z.infer<typeof clinicSchema>;
@@ -30,12 +30,12 @@ export function ClinicForm() {
     return (
       <Card className="mx-auto max-w-xl rounded-lg">
         <CardHeader>
-          <CardTitle>{clinic.name} is ready for setup</CardTitle>
+          <CardTitle>{clinic.name} está lista para configurarse</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
-          <p>Choose the clinic&apos;s wallet template next, scoped to this tenant.</p>
+          <p>Elige ahora la plantilla Wallet de esta clínica.</p>
           <Button asChild>
-            <Link href="/dashboard/templates">Choose template</Link>
+            <Link href="/dashboard/templates">Elegir plantilla</Link>
           </Button>
         </CardContent>
       </Card>
@@ -46,24 +46,24 @@ export function ClinicForm() {
     <form onSubmit={form.handleSubmit((input) => mutation.mutate(input))} className="mx-auto max-w-2xl">
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Onboard clinic</CardTitle>
+          <CardTitle>Dar de alta clínica</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Field label="Clinic name" error={form.formState.errors.name?.message}>
+          <Field label="Nombre de la clínica" error={form.formState.errors.name?.message}>
             <Input {...form.register("name")} placeholder="Luma Skin Studio" />
           </Field>
-          <Field label="City" error={form.formState.errors.city?.message}>
+          <Field label="Ciudad" error={form.formState.errors.city?.message}>
             <Input {...form.register("city")} placeholder="Valencia" />
           </Field>
           <Field label="Plan" error={form.formState.errors.plan?.message}>
             <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm" {...form.register("plan")}>
-              <option>Launch</option>
-              <option>Growth</option>
-              <option>Enterprise</option>
+              <option value="Launch">Lanzamiento</option>
+              <option value="Growth">Crecimiento</option>
+              <option value="Enterprise">Empresa</option>
             </select>
           </Field>
-          {mutation.error ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Clinic could not be created.</p> : null}
-          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Creating..." : "Create clinic"}</Button>
+          {mutation.error ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">No se pudo crear la clínica.</p> : null}
+          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Creando..." : "Crear clínica"}</Button>
         </CardContent>
       </Card>
     </form>

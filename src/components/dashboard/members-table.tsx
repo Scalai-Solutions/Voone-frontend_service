@@ -19,7 +19,7 @@ const columnHelper = createColumnHelper<Member>();
 
 const columns = [
   columnHelper.accessor("name", {
-    header: "Member",
+    header: "Miembro",
     cell: (info) => (
       <div>
         <Link className="font-semibold text-[#2b1a15] hover:text-primary" href={`/dashboard/members/${info.row.original.id}`}>{info.getValue()}</Link>
@@ -27,15 +27,15 @@ const columns = [
       </div>
     ),
   }),
-  columnHelper.accessor("templateName", { header: "Template" }),
-  columnHelper.accessor("points", { header: "Balance", cell: (info) => <span className="font-serif text-2xl font-semibold">{info.getValue().toLocaleString()}</span> }),
-  columnHelper.accessor("tier", { header: "Tier", cell: (info) => <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs font-bold text-[#7a5526]">{info.getValue()}</span> }),
+  columnHelper.accessor("templateName", { header: "Plantilla" }),
+  columnHelper.accessor("points", { header: "Saldo", cell: (info) => <span className="font-serif text-2xl font-semibold">{info.getValue().toLocaleString()}</span> }),
+  columnHelper.accessor("tier", { header: "Nivel", cell: (info) => <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs font-bold text-[#7a5526]">{info.getValue()}</span> }),
   columnHelper.display({ header: "Wallet", cell: (info) => <WalletStatusBadges statuses={info.row.original.walletStatus} /> }),
   columnHelper.display({
-    header: "Actions",
+    header: "Acciones",
     cell: (info) => (
       <Button asChild variant="outline" size="sm" className="rounded-xl">
-        <Link href={`/dashboard/members/${info.row.original.id}`}>Open</Link>
+        <Link href={`/dashboard/members/${info.row.original.id}`}>Abrir</Link>
       </Button>
     ),
   }),
@@ -70,19 +70,19 @@ export function MembersTable() {
   }
 
   if (members.error) {
-    return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">Members could not load. Check the API connection and try again.</div>;
+    return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar los miembros. Revisa la conexión con la API e inténtalo de nuevo.</div>;
   }
 
   if (!members.data?.length) {
-    return <EmptyState title="No members yet" message="Add your first member and send them a wallet pass from reception." action={{ href: "/dashboard/members/new", label: "Add member" }} />;
+    return <EmptyState title="Aún no hay miembros" message="Añade el primer miembro y envíale un pase Wallet desde recepción." action={{ href: "/dashboard/members/new", label: "Añadir miembro" }} />;
   }
 
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
-        <MetricCard icon={Users} label="Members" value={totalMembers.toLocaleString()} detail={`${filteredMembers.length} in current view`} />
-        <MetricCard icon={WalletCards} label="Wallet ready" value={walletReady.toLocaleString()} detail="Google or Apple pass added" />
-        <MetricCard icon={Sparkles} label="Point balance" value={totalPoints.toLocaleString()} detail="Across active members" />
+        <MetricCard icon={Users} label="Miembros" value={totalMembers.toLocaleString()} detail={`${filteredMembers.length} en la vista actual`} />
+        <MetricCard icon={WalletCards} label="Wallet lista" value={walletReady.toLocaleString()} detail="Pase añadido en Google o Apple" />
+        <MetricCard icon={Sparkles} label="Saldo de puntos" value={totalPoints.toLocaleString()} detail="Entre miembros activos" />
       </div>
 
       <div className="voone-panel p-4 md:p-5">
@@ -90,7 +90,7 @@ export function MembersTable() {
           <div className="relative max-w-xl flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name, member ID, phone, email, or template"
+              placeholder="Buscar por nombre, ID, teléfono, email o plantilla"
               className="pl-9"
               value={(table.getState().globalFilter as string | undefined) ?? ""}
               onChange={(event) => table.setGlobalFilter(event.target.value)}
@@ -98,24 +98,24 @@ export function MembersTable() {
           </div>
           <div className="relative">
             <Button type="button" variant="outline" className="rounded-2xl" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
-              <Filter className="mr-2 h-4 w-4" /> Filters
+              <Filter className="mr-2 h-4 w-4" /> Filtros
             </Button>
             {filtersOpen ? (
               <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-border bg-[#fffaf3] p-4 text-sm shadow-[0_24px_70px_-40px_rgba(67,48,43,0.75)]">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-tier-filter">Tier</label>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-tier-filter">Nivel</label>
                   <select id="member-tier-filter" className="mt-2 h-10 w-full rounded-xl border border-input bg-white px-3 text-sm shadow-sm" value={tierFilter} onChange={(event) => setTierFilter(event.target.value)}>
                     {["all", ...tiers].map((tier) => (
-                      <option key={tier} value={tier}>{tier === "all" ? "All tiers" : tier}</option>
+                      <option key={tier} value={tier}>{tier === "all" ? "Todos los niveles" : tier}</option>
                     ))}
                   </select>
                 </div>
                 <div className="mt-4">
                   <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-wallet-filter">Wallet</label>
                   <select id="member-wallet-filter" className="mt-2 h-10 w-full rounded-xl border border-input bg-white px-3 text-sm shadow-sm" value={walletFilter} onChange={(event) => setWalletFilter(event.target.value)}>
-                    <option value="all">All wallets</option>
-                    <option value="wallet-ready">Wallet ready</option>
-                    <option value="needs-wallet">Needs wallet</option>
+                    <option value="all">Todas las Wallet</option>
+                    <option value="wallet-ready">Wallet lista</option>
+                    <option value="needs-wallet">Sin Wallet</option>
                   </select>
                 </div>
               </div>
@@ -123,13 +123,13 @@ export function MembersTable() {
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline" className="rounded-2xl">
-              <Link href="/dashboard/scan"><QrCode className="mr-2 h-4 w-4" /> Scan</Link>
+              <Link href="/dashboard/scan"><QrCode className="mr-2 h-4 w-4" /> Escanear</Link>
             </Button>
             <Button type="button" variant="outline" className="rounded-2xl">
-              <Download className="mr-2 h-4 w-4" /> Export
+              <Download className="mr-2 h-4 w-4" /> Exportar
             </Button>
             <Button asChild className="rounded-2xl">
-              <Link href="/dashboard/members/new"><UserPlus className="mr-2 h-4 w-4" /> Add</Link>
+              <Link href="/dashboard/members/new"><UserPlus className="mr-2 h-4 w-4" /> Añadir</Link>
             </Button>
           </div>
         </div>

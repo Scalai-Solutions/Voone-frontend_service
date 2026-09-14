@@ -17,8 +17,8 @@ const ACCOUNTS = {
 } as const;
 
 const LOGIN_OPTIONS = [
-  { id: "client.voone.ai", label: "Client", detail: "Dashboard" },
-  { id: "admin.voone.ai", label: "Admin", detail: "Control panel" },
+  { id: "client.voone.ai", label: "Cliente", detail: "Panel" },
+  { id: "admin.voone.ai", label: "Administración", detail: "Control" },
 ] as const;
 
 type AccountKey = keyof typeof ACCOUNTS;
@@ -36,7 +36,7 @@ export function LocalLoginForm() {
     const account = ACCOUNTS[normalizedIdentifier];
 
     if (!account || password !== PASSWORD) {
-      setError("Use a valid Voone login and password.");
+      setError("Usa un acceso de Voone válido y su contraseña.");
       return;
     }
 
@@ -72,7 +72,7 @@ export function LocalLoginForm() {
         })}
       </div>
       <div>
-        <Label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]" htmlFor="voone-login-id">Workspace</Label>
+        <Label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]" htmlFor="voone-login-id">Espacio</Label>
         <Input
           id="voone-login-id"
           autoComplete="username"
@@ -86,7 +86,7 @@ export function LocalLoginForm() {
         />
       </div>
       <div>
-        <Label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]" htmlFor="voone-login-password">Password</Label>
+        <Label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]" htmlFor="voone-login-password">Contraseña</Label>
         <Input
           id="voone-login-password"
           type="password"
@@ -101,7 +101,7 @@ export function LocalLoginForm() {
       </div>
       {error ? <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
       <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] shadow-[0_18px_42px_-24px_rgba(67,48,43,0.95)]">
-        Login <LogIn className="ml-2 h-4 w-4" />
+        Entrar <LogIn className="ml-2 h-4 w-4" />
       </Button>
     </form>
   );

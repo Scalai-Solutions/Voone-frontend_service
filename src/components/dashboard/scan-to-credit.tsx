@@ -21,7 +21,7 @@ export function ScanToCredit() {
   const [manualPoints, setManualPoints] = React.useState("");
   const [referralCode, setReferralCode] = React.useState("");
   const [showReferral, setShowReferral] = React.useState(false);
-  const [scanMessage, setScanMessage] = React.useState("Point the camera at a member QR code.");
+  const [scanMessage, setScanMessage] = React.useState("Apunta la cámara al QR del miembro.");
   const [successBalance, setSuccessBalance] = React.useState<number | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
   const [displayedPoints, setDisplayedPoints] = React.useState<number | null>(null);
@@ -34,7 +34,7 @@ export function ScanToCredit() {
     },
     onError: (_error, _variables, context) => {
       setDisplayedPoints(context?.previousPoints ?? null);
-      setToast("Points were not saved. Try once more before the member leaves.");
+      setToast("No se guardaron los puntos. Inténtalo una vez más antes de que el miembro se vaya.");
     },
     onSuccess: (member) => {
       setSelectedMember(member);
@@ -72,13 +72,13 @@ export function ScanToCredit() {
           if (member) {
             setSelectedMember(member);
             setDisplayedPoints(member.points);
-            setScanMessage("Member found. Choose points to add.");
+            setScanMessage("Miembro encontrado. Elige los puntos a añadir.");
           } else {
-            setScanMessage("No member matched this code. Search by member ID below.");
+            setScanMessage("Ningún miembro coincide con este código. Busca por ID abajo.");
           }
         });
       } catch {
-        setScanMessage("Camera could not start. Search by member ID below.");
+        setScanMessage("No se pudo iniciar la cámara. Busca por ID abajo.");
       }
     }
 
@@ -99,7 +99,7 @@ export function ScanToCredit() {
     setReferralCode("");
     setSuccessBalance(null);
     setDisplayedPoints(null);
-    setScanMessage("Ready for the next member.");
+    setScanMessage("Listo para el siguiente miembro.");
   }
 
   return (
@@ -114,14 +114,14 @@ export function ScanToCredit() {
             <div className="absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 py-2 text-sm font-bold text-white backdrop-blur-xl">
                 <QrCode className="h-4 w-4 text-gold-light" />
-                Camera active
+                Cámara activa
               </div>
               <Button type="button" variant="secondary" size="sm" className="rounded-full" onClick={resetForNextScan}>
-                <RotateCcw className="mr-2 h-4 w-4" /> Reset
+                <RotateCcw className="mr-2 h-4 w-4" /> Reiniciar
               </Button>
               <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-[#f5e3cc]/12 px-4 py-2 text-sm text-gold-light backdrop-blur-xl">
                 <Sparkles className="h-4 w-4" />
-                {points > 0 ? `+${points.toLocaleString()} pending` : "Choose points"}
+                {points > 0 ? `+${points.toLocaleString()} pendientes` : "Elige puntos"}
               </div>
             </div>
 
@@ -134,7 +134,7 @@ export function ScanToCredit() {
               <div className="flex h-full items-center justify-center text-center">
                 <div className="rounded-2xl border border-white/12 bg-black/24 px-4 py-3 backdrop-blur-xl">
                   <QrCode className="mx-auto h-7 w-7 text-gold-light" />
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/58">Align pass QR</p>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/58">Alinea el QR</p>
                 </div>
               </div>
             </div>
@@ -150,13 +150,13 @@ export function ScanToCredit() {
                       </div>
                       <div>
                         <p className="font-serif text-2xl font-semibold">{selectedMember.name}</p>
-                        <p className="text-sm text-white/64">Current balance: {(displayedPoints ?? selectedMember.points).toLocaleString()} points</p>
+                        <p className="text-sm text-white/64">Saldo actual: {(displayedPoints ?? selectedMember.points).toLocaleString()} puntos</p>
                       </div>
                     </div>
                   ) : null}
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold-light/72">Next credit</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold-light/72">Próximo crédito</p>
                   <p className="font-serif text-3xl font-semibold">{points > 0 ? `+${points.toLocaleString()}` : "--"}</p>
                 </div>
               </div>
@@ -169,9 +169,9 @@ export function ScanToCredit() {
           {successBalance !== null ? (
             <div className="rounded-[26px] border border-success/30 bg-success/10 p-6 text-center text-success shadow-[0_22px_50px_-40px_rgba(47,125,87,0.75)]">
               <CheckCircle2 className="mx-auto h-12 w-12" />
-              <p className="mt-3 font-serif text-3xl font-semibold">Saved</p>
-              <p className="mt-1 text-sm">New balance: {successBalance.toLocaleString()} points</p>
-              <Button type="button" className="mt-5 rounded-2xl" onClick={resetForNextScan}>Scan next member</Button>
+              <p className="mt-3 font-serif text-3xl font-semibold">Guardado</p>
+              <p className="mt-1 text-sm">Nuevo saldo: {successBalance.toLocaleString()} puntos</p>
+              <Button type="button" className="mt-5 rounded-2xl" onClick={resetForNextScan}>Escanear siguiente miembro</Button>
             </div>
           ) : null}
 
@@ -179,14 +179,14 @@ export function ScanToCredit() {
             <div className="relative">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="voone-kicker">Member</p>
-                  <h2 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Find the pass holder</h2>
+                  <p className="voone-kicker">Miembro</p>
+                  <h2 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Buscar titular del pase</h2>
                 </div>
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#241612] text-gold-light">
                   <Search className="h-5 w-5" />
                 </span>
               </div>
-              <Label className="mb-2 mt-4 block">Manual member lookup</Label>
+              <Label className="mb-2 mt-4 block">Búsqueda manual</Label>
               <div className="flex gap-2">
                 <Input value={manualMemberId} onChange={(event) => setManualMemberId(event.target.value)} placeholder="MEM-1048" />
                 <Button
@@ -198,13 +198,13 @@ export function ScanToCredit() {
                     if (member) {
                       setSelectedMember(member);
                       setDisplayedPoints(member.points);
-                      setScanMessage("Member found. Choose points to add.");
+                      setScanMessage("Miembro encontrado. Elige los puntos a añadir.");
                     } else {
-                      setScanMessage("No member found with that ID.");
+                      setScanMessage("No hay ningún miembro con ese ID.");
                     }
                   }}
                 >
-                  Find
+                  Buscar
                 </Button>
               </div>
             </div>
@@ -214,8 +214,8 @@ export function ScanToCredit() {
             <div className="relative">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="voone-kicker">Treatment</p>
-                  <h2 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Credit the visit</h2>
+                  <p className="voone-kicker">Tratamiento</p>
+                  <h2 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Acreditar la visita</h2>
                 </div>
                 <BadgeCheck className="h-6 w-6 text-gold" />
               </div>
@@ -238,22 +238,22 @@ export function ScanToCredit() {
               </div>
 
               <div className="mt-4">
-                <Label className="mb-2 block">Manual amount</Label>
-                <Input type="number" inputMode="numeric" min="1" value={manualPoints} onChange={(event) => { setManualPoints(event.target.value); setSelectedTreatment(null); }} placeholder="Points" />
+                <Label className="mb-2 block">Cantidad manual</Label>
+                <Input type="number" inputMode="numeric" min="1" value={manualPoints} onChange={(event) => { setManualPoints(event.target.value); setSelectedTreatment(null); }} placeholder="Puntos" />
               </div>
 
               <button type="button" className="mt-4 text-sm font-bold text-primary" onClick={() => setShowReferral((value) => !value)}>
-                {showReferral ? "Hide referral code" : "Add referral code"}
+                {showReferral ? "Ocultar código de referido" : "Añadir código de referido"}
               </button>
-              {showReferral ? <Input className="mt-2" value={referralCode} onChange={(event) => setReferralCode(event.target.value)} placeholder="Optional referral code" /> : null}
+              {showReferral ? <Input className="mt-2" value={referralCode} onChange={(event) => setReferralCode(event.target.value)} placeholder="Código de referido opcional" /> : null}
 
               <Button
                 type="button"
                 className="mt-4 h-12 w-full rounded-2xl text-base"
                 disabled={!selectedMember || points <= 0 || confirmMutation.isPending}
-                onClick={() => selectedMember && confirmMutation.mutate({ member: selectedMember, points, label: selectedTreatment?.name ?? "Manual credit" })}
+                onClick={() => selectedMember && confirmMutation.mutate({ member: selectedMember, points, label: selectedTreatment?.name ?? "Crédito manual" })}
               >
-                {confirmMutation.isPending ? "Saving..." : selectedMember ? `Confirm ${points > 0 ? `+${points.toLocaleString()}` : ""} points` : "Select member first"}
+                {confirmMutation.isPending ? "Guardando..." : selectedMember ? `Confirmar ${points > 0 ? `+${points.toLocaleString()}` : ""} puntos` : "Selecciona primero un miembro"}
               </Button>
             </div>
           </div>

@@ -19,24 +19,24 @@ export default function LoginPage() {
             </Link>
 
             <div>
-              <p className="voone-kicker text-gold-light">Workspace access</p>
-              <h1 className="mt-4 max-w-xl font-serif text-5xl font-semibold tracking-tight text-white md:text-6xl">Welcome back.</h1>
-              <p className="mt-5 max-w-lg text-base leading-7 text-white/64">Open the clinic dashboard or Voone admin console with the local workspace credentials.</p>
+              <p className="voone-kicker text-gold-light">Acceso al espacio</p>
+              <h1 className="mt-4 max-w-xl font-serif text-5xl font-semibold tracking-tight text-white md:text-6xl">Bienvenido de nuevo.</h1>
+              <p className="mt-5 max-w-lg text-base leading-7 text-white/64">Abre el panel de la clínica o la consola de administración de Voone con las credenciales locales.</p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <LoginMetric icon={CreditCard} label="Client" value="Dashboard" />
-              <LoginMetric icon={ShieldCheck} label="Admin" value="Panel" />
-              <LoginMetric icon={Sparkles} label="Mode" value="Local" />
+              <LoginMetric icon={CreditCard} label="Cliente" value="Panel" />
+              <LoginMetric icon={ShieldCheck} label="Administración" value="Panel" />
+              <LoginMetric icon={Sparkles} label="Modo" value="Local" />
             </div>
           </div>
         </div>
 
         <Card className="order-1 overflow-hidden rounded-[28px] border-[#d9c9b6] bg-[#fffaf3]/88 shadow-[0_30px_90px_-52px_rgba(67,48,43,0.85)] backdrop-blur-xl lg:order-2">
           <CardHeader className="pb-4 pt-8 md:px-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#a47845]">Sign in</p>
-            <CardTitle className="mt-2 font-serif text-4xl font-semibold tracking-tight">Access Voone</CardTitle>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose a workspace type, enter the password, and continue.</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#a47845]">Iniciar sesión</p>
+            <CardTitle className="mt-2 font-serif text-4xl font-semibold tracking-tight">Accede a Voone</CardTitle>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Elige el tipo de espacio, introduce la contraseña y continúa.</p>
           </CardHeader>
           <CardContent className="pb-8 md:px-8">
             <LocalLoginForm />

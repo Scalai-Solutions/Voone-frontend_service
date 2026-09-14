@@ -56,9 +56,9 @@ export const WALLET_THEMES = { gold: GOLD, diamond: DIAMOND };
 
 const DEFAULT: WalletCardData = {
   clinic: "AURÉA",
-  clinicSub: "CLINIC CLUB",
+  clinicSub: "CLUB CLÍNICA",
   member: "Verónica Navarro",
-  tierLabel: "GOLD MEMBER",
+  tierLabel: "MIEMBRO GOLD",
   tier: "Gold",
   points: "1.250",
   balance: "€240",
@@ -150,7 +150,7 @@ export function WalletCard({ data, theme = GOLD, defaultExpanded = false, intera
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[9px] tracking-[0.2em]" style={{ color: theme.accentSoft }}>CLUB PASS</p>
-                <p className="text-[10px]" style={{ color: theme.accentSoft }}>Member since {d.since}</p>
+                <p className="text-[10px]" style={{ color: theme.accentSoft }}>Miembro desde {d.since}</p>
               </div>
               <div className="w-14 h-14 bg-white rounded-md p-1 shadow-inner">
                 <div className="w-full h-full grid grid-cols-5 grid-rows-5 gap-[1.5px]">

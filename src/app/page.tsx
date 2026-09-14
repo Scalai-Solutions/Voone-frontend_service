@@ -61,7 +61,7 @@ export default function Home() {
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/login" className="whitespace-nowrap rounded-full border border-border/80 bg-white/70 px-4 py-2.5 text-sm font-semibold text-foreground transition hover:-translate-y-0.5 hover:bg-white">
-              Login
+              Iniciar sesión
             </Link>
             <a
               href="https://calendly.com/business-voone/call"
@@ -101,7 +101,7 @@ export default function Home() {
               <br />dentro del Wallet
             </>
           )}
-          description="El cliente escanea un QR o acerca su móvil, añade su Membership Pass a Apple o Google Wallet y empieza a acumular. Sin descargar nada. Puntos, nivel y próxima recompensa, siempre a mano, en el móvil que ya lleva encima."
+          description="El cliente escanea un QR o acerca su móvil, añade su pase de socio a Apple o Google Wallet y empieza a acumular. Sin descargar nada. Puntos, nivel y próxima recompensa, siempre a mano, en el móvil que ya lleva encima."
           primaryImageSrc="/mockup-pass.png"
           secondaryImageSrc="/mockup-alta.png"
           footer={(
@@ -187,13 +187,13 @@ export default function Home() {
               <div className="absolute left-0 top-0 z-10 rotate-[-8deg]">
                 <WalletCard
                   theme={WALLET_THEMES.gold}
-                  data={{ clinic: "AURÉA", clinicSub: "CLINIC CLUB", member: "Verónica Navarro", tierLabel: "GOLD MEMBER", tier: "Gold", points: "1.250", balance: "€240", reward: "Hydrafacial a 250 pts - te faltan 2 visitas", progress: 83, since: "2026" }}
+                  data={{ clinic: "AURÉA", clinicSub: "CLUB CLÍNICA", member: "Verónica Navarro", tierLabel: "MIEMBRO GOLD", tier: "Gold", points: "1.250", balance: "€240", reward: "Hydrafacial a 250 pts - te faltan 2 visitas", progress: 83, since: "2026" }}
                 />
               </div>
               <div className="absolute left-[52px] top-[150px] z-20 rotate-[6deg]">
                 <WalletCard
                   theme={WALLET_THEMES.diamond}
-                  data={{ clinic: "LUMIÈRE", clinicSub: "MEDICAL BEAUTY", member: "Álvaro Ferrer", tierLabel: "DIAMOND", tier: "Diamond", points: "4.980", balance: "€620", reward: "Sesión láser a 5.000 pts - te faltan 20 pts", progress: 96, since: "2025" }}
+                  data={{ clinic: "LUMIÈRE", clinicSub: "BELLEZA MÉDICA", member: "Álvaro Ferrer", tierLabel: "DIAMOND", tier: "Diamond", points: "4.980", balance: "€620", reward: "Sesión láser a 5.000 pts - te faltan 20 pts", progress: 96, since: "2025" }}
                 />
               </div>
             </div>

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-kit";
 export default function NewMemberPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Members" title="Add member" description="Create the pass and share it without asking the client to type anything." />
+      <PageHeader eyebrow="Miembros" title="Añadir miembro" description="Crea el pase y compártelo sin pedir al cliente que escriba nada." />
       <MemberForm />
     </div>
   );

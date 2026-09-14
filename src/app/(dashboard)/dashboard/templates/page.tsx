@@ -13,9 +13,9 @@ export default async function TemplatesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Templates"
-        title="Wallet templates"
-        description="Choose the starting design for the clinic pass, then fine tune the selected template in the editor."
+        eyebrow="Plantillas"
+        title="Plantillas Wallet"
+        description="Elige el diseño inicial del pase de la clínica y después ajusta la plantilla en el editor."
       />
 
       <TemplateChooser

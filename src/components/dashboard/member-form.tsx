@@ -15,9 +15,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { createMember, getTemplates, type Member } from "@/lib/api-client";
 
 const memberSchema = z.object({
-  name: z.string().min(2, "Add the member name"),
-  identity: z.string().min(5, "Add a phone number or email"),
-  templateId: z.string().min(1, "Choose a template"),
+  name: z.string().min(2, "Añade el nombre del miembro"),
+  identity: z.string().min(5, "Añade un teléfono o email"),
+  templateId: z.string().min(1, "Elige una plantilla"),
 });
 
 type MemberFormValues = z.infer<typeof memberSchema>;
@@ -35,11 +35,11 @@ export function MemberForm() {
   });
 
   if (createdMember) {
-    const shareText = encodeURIComponent(`Your Voone wallet pass is ready: ${createdMember.walletLink}`);
+    const shareText = encodeURIComponent(`Tu pase Wallet de Voone está listo: ${createdMember.walletLink}`);
     return (
       <Card className="mx-auto max-w-xl rounded-lg">
         <CardHeader>
-          <CardTitle>Member created</CardTitle>
+          <CardTitle>Miembro creado</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="rounded-lg bg-secondary p-4">
@@ -59,7 +59,7 @@ export function MemberForm() {
               </a>
             </Button>
             <Button asChild variant="outline">
-              <a href={`mailto:?subject=Your Voone pass&body=${shareText}`}>
+              <a href={`mailto:?subject=Tu pase Voone&body=${shareText}`}>
                 <Mail className="mr-2 h-4 w-4" /> Email
               </a>
             </Button>
@@ -73,21 +73,21 @@ export function MemberForm() {
     <form onSubmit={form.handleSubmit((input) => mutation.mutate(input))} className="mx-auto max-w-2xl space-y-4">
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Add member</CardTitle>
+          <CardTitle>Añadir miembro</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Field label="Name" error={form.formState.errors.name?.message}>
+          <Field label="Nombre" error={form.formState.errors.name?.message}>
             <Input {...form.register("name")} placeholder="Veronica Navarro" />
           </Field>
-          <Field label="Phone or email" error={form.formState.errors.identity?.message}>
-            <Input {...form.register("identity")} placeholder="+34 612 440 901 or name@example.com" />
+          <Field label="Teléfono o email" error={form.formState.errors.identity?.message}>
+            <Input {...form.register("identity")} placeholder="+34 612 440 901 o nombre@example.com" />
           </Field>
-          <Field label="Template" error={form.formState.errors.templateId?.message}>
+          <Field label="Plantilla" error={form.formState.errors.templateId?.message}>
             {templates.isLoading ? (
               <Skeleton className="h-10 w-full" />
             ) : (
               <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm" {...form.register("templateId")}>
-                <option value="">Choose a template</option>
+                <option value="">Elige una plantilla</option>
                 {templates.data?.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -96,9 +96,9 @@ export function MemberForm() {
               </select>
             )}
           </Field>
-          {mutation.error ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Could not create this member. Try again.</p> : null}
+          {mutation.error ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">No se pudo crear este miembro. Inténtalo de nuevo.</p> : null}
           <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
-            {mutation.isPending ? "Creating..." : "Create member"}
+            {mutation.isPending ? "Creando..." : "Crear miembro"}
           </Button>
         </CardContent>
       </Card>

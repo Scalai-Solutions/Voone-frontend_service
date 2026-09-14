@@ -7,10 +7,10 @@ const PROVIDER_LABELS: Record<WalletProvider, string> = {
 };
 
 const STATUS_LABELS: Record<ProviderStatus, string> = {
-  added: "Added",
-  not_added: "Not added",
-  unavailable: "Coming soon",
-  failed: "Needs attention",
+  added: "Añadido",
+  not_added: "Sin añadir",
+  unavailable: "Próximamente",
+  failed: "Requiere atención",
 };
 
 export function WalletStatusBadges({ statuses }: { statuses: Record<WalletProvider, ProviderStatus> }) {

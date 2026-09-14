@@ -17,13 +17,13 @@ import { getTemplateStarterValues, scratchTemplateValues, type TemplateStarterId
 import { saveTemplate, type Template } from "@/lib/api-client";
 
 const templateSchema = z.object({
-  name: z.string().min(2, "Add a template name"),
-  clinicBranding: z.string().min(2, "Add the clinic name shown on the pass"),
-  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Choose a pass color"),
-  pointsLabel: z.string().min(2, "Add the points label"),
-  tierLabel: z.string().min(2, "Add the tier label"),
-  benefits: z.string().min(8, "Add a short benefits message"),
-  infoText: z.string().min(8, "Add a short info message"),
+  name: z.string().min(2, "Añade un nombre de plantilla"),
+  clinicBranding: z.string().min(2, "Añade el nombre de la clínica que se verá en el pase"),
+  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Elige un color para el pase"),
+  pointsLabel: z.string().min(2, "Añade la etiqueta de puntos"),
+  tierLabel: z.string().min(2, "Añade la etiqueta de nivel"),
+  benefits: z.string().min(8, "Añade un mensaje breve de beneficios"),
+  infoText: z.string().min(8, "Añade un mensaje breve de información"),
 });
 
 type TemplateFormValues = z.infer<typeof templateSchema>;
@@ -88,7 +88,7 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
       const backgroundLuminance = luminance(values.backgroundColor);
       setHeroWarning(
         Math.abs(imageLuminance - backgroundLuminance) < 0.22
-          ? "This image is close to the pass color. Choose a stronger image or adjust the background so the banner does not disappear."
+          ? "Esta imagen se parece demasiado al color del pase. Elige una imagen con más contraste o ajusta el fondo para que el banner no desaparezca."
           : null
       );
       URL.revokeObjectURL(objectUrl);
@@ -102,15 +102,15 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
         <section className="voone-panel p-5">
           <div className="relative">
             <div>
-              <p className="voone-kicker">Edit template</p>
-              <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Pass details</h1>
+              <p className="voone-kicker">Editar plantilla</p>
+              <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Detalles del pase</h1>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Template name" error={form.formState.errors.name?.message}>
+              <Field label="Nombre de la plantilla" error={form.formState.errors.name?.message}>
                 <Input {...form.register("name")} placeholder="Gold Beauty Club" />
               </Field>
-              <Field label="Clinic branding" error={form.formState.errors.clinicBranding?.message}>
-                <Input {...form.register("clinicBranding")} placeholder="Aurea Clinic Club" />
+              <Field label="Marca de la clínica" error={form.formState.errors.clinicBranding?.message}>
+                <Input {...form.register("clinicBranding")} placeholder="Club Clínica Aurea" />
               </Field>
             </div>
           </div>
@@ -119,11 +119,11 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
         <section className="voone-panel p-5">
           <div className="relative">
             <div>
-              <p className="voone-kicker">Look</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Color and media</h2>
+              <p className="voone-kicker">Diseño</p>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Color e imágenes</h2>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Background color" error={form.formState.errors.backgroundColor?.message}>
+              <Field label="Color de fondo" error={form.formState.errors.backgroundColor?.message}>
                 <div className="flex items-center gap-3 rounded-md border border-input bg-card px-3 py-2 shadow-sm">
                   <input
                     type="color"
@@ -132,13 +132,13 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
                     onChange={(event) => form.setValue("backgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })}
                   />
                   <input type="hidden" {...form.register("backgroundColor")} />
-                  <span className="text-sm text-muted-foreground">Choose a pass color</span>
+                  <span className="text-sm text-muted-foreground">Elige un color para el pase</span>
                 </div>
               </Field>
-              <Field label="Logo upload">
+              <Field label="Subir logo">
                 <Input type="file" accept="image/*" />
               </Field>
-              <Field label="Hero image" className="md:col-span-2">
+              <Field label="Imagen principal" className="md:col-span-2">
                 <Input type="file" accept="image/*" onChange={(event) => checkHeroContrast(event.target.files?.[0])} />
                 {heroWarning ? (
                   <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning">
@@ -154,21 +154,21 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
         <section className="voone-panel p-5">
           <div className="relative">
             <div>
-              <p className="voone-kicker">Rewards</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Member copy</h2>
+              <p className="voone-kicker">Recompensas</p>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Texto para miembros</h2>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Points label" error={form.formState.errors.pointsLabel?.message}>
-                <Input {...form.register("pointsLabel")} placeholder="Beauty Balance" />
+              <Field label="Etiqueta de puntos" error={form.formState.errors.pointsLabel?.message}>
+                <Input {...form.register("pointsLabel")} placeholder="Saldo Beauty" />
               </Field>
-              <Field label="Tier label" error={form.formState.errors.tierLabel?.message}>
-                <Input {...form.register("tierLabel")} placeholder="Gold Member" />
+              <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
+                <Input {...form.register("tierLabel")} placeholder="Miembro Gold" />
               </Field>
-              <Field label="Benefits" error={form.formState.errors.benefits?.message} className="md:col-span-2">
-                <Textarea {...form.register("benefits")} placeholder="Priority bookings, member-only offers, birthday credit." />
+              <Field label="Beneficios" error={form.formState.errors.benefits?.message} className="md:col-span-2">
+                <Textarea {...form.register("benefits")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
               </Field>
-              <Field label="Info text" error={form.formState.errors.infoText?.message} className="md:col-span-2">
-                <Textarea {...form.register("infoText")} placeholder="Show this pass at reception before checkout." />
+              <Field label="Texto informativo" error={form.formState.errors.infoText?.message} className="md:col-span-2">
+                <Textarea {...form.register("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
               </Field>
             </div>
           </div>
@@ -177,16 +177,16 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
         <section className="voone-panel p-4">
           <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-h-6 text-sm">
-              {mutation.error ? <span className="text-destructive">Save failed. Try again or check the API connection.</span> : null}
+              {mutation.error ? <span className="text-destructive">No se pudo guardar. Inténtalo de nuevo o revisa la conexión con la API.</span> : null}
               {savedTemplate ? (
                 <span className="inline-flex items-center gap-2 text-success">
                   <CheckCircle2 className="h-4 w-4" />
-                  Template saved for available wallet providers.
+                  Plantilla guardada para los proveedores Wallet disponibles.
                 </span>
               ) : null}
             </div>
             <Button type="submit" className="rounded-2xl px-6" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving..." : "Save template"}
+              {mutation.isPending ? "Guardando..." : "Guardar plantilla"}
             </Button>
           </div>
         </section>
@@ -198,8 +198,8 @@ export function TemplateForm({ initialTemplate, starter }: { initialTemplate?: T
           <div className="relative">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="voone-kicker">Live preview</p>
-                <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-white">Wallet cards</h2>
+                <p className="voone-kicker">Vista previa</p>
+                <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-white">Tarjetas Wallet</h2>
               </div>
               <CreditCard className="h-6 w-6 text-gold-light" />
             </div>
@@ -240,7 +240,7 @@ function RandomQr({ seed }: { seed: string }) {
   });
 
   return (
-    <div className="grid h-32 w-32 grid-cols-7 gap-1 rounded-xl bg-white p-3 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]" aria-label="Random QR preview">
+    <div className="grid h-32 w-32 grid-cols-7 gap-1 rounded-xl bg-white p-3 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]" aria-label="Vista previa del QR">
       {cells.map((active, index) => (
         <span key={index} className={active ? "rounded-[2px] bg-[#241612]" : "rounded-[2px] bg-[#efe2d5]"} />
       ))}
@@ -265,24 +265,24 @@ function PassPreviewCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70">{provider}</p>
-          <p className="mt-1 text-xs font-semibold opacity-75">{values.clinicBranding || "Clinic Club"}</p>
+          <p className="mt-1 text-xs font-semibold opacity-75">{values.clinicBranding || "Club de la clínica"}</p>
         </div>
         <RandomQr seed={`${provider}-${values.name}-${values.backgroundColor}`} />
       </div>
-      <h3 className="mt-6 font-serif text-2xl font-semibold tracking-tight">{values.name || "Template name"}</h3>
+      <h3 className="mt-6 font-serif text-2xl font-semibold tracking-tight">{values.name || "Nombre de plantilla"}</h3>
       <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-2xl bg-white/14 p-3">
-          <p className="text-[10px] uppercase tracking-[0.16em] opacity-70">Points</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] opacity-70">Puntos</p>
           <p className="mt-1 font-serif text-2xl font-semibold">1,250</p>
-          <p className="text-xs opacity-70">{values.pointsLabel || "Points label"}</p>
+          <p className="text-xs opacity-70">{values.pointsLabel || "Etiqueta de puntos"}</p>
         </div>
         <div className="rounded-2xl bg-white/14 p-3">
-          <p className="text-[10px] uppercase tracking-[0.16em] opacity-70">Tier</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] opacity-70">Nivel</p>
           <p className="mt-1 font-serif text-2xl font-semibold">Gold</p>
-          <p className="text-xs opacity-70">{values.tierLabel || "Tier label"}</p>
+          <p className="text-xs opacity-70">{values.tierLabel || "Etiqueta de nivel"}</p>
         </div>
       </div>
-      <div className="mt-4 rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefits || "Benefits will appear here."}</div>
+      <div className="mt-4 rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefits || "Los beneficios aparecerán aquí."}</div>
     </div>
   );
 }

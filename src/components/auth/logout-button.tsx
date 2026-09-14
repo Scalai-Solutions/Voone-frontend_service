@@ -21,8 +21,8 @@ export function LogoutButton({ className, variant = "outline" }: { className?: s
       type="button"
       variant={variant}
       size="icon"
-      aria-label="Logout"
-      title="Logout"
+      aria-label="Cerrar sesión"
+      title="Cerrar sesión"
       className={cn("text-destructive hover:bg-destructive/10 hover:text-destructive", className)}
       onClick={logout}
     >

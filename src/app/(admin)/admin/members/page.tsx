@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-kit";
 export default function AdminMembersPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Support" title="Member search" description="Read-only lookup for support requests across clinics." />
+      <PageHeader eyebrow="Soporte" title="Buscar miembros" description="Consulta de solo lectura para solicitudes de soporte en todas las clínicas." />
       <AdminMemberSearch />
     </div>
   );

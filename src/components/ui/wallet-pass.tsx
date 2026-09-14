@@ -15,15 +15,15 @@ function MiniPass() {
         <div className="flex items-center justify-between mb-3">
           <div className="leading-none">
             <p className="font-serif text-base text-[#8a5b48] tracking-wide">△ {CLINIC}</p>
-            <p className="text-[8px] tracking-[0.25em] text-[#a9793f] mt-0.5">CLINIC CLUB</p>
+            <p className="text-[8px] tracking-[0.25em] text-[#a9793f] mt-0.5">CLUB CLÍNICA</p>
           </div>
           <div className="text-right">
             <p className="text-[#c6a15b] text-sm leading-none">♛</p>
-            <p className="text-[8px] tracking-[0.18em] text-[#a9793f]">GOLD MEMBER</p>
+            <p className="text-[8px] tracking-[0.18em] text-[#a9793f]">MIEMBRO GOLD</p>
           </div>
         </div>
         <h3 className="font-serif text-xl text-[#3d2b28] mb-1">Verónica Navarro</h3>
-        <p className="text-[8px] tracking-[0.2em] text-[#a9793f]">MEMBER SINCE 2026</p>
+        <p className="text-[8px] tracking-[0.2em] text-[#a9793f]">MIEMBRO DESDE 2026</p>
       </div>
     </div>
   );
@@ -36,15 +36,15 @@ function FullPass() {
       <div className="absolute -left-10 bottom-0 w-40 h-40 rounded-full bg-[#e7b7a6]/50 blur-2xl" />
       <div className="relative z-10 px-5 pt-5 pb-6 text-center">
         <p className="font-serif text-lg tracking-wide text-[#8a5b48]">△ {CLINIC}</p>
-        <p className="text-[9px] tracking-[0.25em] text-[#a9793f] mb-3">CLINIC CLUB</p>
+        <p className="text-[9px] tracking-[0.25em] text-[#a9793f] mb-3">CLUB CLÍNICA</p>
         <div className="text-[#c6a15b] text-base mb-1">♛</div>
-        <span className="inline-block text-[9px] tracking-[0.2em] text-[#a9793f] border border-[#c6a15b]/50 rounded px-3 py-1 mb-3">GOLD MEMBER</span>
+        <span className="inline-block text-[9px] tracking-[0.2em] text-[#a9793f] border border-[#c6a15b]/50 rounded px-3 py-1 mb-3">MIEMBRO GOLD</span>
         <h3 className="font-serif text-2xl text-[#3d2b28] mb-3">Verónica Navarro</h3>
         <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">BEAUTY BALANCE</p>
         <p className="font-serif text-3xl text-[#b06a5a] mb-4">€240</p>
         <div className="flex justify-center gap-6 text-left mb-4">
           <div>
-            <p className="text-[8px] tracking-[0.15em] text-[#a9793f]">TIER</p>
+            <p className="text-[8px] tracking-[0.15em] text-[#a9793f]">NIVEL</p>
             <p className="font-serif text-[#3d2b28]">Gold</p>
           </div>
           <div className="max-w-[130px]">
@@ -59,8 +59,8 @@ function FullPass() {
             ))}
           </div>
         </div>
-        <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">CLUB PASS</p>
-        <p className="text-[9px] text-[#8a726c]">Member since 2026</p>
+        <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">PASE CLUB</p>
+        <p className="text-[9px] text-[#8a726c]">Miembro desde 2026</p>
       </div>
     </div>
   );

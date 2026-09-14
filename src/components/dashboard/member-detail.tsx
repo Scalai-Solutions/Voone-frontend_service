@@ -14,7 +14,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
   const member = useQuery({ queryKey: ["member", memberId], queryFn: () => getMember(memberId) });
 
   if (member.isLoading) return <Skeleton className="h-80 w-full" />;
-  if (member.error || !member.data) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">Member could not load.</div>;
+  if (member.error || !member.data) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudo cargar el miembro.</div>;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
@@ -24,36 +24,36 @@ export function MemberDetail({ memberId }: { memberId: string }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="text-sm text-muted-foreground">Member ID</p>
+            <p className="text-sm text-muted-foreground">ID de miembro</p>
             <p className="text-lg font-semibold">{member.data.id}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Current points</p>
+            <p className="text-sm text-muted-foreground">Puntos actuales</p>
             <p className="text-3xl font-semibold tracking-tight">{member.data.points.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Tier</p>
+            <p className="text-sm text-muted-foreground">Nivel</p>
             <p className="font-medium">{member.data.tier}</p>
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
-          {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Member marked inactive locally.</p> : null}
+          {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}
           <Button
             type="button"
             variant="destructive"
             onClick={() => {
-              if (window.confirm("Deactivate this member? Their pass will stop earning points.")) {
+              if (window.confirm("¿Desactivar este miembro? Su pase dejará de acumular puntos.")) {
                 setDeactivated(true);
               }
             }}
           >
-            Deactivate member
+            Desactivar miembro
           </Button>
         </CardContent>
       </Card>
 
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>History</CardTitle>
+          <CardTitle>Historial</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {member.data.history.map((item) => (

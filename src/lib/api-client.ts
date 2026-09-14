@@ -86,24 +86,24 @@ const mockTemplates: Template[] = [
   {
     id: "gold-beauty",
     name: "Gold Beauty Club",
-    clinicBranding: "Aurea Clinic Club",
+    clinicBranding: "Club Clínica Aurea",
     backgroundColor: "#ead0bd",
-    pointsLabel: "Beauty Balance",
-    tierLabel: "Gold Member",
-    benefits: "Priority bookings, member-only treatment bundles, birthday credit.",
-    infoText: "Show this pass at reception before checkout.",
+    pointsLabel: "Saldo Beauty",
+    tierLabel: "Miembro Gold",
+    benefits: "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
+    infoText: "Muestra este pase en recepción antes de pagar.",
     memberCount: 284,
     walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
   },
   {
     id: "diamond-skin",
     name: "Diamond Skin Plan",
-    clinicBranding: "Aurea Clinic Club",
+    clinicBranding: "Club Clínica Aurea",
     backgroundColor: "#2f343a",
-    pointsLabel: "Skin Credit",
-    tierLabel: "Diamond Member",
-    benefits: "Advanced care review, VIP appointment windows, exclusive launches.",
-    infoText: "Points update after each completed treatment.",
+    pointsLabel: "Crédito Skin",
+    tierLabel: "Miembro Diamond",
+    benefits: "Revisión avanzada, horarios VIP y lanzamientos exclusivos.",
+    infoText: "Los puntos se actualizan después de cada tratamiento completado.",
     memberCount: 71,
     walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
   },
@@ -121,7 +121,7 @@ const mockMembers: Member[] = [
     walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
     history: [
       { id: "h1", label: "Hydrafacial", points: 120, date: "2026-09-04" },
-      { id: "h2", label: "Referral bonus", points: 80, date: "2026-08-22" },
+      { id: "h2", label: "Bono por referido", points: 80, date: "2026-08-22" },
     ],
   },
   {
@@ -133,7 +133,7 @@ const mockMembers: Member[] = [
     points: 2480,
     tier: "Diamond",
     walletStatus: { google: "not_added", apple: appleEnabled ? "not_added" : "unavailable" },
-    history: [{ id: "h3", label: "Laser session", points: 220, date: "2026-09-02" }],
+    history: [{ id: "h3", label: "Sesión láser", points: 220, date: "2026-09-02" }],
   },
   {
     id: "MEM-3110",
@@ -144,19 +144,19 @@ const mockMembers: Member[] = [
     points: 540,
     tier: "Silver",
     walletStatus: { google: "added", apple: appleEnabled ? "failed" : "unavailable" },
-    history: [{ id: "h4", label: "Welcome credit", points: 100, date: "2026-08-18" }],
+    history: [{ id: "h4", label: "Crédito de bienvenida", points: 100, date: "2026-08-18" }],
   },
 ];
 
 const mockTreatments: Treatment[] = [
   { id: "hydrafacial", name: "Hydrafacial", points: 120 },
-  { id: "laser", name: "Laser session", points: 220 },
-  { id: "consult", name: "Consultation", points: 60 },
-  { id: "peel", name: "Skin peel", points: 90 },
+  { id: "laser", name: "Sesión láser", points: 220 },
+  { id: "consult", name: "Consulta", points: 60 },
+  { id: "peel", name: "Peeling", points: 90 },
 ];
 
 const mockClinics: Clinic[] = [
-  { id: "clinic-aurea", name: "Aurea Clinic", city: "Madrid", plan: "Growth", members: 355, templates: 2, status: "active" },
+  { id: "clinic-aurea", name: "Clínica Aurea", city: "Madrid", plan: "Growth", members: 355, templates: 2, status: "active" },
   { id: "clinic-luma", name: "Luma Skin Studio", city: "Valencia", plan: "Launch", members: 82, templates: 1, status: "setup" },
   { id: "clinic-nova", name: "Nova Esthetics", city: "Barcelona", plan: "Growth", members: 510, templates: 3, status: "active" },
 ];
@@ -240,7 +240,7 @@ export function createMember(input: CreateMemberInput) {
     templateId: template.id,
     templateName: template.name,
     points: 0,
-    tier: "New",
+    tier: "Nuevo",
     walletStatus: { google: "not_added", apple: appleEnabled ? "not_added" : "unavailable" },
     history: [],
     walletLink: "https://voone.example/wallet/add/demo",
@@ -284,9 +284,9 @@ export function getDashboardOverview() {
     pointsIssuedThisMonth: 18840,
     walletAdds: 302,
     recentActivity: [
-      { id: "a1", label: "Veronica earned 120 points", date: "Today" },
-      { id: "a2", label: "Mateo joined Diamond Skin Plan", date: "Yesterday" },
-      { id: "a3", label: "Gold Beauty Club template updated", date: "Sep 2" },
+      { id: "a1", label: "Verónica ganó 120 puntos", date: "Hoy" },
+      { id: "a2", label: "Mateo se unió a Diamond Skin Plan", date: "Ayer" },
+      { id: "a3", label: "Plantilla Gold Beauty Club actualizada", date: "2 sep" },
     ],
   };
 
@@ -329,8 +329,8 @@ export function getWalletInfrastructure() {
     appleEnabled,
     googlePublishingStatus: "demo",
     recentErrors: [
-      { provider: "google", count: 2, label: "Save link errors" },
-      { provider: "apple", count: 0, label: "Pass creation errors" },
+      { provider: "google", count: 2, label: "Errores al guardar enlaces" },
+      { provider: "apple", count: 0, label: "Errores al crear pases" },
     ],
   };
 

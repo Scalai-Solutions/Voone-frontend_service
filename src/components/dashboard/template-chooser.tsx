@@ -66,7 +66,7 @@ export function TemplateChooser({ canEdit, templateIds }: TemplateChooserProps) 
             {canEdit ? (
               <Button asChild className="mt-auto rounded-2xl px-5">
                 <Link href={row.href}>
-                  Use template <ArrowUpRight className="ml-2 h-4 w-4" />
+                  Usar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             ) : null}
@@ -88,7 +88,7 @@ export function TemplateChooser({ canEdit, templateIds }: TemplateChooserProps) 
           {canEdit ? (
             <Button asChild variant="outline" className="mt-auto rounded-2xl px-5">
               <Link href={`/dashboard/templates/${templateIds.scratch}?starter=scratch`}>
-                Start blank <ArrowUpRight className="ml-2 h-4 w-4" />
+                Empezar en blanco <ArrowUpRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           ) : null}

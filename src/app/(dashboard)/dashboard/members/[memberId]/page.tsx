@@ -6,7 +6,7 @@ export default async function MemberDetailPage({ params }: PageProps<"/dashboard
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Members" title="Member detail" description="Current balance, wallet status, and recent point history." />
+      <PageHeader eyebrow="Miembros" title="Detalle del miembro" description="Saldo actual, estado Wallet e historial reciente de puntos." />
       <MemberDetail memberId={memberId} />
     </div>
   );

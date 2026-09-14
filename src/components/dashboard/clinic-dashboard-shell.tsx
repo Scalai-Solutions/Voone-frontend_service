@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth";
+import { formatRole } from "@/lib/roles";
 
 export type ClinicShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings";
 
@@ -101,12 +102,12 @@ export function ClinicDashboardShell({
 
           <div className="hidden shrink-0 items-center gap-3 rounded-[24px] border border-white/70 bg-background/78 px-3 py-2.5 shadow-[0_18px_48px_-34px_rgba(67,48,43,0.72)] backdrop-blur-xl xl:flex">
             <Badge variant="outline" className="border-gold/35 bg-white/45 px-3 py-1.5 capitalize text-foreground shadow-sm">
-              {session.role.replace("_", " ")}
+              {formatRole(session.role)}
             </Badge>
             <span className="h-10 w-px bg-border" />
             <div className="text-right">
               <p className="text-sm font-semibold">{session.name}</p>
-              <p className="text-xs text-muted-foreground">Aurea Clinic</p>
+              <p className="text-xs text-muted-foreground">Clínica Aurea</p>
             </div>
             <LogoutButton className="rounded-2xl border-border/70 bg-white/55" />
           </div>

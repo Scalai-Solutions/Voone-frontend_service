@@ -20,9 +20,9 @@ export default async function AdminOverviewPage() {
         <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.08]" />
         <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
           <div>
-            <p className="voone-kicker text-gold-light">Platform command</p>
-            <h2 className="mt-3 font-serif text-4xl font-semibold tracking-tight text-white md:text-5xl">Admin overview</h2>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/64 md:text-base">Tenant growth, wallet readiness, and support hotspots in one operational view.</p>
+            <p className="voone-kicker text-gold-light">Control de plataforma</p>
+            <h2 className="mt-3 font-serif text-4xl font-semibold tracking-tight text-white md:text-5xl">Resumen de administración</h2>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/64 md:text-base">Crecimiento de clínicas, estado de Wallet y puntos de soporte en una sola vista operativa.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
             <div className="flex items-center gap-3">
@@ -30,8 +30,8 @@ export default async function AdminOverviewPage() {
                 <Activity className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light/70">Wallet ops</p>
-                <p className="mt-1 text-sm text-white/72">Google is in {overview.wallet.googlePublishingStatus} mode</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light/70">Operativa Wallet</p>
+                <p className="mt-1 text-sm text-white/72">Google está en modo {overview.wallet.googlePublishingStatus === "live" ? "producción" : "demo"}</p>
               </div>
             </div>
           </div>
@@ -39,27 +39,27 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <AdminStat icon={Building2} label="Clinics" value={overview.totalClinics.toLocaleString()} detail="Live and onboarding tenants" />
-        <AdminStat icon={Users} label="Members" value={overview.totalMembers.toLocaleString()} detail="Across all clinics" />
-        <AdminStat icon={CreditCard} label="Apple certificate" value={`${expiryDays} days`} detail="Renew before expiry to avoid pass updates failing" />
+        <AdminStat icon={Building2} label="Clínicas" value={overview.totalClinics.toLocaleString()} detail="Activas y en configuración" />
+        <AdminStat icon={Users} label="Miembros" value={overview.totalMembers.toLocaleString()} detail="En todas las clínicas" />
+        <AdminStat icon={CreditCard} label="Certificado Apple" value={`${expiryDays} días`} detail="Renovar antes del vencimiento evita fallos al actualizar pases" />
       </section>
 
       <Card className="overflow-hidden rounded-[24px] border-[#d9b477]/35 bg-[#fffaf3]/88 shadow-[0_28px_80px_-54px_rgba(67,48,43,0.75)]">
         <CardHeader>
-          <CardTitle className="font-serif text-2xl tracking-tight">Wallet infrastructure</CardTitle>
+          <CardTitle className="font-serif text-2xl tracking-tight">Infraestructura Wallet</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-border/70 bg-white/58 p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]">Apple Wallet</p>
-            <p className="mt-1 text-sm text-muted-foreground">{overview.wallet.appleEnabled ? "Enabled" : "Coming soon"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{overview.wallet.appleEnabled ? "Activo" : "Próximamente"}</p>
           </div>
           <div className="rounded-2xl border border-border/70 bg-white/58 p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]">Google Wallet</p>
-            <p className="mt-1 text-sm text-muted-foreground capitalize">{overview.wallet.googlePublishingStatus}</p>
+            <p className="mt-1 text-sm text-muted-foreground capitalize">{overview.wallet.googlePublishingStatus === "live" ? "Producción" : "Demo"}</p>
           </div>
           <div className="flex items-end md:justify-end">
             <Button asChild className="rounded-2xl">
-              <Link href="/admin/wallet">Open wallet status <ArrowUpRight className="ml-2 h-4 w-4" /></Link>
+              <Link href="/admin/wallet">Ver estado Wallet <ArrowUpRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
         </CardContent>

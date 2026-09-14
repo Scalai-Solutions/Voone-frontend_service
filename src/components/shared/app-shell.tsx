@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth";
+import { formatRole } from "@/lib/roles";
 
 export type ShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings" | "clinics" | "wallet" | "search";
 
@@ -37,7 +38,7 @@ export function AppShell({
   navItems,
   children,
 }: {
-  area: "Clinic Dashboard" | "Voone Admin";
+  area: "Panel de clínica" | "Administración Voone";
   homeHref: string;
   session: VooneSession;
   navItems: ShellNavItem[];
@@ -100,7 +101,7 @@ export function AppShell({
             <BadgeCheck className="h-4 w-4 text-[#e3bc76]" />
             {session.name}
           </div>
-          <p className="mt-1 text-xs capitalize text-[#aa9687]">{session.role.replace("_", " ")}</p>
+          <p className="mt-1 text-xs text-[#aa9687]">{formatRole(session.role)}</p>
           <LogoutButton variant="secondary" className="mt-4 rounded-md bg-[#fffaf3]" />
         </div>
       </motion.aside>
@@ -115,11 +116,11 @@ export function AppShell({
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a47845]">{area}</p>
-              <h1 className="font-serif text-2xl font-semibold tracking-wide md:text-3xl">Good morning, {session.name.split(" ")[0]}</h1>
+              <h1 className="font-serif text-2xl font-semibold tracking-wide md:text-3xl">Buenos días, {session.name.split(" ")[0]}</h1>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="w-fit border-[#cbaa75] bg-[#fffaf3] capitalize text-[#765533] shadow-sm">
-                {session.role.replace("_", " ")}
+                {formatRole(session.role)}
               </Badge>
               <LogoutButton className="rounded-xl bg-[#fffaf3]" />
             </div>

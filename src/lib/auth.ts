@@ -45,7 +45,7 @@ export async function getMockSession(): Promise<VooneSession> {
     userId: localAccount ?? "dev-user-001",
     role,
     clinicId: "clinic-aurea",
-    name: role === "voone_admin" ? "Voone Admin" : "Aurea Clinic Team",
+    name: role === "voone_admin" ? "Administrador Voone" : "Equipo Clínica Aurea",
   };
 }
 
@@ -79,7 +79,7 @@ export const authOptions: NextAuthOptions = {
       name: "Voone credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
         const configuredEmail = process.env.VOONE_DEV_AUTH_EMAIL;
@@ -95,7 +95,7 @@ export const authOptions: NextAuthOptions = {
 
         return {
           id: "configured-user",
-          name: "Voone user",
+          name: "Usuario Voone",
           email: configuredEmail,
           role: parseRole(process.env.VOONE_DEV_AUTH_ROLE),
           clinicId: process.env.VOONE_DEV_AUTH_CLINIC_ID ?? "clinic-aurea",

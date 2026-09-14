@@ -22,7 +22,7 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: "Voone",
-  description: "Wallet loyalty for modern clinics",
+  description: "Fidelización Wallet para clínicas modernas",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html
-      lang="en"
+      lang="es"
       className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
