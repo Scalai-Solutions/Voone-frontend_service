@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowUpRight, LockKeyhole, Paintbrush, Sparkles } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, LockKeyhole, Paintbrush, Sparkles } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -11,6 +10,7 @@ import { templateStarters } from "@/components/dashboard/template-starters";
 import { Button } from "@/components/ui/button";
 import { WalletCard, WALLET_THEMES, type WalletCardTheme } from "@/components/ui/wallet-card";
 import { getCurrentClinicTemplate, getTemplatePresets, type Template } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 interface TemplateLandingGateProps {
   clinicId: string;
@@ -19,7 +19,6 @@ interface TemplateLandingGateProps {
 }
 
 export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: TemplateLandingGateProps) {
-  const router = useRouter();
   const reducedMotion = useReducedMotion();
   const currentTemplate = useQuery({
     queryKey: ["clinic-template", clinicId],
@@ -27,16 +26,6 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
     initialData: initialTemplate,
   });
   const presets = useQuery({ queryKey: ["template-presets"], queryFn: getTemplatePresets });
-
-  React.useEffect(() => {
-    if (currentTemplate.data) {
-      router.replace(`/dashboard/templates/${currentTemplate.data.id}`);
-    }
-  }, [currentTemplate.data, router]);
-
-  if (currentTemplate.data) {
-    return null;
-  }
 
   if (!canEdit) {
     return (
@@ -56,6 +45,10 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
   }
 
   const [signaturePreset, diamondPreset, scratchPreset] = presets.data;
+  const selectedTemplate = currentTemplate.data;
+  const selectedPresetId = selectedTemplate?.presetId ?? selectedTemplate?.preset?.id;
+  const isScratchSelected = Boolean(selectedTemplate && selectedPresetId && selectedPresetId === scratchPreset?.id);
+  const isScratchDisabled = Boolean(selectedTemplate && !isScratchSelected);
   const containerVariants = reducedMotion
     ? undefined
     : {
@@ -73,11 +66,13 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
       starter: templateStarters["signature-glow"],
       href: `/dashboard/templates/new${signaturePreset ? `?presetId=${encodeURIComponent(signaturePreset.id)}` : ""}`,
       theme: WALLET_THEMES.gold,
+      presetId: signaturePreset?.id,
     },
     {
       starter: templateStarters["diamond-skin"],
       href: `/dashboard/templates/new${diamondPreset ? `?presetId=${encodeURIComponent(diamondPreset.id)}` : ""}`,
       theme: WALLET_THEMES.diamond,
+      presetId: diamondPreset?.id,
     },
   ];
 
@@ -88,29 +83,39 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
       animate={reducedMotion ? undefined : "visible"}
       variants={containerVariants}
     >
-      {rows.map((row) => (
-        <motion.div key={row.starter.id} className="voone-panel h-full p-4 md:p-5" variants={cardVariants}>
-          <div className="relative flex h-full flex-col gap-5">
-            <OverlappingWalletCards starter={row.starter} theme={row.theme} reducedMotion={reducedMotion} />
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-[#fff8ed] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">
-                <Sparkles className="h-3.5 w-3.5" />
-                {row.starter.eyebrow}
-              </div>
-              <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{row.starter.title}</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{row.starter.description}</p>
-            </div>
-            <Button asChild className="mt-auto rounded-2xl px-5">
-              <Link href={row.href}>
-                Usar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </motion.div>
-      ))}
+      {rows.map((row) => {
+        const isSelected = Boolean(selectedTemplate && selectedPresetId && row.presetId === selectedPresetId);
+        const isDisabled = Boolean(selectedTemplate && !isSelected);
 
-      <motion.div className="voone-panel h-full p-4 md:p-5" variants={cardVariants}>
+        return (
+          <motion.div key={row.starter.id} className={cn("voone-panel h-full p-4 md:p-5", isSelected && "ring-2 ring-gold/70", isDisabled && "grayscale opacity-45")} variants={cardVariants}>
+            <div className="relative flex h-full flex-col gap-5">
+              {isSelected ? <SelectedTemplateTag /> : null}
+              <OverlappingWalletCards starter={row.starter} theme={row.theme} reducedMotion={reducedMotion} />
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-[#fff8ed] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {row.starter.eyebrow}
+                </div>
+                <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{row.starter.title}</h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{row.starter.description}</p>
+              </div>
+              <TemplateCardAction href={row.href} isSelected={isSelected} isDisabled={isDisabled} selectedTemplateId={selectedTemplate?.id} />
+            </div>
+          </motion.div>
+        );
+      })}
+
+      <motion.div
+        className={cn(
+          "voone-panel h-full p-4 md:p-5",
+          isScratchSelected && "ring-2 ring-gold/70",
+          isScratchDisabled && "grayscale opacity-45"
+        )}
+        variants={cardVariants}
+      >
         <div className="relative flex h-full flex-col gap-5">
+          {isScratchSelected ? <SelectedTemplateTag /> : null}
           <BlankTemplateCard reducedMotion={reducedMotion} />
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-[#fff8ed] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">
@@ -120,14 +125,68 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
             <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{templateStarters.scratch.title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{templateStarters.scratch.description}</p>
           </div>
-          <Button asChild variant="outline" className="mt-auto rounded-2xl px-5">
-            <Link href={`/dashboard/templates/new${scratchPreset ? `?presetId=${encodeURIComponent(scratchPreset.id)}` : ""}`}>
-              Empezar en blanco <ArrowUpRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          <TemplateCardAction
+            href={`/dashboard/templates/new${scratchPreset ? `?presetId=${encodeURIComponent(scratchPreset.id)}` : ""}`}
+            isSelected={isScratchSelected}
+            isDisabled={isScratchDisabled}
+            selectedTemplateId={selectedTemplate?.id}
+            variant="outline"
+            idleLabel="Empezar en blanco"
+          />
         </div>
       </motion.div>
     </motion.section>
+  );
+}
+
+function TemplateCardAction({
+  href,
+  isSelected,
+  isDisabled,
+  selectedTemplateId,
+  variant,
+  idleLabel = "Usar plantilla",
+}: {
+  href: string;
+  isSelected: boolean;
+  isDisabled: boolean;
+  selectedTemplateId: string | undefined;
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  idleLabel?: string;
+}) {
+  if (isSelected && selectedTemplateId) {
+    return (
+      <Button asChild className="mt-auto rounded-2xl px-5">
+        <Link href={`/dashboard/templates/${selectedTemplateId}`}>
+          Editar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
+        </Link>
+      </Button>
+    );
+  }
+
+  if (isDisabled) {
+    return (
+      <Button disabled variant={variant} className="mt-auto rounded-2xl px-5">
+        No disponible <LockKeyhole className="ml-2 h-4 w-4" />
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild variant={variant} className="mt-auto rounded-2xl px-5">
+      <Link href={href}>
+        {idleLabel} <ArrowUpRight className="ml-2 h-4 w-4" />
+      </Link>
+    </Button>
+  );
+}
+
+function SelectedTemplateTag() {
+  return (
+    <span className="absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-[#fff8ed] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8f6330] shadow-sm">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Seleccionada
+    </span>
   );
 }
 

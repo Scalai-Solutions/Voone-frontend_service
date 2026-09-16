@@ -15,10 +15,6 @@ export default async function TemplatesPage() {
   const canEdit = hasRole(session, ["owner", "manager"]);
   const initialTemplate = await getCurrentClinicTemplate(session.clinicId);
 
-  if (initialTemplate) {
-    redirect(`/dashboard/templates/${initialTemplate.id}`);
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
