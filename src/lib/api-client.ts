@@ -6,7 +6,15 @@ export type ProviderStatus = "added" | "not_added" | "unavailable" | "failed";
 export class ApiError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    /** The backend's machine-readable code, e.g. "MEMBERSHIP_DATA_INVALID". */
+    readonly code?: string,
+    /**
+     * The backend's own message. Its validation errors are written as the Spanish copy a
+     * form should show the member, so this is display text rather than debug detail.
+     * Absent when the backend marked the error unsafe to expose.
+     */
+    readonly detail?: string
   ) {
     super(message);
     this.name = "ApiError";
@@ -233,7 +241,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new ApiError(`Voone API request failed: ${response.status}`, response.status);
+    const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null;
+
+    throw new ApiError(
+      `Voone API request failed: ${response.status}`,
+      response.status,
+      body?.code,
+      body?.message
+    );
   }
 
   return response.json() as Promise<T>;
@@ -423,4 +438,57 @@ export async function getPlatformOverview(): Promise<PlatformOverview> {
 
 export function canShowAction(role: Role, allowed: Role[]) {
   return allowed.includes(role);
+}
+// --- Public membership sign-up ---------------------------------------------------------
+//
+// Nothing below is wrapped in withMockFallback, and that is the point. That helper returns
+// fabricated data when a request fails for any reason other than an HTTP status — a missing
+// NEXT_PUBLIC_VOONE_API_URL, or the backend simply being down. For a read on a mocked
+// dashboard that is a convenience; for a sign-up it would tell a clinic the member was
+// registered while persisting nothing. These throw instead, and the form renders the failure.
+
+export interface PublicClinicTemplate {
+  programName: string;
+  hexBackgroundColor: string;
+  logoUrl: string | null;
+  heroImageUrl: string | null;
+  pointsLabel: string;
+  tierLabel: string;
+  benefitsText: string;
+  infoText: string;
+}
+
+export interface PublicClinic {
+  slug: string;
+  name: string;
+  privacyPolicyVersion: string;
+  template: PublicClinicTemplate;
+}
+
+export interface MembershipSignupInput {
+  name: string;
+  /** E.164. Normalize with normalizeSpanishMobile before sending. */
+  phone: string;
+  consentMarketing: boolean;
+}
+
+/** Branding for a clinic's public sign-up page. Throws ApiError(404) for an unknown slug. */
+export async function getPublicClinic(slug: string) {
+  const { clinic } = await apiFetch<{ clinic: PublicClinic }>(`/v1/clinics/${encodeURIComponent(slug)}`);
+
+  return clinic;
+}
+
+/**
+ * Registers a member of a clinic.
+ *
+ * Idempotent per clinic: submitting a number that is already a member returns the same
+ * response as a new one. The backend deliberately makes the two indistinguishable, so there
+ * is nothing here to branch on and nothing to report back beyond success.
+ */
+export async function signUpMember(slug: string, input: MembershipSignupInput) {
+  return apiFetch<{ status: "ok" }>(`/v1/clinics/${encodeURIComponent(slug)}/members`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
