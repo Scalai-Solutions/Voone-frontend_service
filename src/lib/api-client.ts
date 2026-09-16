@@ -467,9 +467,17 @@ export interface PublicClinic {
 
 export interface MembershipSignupInput {
   name: string;
-  /** E.164. Normalize with normalizeSpanishMobile before sending. */
+  /**
+   * Sent exactly as typed, NOT pre-normalized. Member.phoneRaw preserves the original so a
+   * future change to the normalization rules is a backfill rather than data loss; the
+   * backend canonicalizes and is the authority.
+   */
   phone: string;
+  /** Optional additional contact. The phone is the identity. */
+  email?: string;
   consentMarketing: boolean;
+  /** Omitted for the public form, which the backend reads as a QR sign-up. */
+  consentSource?: "qr_signup" | "staff_entry";
 }
 
 /** Branding for a clinic's public sign-up page. Throws ApiError(404) for an unknown slug. */
@@ -490,5 +498,24 @@ export async function signUpMember(slug: string, input: MembershipSignupInput) {
   return apiFetch<{ status: "ok" }>(`/v1/clinics/${encodeURIComponent(slug)}/members`, {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Registers a member that staff entered at reception, rather than one who signed
+ * themselves up.
+ *
+ * consentMarketing is forced to false and cannot be set by the caller: staff cannot consent
+ * to marketing on a client's behalf, so the only honest value is "no". A client who wants it
+ * opts in through the public form, which is the one place the choice is actually theirs.
+ */
+export async function addMemberAsStaff(
+  slug: string,
+  input: { name: string; phone: string; email?: string }
+) {
+  return signUpMember(slug, {
+    ...input,
+    consentMarketing: false,
+    consentSource: "staff_entry",
   });
 }

@@ -8,6 +8,12 @@ export interface VooneSession {
   userId: string;
   role: Role;
   clinicId: string;
+  /**
+   * The clinic's URL key. The backend scopes members by slug rather than id, because the
+   * same key is what a QR poster carries — so staff sign-ups and the public page address
+   * the clinic identically.
+   */
+  clinicSlug: string;
   name: string;
 }
 
@@ -45,6 +51,9 @@ export async function getMockSession(): Promise<VooneSession> {
     userId: localAccount ?? "dev-user-001",
     role,
     clinicId: "clinic-aurea",
+    // Matches the backend seed, so a dashboard running against a freshly seeded backend
+    // can create members and render its QR without any configuration.
+    clinicSlug: "aurea",
     name: role === "voone_admin" ? "Administrador Voone" : "Equipo Clínica Aurea",
   };
 }
@@ -65,6 +74,7 @@ export async function getCurrentSession(): Promise<VooneSession | null> {
     userId: user.userId,
     role: user.role,
     clinicId: user.clinicId,
+    clinicSlug: user.clinicSlug ?? "",
     name: user.name ?? "Voone user",
   };
 }
@@ -99,6 +109,7 @@ export const authOptions: NextAuthOptions = {
           email: configuredEmail,
           role: parseRole(process.env.VOONE_DEV_AUTH_ROLE),
           clinicId: process.env.VOONE_DEV_AUTH_CLINIC_ID ?? "clinic-aurea",
+          clinicSlug: process.env.VOONE_DEV_AUTH_CLINIC_SLUG ?? "aurea",
         };
       },
     }),
@@ -109,6 +120,7 @@ export const authOptions: NextAuthOptions = {
         token.userId = user.id;
         token.role = user.role;
         token.clinicId = user.clinicId;
+        token.clinicSlug = user.clinicSlug;
       }
 
       return token;
@@ -118,6 +130,7 @@ export const authOptions: NextAuthOptions = {
         session.user.userId = String(token.userId ?? "");
         session.user.role = parseRole(typeof token.role === "string" ? token.role : undefined);
         session.user.clinicId = String(token.clinicId ?? "");
+        session.user.clinicSlug = String(token.clinicSlug ?? "");
       }
 
       return session;
