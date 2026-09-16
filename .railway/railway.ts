@@ -27,14 +27,8 @@ export default defineRailway(() => {
 
       // Required. With this unset, src/lib/auth.ts builds a session from a client-set
       // cookie — so anyone could assert the voone_admin role, and the /api/staff route
-      // handlers would act on it while holding STAFF_API_KEY. That is fine on a laptop and
-      // not on a public URL.
-      //
-      // The consequence, stated plainly: src/components/auth/local-login-form.tsx never
-      // calls signIn(), so it cannot create the session proxy.ts looks for. The dashboard
-      // therefore redirects to a login that cannot complete, and the staff route handlers
-      // answer 403. That is deliberate — the staff surface is not ready, and the
-      // member-facing page at /alta/[clinic] needs none of it.
+      // handlers would act on it while holding STAFF_API_KEY. Fine on a laptop, unsafe on
+      // a public URL.
       AUTH_ENABLED: "true",
 
       NEXTAUTH_SECRET: preserve(),
@@ -43,9 +37,24 @@ export default defineRailway(() => {
       // Absolute base for the sign-up URL a clinic's QR code encodes.
       NEXT_PUBLIC_APP_URL: preserve(),
 
-      // STAFF_API_KEY is deliberately NOT set here. The staff surface is closed, so the
-      // key would never be used — and an unused credential on a public service is risk
-      // without benefit. Set it when the dashboard can actually authenticate someone.
+      // The single operator account the credentials provider checks against. Not per-user
+      // authentication — the User model has no password column — but enough that the
+      // browser no longer grants itself a role. Both halves are preserved rather than
+      // committed: an email is half a credential.
+      VOONE_DEV_AUTH_EMAIL: preserve(),
+      VOONE_DEV_AUTH_PASSWORD: preserve(),
+
+      // Not secret: the role and clinic that account is scoped to. The clinic id matches
+      // the seed's pinned value, which is also what the production clinic row uses, so
+      // template writes address the right clinic.
+      VOONE_DEV_AUTH_ROLE: "owner",
+      VOONE_DEV_AUTH_CLINIC_SLUG: "aurea",
+      VOONE_DEV_AUTH_CLINIC_ID: "00000000-0000-4000-8000-0000000a0001",
+
+      // Now set, because the dashboard can authenticate someone. The browser never sees
+      // it: the /api/staff route handlers hold it server-side and take the clinic from the
+      // session, so a signed-in operator cannot act on another clinic.
+      STAFF_API_KEY: preserve(),
     },
   });
 
