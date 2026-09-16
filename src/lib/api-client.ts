@@ -255,7 +255,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * Calls this app's own staff route handlers rather than the backend.
+ * Calls this app's own route handlers rather than the backend.
  *
  * Relative by design: the handler runs on our server, holds STAFF_API_KEY, and derives the
  * clinic from the session — so the browser never sees the key and cannot choose the clinic.
@@ -264,8 +264,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
  * No mock fallback. These are writes, and a write that reports success while persisting
  * nothing is the failure mode worth avoiding most.
  */
-async function staffProxyFetch<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`/api/staff${path}`, {
+async function proxyFetch<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(`/api${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init.headers },
   });
@@ -283,6 +283,14 @@ async function staffProxyFetch<T>(path: string, init: RequestInit): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+/** Staff-scoped calls: /api/staff/<path>. */
+const staffProxyFetch = <T>(path: string, init: RequestInit) =>
+  proxyFetch<T>(`/staff${path}`, init);
+
+/** Voone-admin calls: /api/admin/<path>. A different surface with a different guard. */
+const adminProxyFetch = <T>(path: string, init: RequestInit) =>
+  proxyFetch<T>(`/admin${path}`, init);
 
 async function withMockFallback<T>(request: () => Promise<T>, fallback: T): Promise<T> {
   try {
@@ -550,6 +558,41 @@ export async function addMemberAsStaff(input: { name: string; phone: string; ema
   // of one clinic cannot enrol someone into another. consentMarketing and consentSource are
   // set there too, for the same reason — a caller must not describe its own provenance.
   return staffProxyFetch<{ status: "ok" }>("/members", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// --- Clinic provisioning ---------------------------------------------------------------
+
+export interface ProvisionClinicInput {
+  slug: string;
+  name: string;
+  addressLine: string;
+  pincode: string;
+  presetId: string;
+  programName: string;
+  pointsLabel?: string;
+  tierLabel?: string;
+  benefitsText?: string;
+  infoText?: string;
+}
+
+export interface ProvisionedClinic {
+  clinic: { id: string; slug: string; name: string; isActive: boolean; privacyPolicyVersion: string };
+  template: { id: string; programName: string; hexBackgroundColor: string; status: string };
+}
+
+/**
+ * Creates a clinic and its template.
+ *
+ * Through this app's own server, so the write carries STAFF_API_KEY without the browser
+ * holding it and the voone_admin check happens where a client cannot skip it. No mock
+ * fallback: onboarding a clinic that was never created is the worst possible thing to
+ * report as success, since the next step is printing a poster for it.
+ */
+export async function provisionClinic(input: ProvisionClinicInput) {
+  return adminProxyFetch<ProvisionedClinic>("/clinics", {
     method: "POST",
     body: JSON.stringify(input),
   });

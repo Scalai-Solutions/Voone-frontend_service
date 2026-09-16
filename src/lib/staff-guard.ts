@@ -33,3 +33,25 @@ export const requireStaffSession = async (): Promise<
 
   return { session };
 };
+
+/**
+ * The session behind an admin route handler, or a Response to return instead.
+ *
+ * Separate from requireStaffSession because these are different things: a clinic's staff
+ * act on their own clinic, while Voone staff act across all of them. The admin account
+ * deliberately has no clinic, so requireStaffSession refuses it — an administrator cannot
+ * perform a clinic's own writes by accident.
+ */
+export const requireAdminSession = async (): Promise<
+  { session: VooneSession } | { response: Response }
+> => {
+  const session = await getCurrentSession();
+
+  if (!session || session.role !== "voone_admin") {
+    return {
+      response: Response.json({ code: "FORBIDDEN", message: "Forbidden" }, { status: 403 })
+    };
+  }
+
+  return { session };
+};

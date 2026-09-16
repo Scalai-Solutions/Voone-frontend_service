@@ -1,5 +1,7 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { cookies } from "next/headers";
-import { getServerSession, type NextAuthOptions } from "next-auth";
+import { getServerSession, type NextAuthOptions, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 export type Role = "owner" | "manager" | "staff" | "voone_admin";
@@ -69,7 +71,13 @@ export async function getCurrentSession(): Promise<VooneSession | null> {
   const session = await getServerSession(authOptions);
   const user = session?.user;
 
-  if (!user?.role || !user.clinicId || !user.userId) {
+  // A clinic is deliberately NOT required. Voone staff belong to no clinic, so demanding
+  // one here made every voone_admin session resolve to null — the admin area rendered its
+  // access-denied panel and the provisioning endpoint answered 403 to a valid
+  // administrator. Whether a clinic is needed depends on the operation, so that check
+  // belongs with the operation: requireStaffSession refuses a clinic-less session, while
+  // requireAdminSession does not care.
+  if (!user?.role || !user.userId) {
     return null;
   }
 
@@ -81,6 +89,73 @@ export async function getCurrentSession(): Promise<VooneSession | null> {
     name: user.name ?? "Voone user",
   };
 }
+
+/**
+ * Constant-time comparison, so a wrong password cannot be narrowed by timing. Lengths are
+ * compared first because timingSafeEqual throws on a mismatch, and a length is not secret.
+ */
+const secretsMatch = (received: string, expected: string): boolean => {
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+
+  return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/**
+ * The accounts the credentials provider accepts, from environment variables.
+ *
+ * Two of them, because one cannot be both: the clinic dashboard requires an owner, manager
+ * or staff role, and the admin area requires voone_admin — isDashboardRole excludes it. A
+ * single account therefore locked one of the two areas out whichever role it was given.
+ *
+ * Not per-user authentication: the User model has no password column, so real accounts
+ * need a schema change. This is two shared operator logins, and what it fixes is that the
+ * browser no longer grants itself a role.
+ */
+const configuredAccounts = () => {
+  const accounts: Array<{ email: string; password: string; user: User }> = [];
+
+  const clinicEmail = process.env.VOONE_DEV_AUTH_EMAIL;
+  const clinicPassword = process.env.VOONE_DEV_AUTH_PASSWORD;
+
+  if (clinicEmail && clinicPassword) {
+    accounts.push({
+      email: clinicEmail,
+      password: clinicPassword,
+      user: {
+        id: "configured-user",
+        name: "Usuario Voone",
+        email: clinicEmail,
+        role: parseRole(process.env.VOONE_DEV_AUTH_ROLE),
+        clinicId: process.env.VOONE_DEV_AUTH_CLINIC_ID ?? "clinic-aurea",
+        clinicSlug: process.env.VOONE_DEV_AUTH_CLINIC_SLUG ?? "aurea"
+      }
+    });
+  }
+
+  const adminEmail = process.env.VOONE_ADMIN_AUTH_EMAIL;
+  const adminPassword = process.env.VOONE_ADMIN_AUTH_PASSWORD;
+
+  if (adminEmail && adminPassword) {
+    accounts.push({
+      email: adminEmail,
+      password: adminPassword,
+      user: {
+        id: "configured-admin",
+        name: "Administrador Voone",
+        email: adminEmail,
+        role: "voone_admin" as Role,
+        // Deliberately empty: Voone staff belong to no clinic. requireStaffSession refuses
+        // a session without one, so an administrator cannot perform a clinic's own writes
+        // by accident — which is the correct separation rather than a missing feature.
+        clinicId: "",
+        clinicSlug: ""
+      }
+    });
+  }
+
+  return accounts;
+};
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -95,25 +170,17 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
-        const configuredEmail = process.env.VOONE_DEV_AUTH_EMAIL;
-        const configuredPassword = process.env.VOONE_DEV_AUTH_PASSWORD;
-
-        if (!configuredEmail || !configuredPassword) {
+        if (!credentials?.email || !credentials.password) {
           return null;
         }
 
-        if (credentials?.email !== configuredEmail || credentials.password !== configuredPassword) {
-          return null;
-        }
+        const account = configuredAccounts().find(
+          (candidate) =>
+            candidate.email.toLowerCase() === credentials.email.trim().toLowerCase() &&
+            secretsMatch(credentials.password, candidate.password)
+        );
 
-        return {
-          id: "configured-user",
-          name: "Usuario Voone",
-          email: configuredEmail,
-          role: parseRole(process.env.VOONE_DEV_AUTH_ROLE),
-          clinicId: process.env.VOONE_DEV_AUTH_CLINIC_ID ?? "clinic-aurea",
-          clinicSlug: process.env.VOONE_DEV_AUTH_CLINIC_SLUG ?? "aurea",
-        };
+        return account ? account.user : null;
       },
     }),
   ],

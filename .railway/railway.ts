@@ -44,6 +44,13 @@ export default defineRailway(() => {
       VOONE_DEV_AUTH_EMAIL: preserve(),
       VOONE_DEV_AUTH_PASSWORD: preserve(),
 
+      // A second account, because one cannot be both: the clinic dashboard requires an
+      // owner/manager/staff role and the admin area requires voone_admin, which
+      // isDashboardRole excludes. The admin account has no clinic, so requireStaffSession
+      // refuses it — Voone staff cannot perform a clinic own writes by accident.
+      VOONE_ADMIN_AUTH_EMAIL: preserve(),
+      VOONE_ADMIN_AUTH_PASSWORD: preserve(),
+
       // Not secret: the role and clinic that account is scoped to. The clinic id matches
       // the seed's pinned value, which is also what the production clinic row uses, so
       // template writes address the right clinic.
