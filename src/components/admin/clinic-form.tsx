@@ -9,8 +9,8 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { createClinic, type Clinic } from "@/lib/api-client";
 
 const clinicSchema = z.object({
@@ -67,15 +67,5 @@ export function ClinicForm() {
         </CardContent>
       </Card>
     </form>
-  );
-}
-
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <Label className="mb-2 block">{label}</Label>
-      {children}
-      {error ? <p className="mt-1 text-sm text-destructive">{error}</p> : null}
-    </div>
   );
 }

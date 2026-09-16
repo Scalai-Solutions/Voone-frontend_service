@@ -6,7 +6,7 @@ import { BellRing, CalendarClock, CheckCircle2, Clock3, MapPin, Send, Smartphone
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 
 const triggerRules = [
@@ -77,7 +77,7 @@ export default function NotificationsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field label="Audiencia">
+              <Field labelClassName="text-sm font-semibold" label="Audiencia">
                 <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none">
                   <option>Todos los miembros activos</option>
                   <option>Nivel Gold</option>
@@ -85,17 +85,17 @@ export default function NotificationsPage() {
                   <option>Cerca de la clínica</option>
                 </select>
               </Field>
-              <Field label="Ventana de envío">
+              <Field labelClassName="text-sm font-semibold" label="Ventana de envío">
                 <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none">
                   <option>Inmediatamente al coincidir la regla</option>
                   <option>Mañana, 09:00-11:00</option>
                   <option>Tarde, 15:00-18:00</option>
                 </select>
               </Field>
-              <Field label="Título de la notificación" className="md:col-span-2">
+              <Field labelClassName="text-sm font-semibold" label="Título de la notificación" className="md:col-span-2">
                 <Input placeholder="Tu próxima recompensa está cerca" />
               </Field>
-              <Field label="Cuerpo del push" className="md:col-span-2">
+              <Field labelClassName="text-sm font-semibold" label="Cuerpo del push" className="md:col-span-2">
                 <Textarea placeholder="Reserva tu próxima visita esta semana y añadiremos puntos extra a tu pase." />
               </Field>
               <Button className="h-12 rounded-2xl md:col-span-2">
@@ -109,13 +109,13 @@ export default function NotificationsPage() {
               <CardTitle className="flex items-center gap-2 text-lg"><MapPin className="h-5 w-5 text-gold" /> Disparador por ubicación</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field label="Dirección" className="md:col-span-2">
+              <Field labelClassName="text-sm font-semibold" label="Dirección" className="md:col-span-2">
                 <Input placeholder="Calle de Serrano 41, Madrid" />
               </Field>
-              <Field label="Latitud"><Input inputMode="decimal" placeholder="40.4264" /></Field>
-              <Field label="Longitud"><Input inputMode="decimal" placeholder="-3.6879" /></Field>
-              <Field label="Radio"><Input placeholder="250 m" /></Field>
-              <Field label="Pausa"><Input placeholder="7 días" /></Field>
+              <Field labelClassName="text-sm font-semibold" label="Latitud"><Input inputMode="decimal" placeholder="40.4264" /></Field>
+              <Field labelClassName="text-sm font-semibold" label="Longitud"><Input inputMode="decimal" placeholder="-3.6879" /></Field>
+              <Field labelClassName="text-sm font-semibold" label="Radio"><Input placeholder="250 m" /></Field>
+              <Field labelClassName="text-sm font-semibold" label="Pausa"><Input placeholder="7 días" /></Field>
             </CardContent>
           </Card>
         </div>
@@ -161,15 +161,6 @@ export default function NotificationsPage() {
           </Card>
         </aside>
       </section>
-    </div>
-  );
-}
-
-function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={className}>
-      <Label className="mb-2 block text-sm font-semibold">{label}</Label>
-      {children}
     </div>
   );
 }

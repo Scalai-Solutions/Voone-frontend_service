@@ -254,6 +254,36 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/**
+ * Calls this app's own staff route handlers rather than the backend.
+ *
+ * Relative by design: the handler runs on our server, holds STAFF_API_KEY, and derives the
+ * clinic from the session — so the browser never sees the key and cannot choose the clinic.
+ * Browser-only for the same reason a relative URL is: every caller is a client component.
+ *
+ * No mock fallback. These are writes, and a write that reports success while persisting
+ * nothing is the failure mode worth avoiding most.
+ */
+async function staffProxyFetch<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(`/api/staff${path}`, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...init.headers },
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null;
+
+    throw new ApiError(
+      `Voone staff request failed: ${response.status}`,
+      response.status,
+      body?.code,
+      body?.message
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 async function withMockFallback<T>(request: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await request();
@@ -285,28 +315,25 @@ export function getTemplate(templateId: string) {
   );
 }
 
+/**
+ * Creates or updates the clinic's template.
+ *
+ * Routed through this app's server so the write carries STAFF_API_KEY without the browser
+ * holding it, and so the clinic is taken from the session rather than this argument — the
+ * clinicId argument is therefore ignored, and kept only so the existing call sites in
+ * template-form.tsx need no change.
+ *
+ * The mock fallback is gone. It used to return a fabricated Template when the request
+ * failed for any reason other than an HTTP status, which meant a clinic could redesign its
+ * pass, see the change confirmed, and have nothing saved.
+ */
 export function saveTemplate(input: SaveTemplateInput, templateId: string | undefined, clinicId: string) {
-  const fallback: Template = {
-    id: templateId ?? "new-template",
-    clinicId,
-    ...input,
-    name: input.programName,
-    clinicBranding: "Club Clínica Aurea",
-    backgroundColor: input.hexBackgroundColor,
-    benefits: input.benefitsText,
-    memberCount: templateId ? mockTemplates.find((template) => template.id === templateId)?.memberCount ?? 0 : 0,
-    walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
-  };
+  void clinicId;
 
-  return withMockFallback(
-    () =>
-      apiFetch<Template>(templateId ? `/v1/templates/${templateId}` : "/v1/templates", {
-        method: templateId ? "PATCH" : "POST",
-        headers: { "x-clinic-id": clinicId },
-        body: JSON.stringify(input),
-      }),
-    fallback
-  );
+  return staffProxyFetch<Template>(templateId ? `/templates/${templateId}` : "/templates", {
+    method: templateId ? "PATCH" : "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function getMembers() {
@@ -509,13 +536,12 @@ export async function signUpMember(slug: string, input: MembershipSignupInput) {
  * to marketing on a client's behalf, so the only honest value is "no". A client who wants it
  * opts in through the public form, which is the one place the choice is actually theirs.
  */
-export async function addMemberAsStaff(
-  slug: string,
-  input: { name: string; phone: string; email?: string }
-) {
-  return signUpMember(slug, {
-    ...input,
-    consentMarketing: false,
-    consentSource: "staff_entry",
+export async function addMemberAsStaff(input: { name: string; phone: string; email?: string }) {
+  // No clinic argument: the route handler takes it from the session, so a signed-in member
+  // of one clinic cannot enrol someone into another. consentMarketing and consentSource are
+  // set there too, for the same reason — a caller must not describe its own provenance.
+  return staffProxyFetch<{ status: "ok" }>("/members", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }
