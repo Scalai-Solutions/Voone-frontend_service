@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,16 @@ import { cn } from "@/lib/utils";
 export function LogoutButton({ className, variant = "outline" }: { className?: string; variant?: "outline" | "ghost" | "secondary" }) {
   const router = useRouter();
 
-  function logout() {
+  async function logout() {
+    // Only clearing the dev cookies left a real next-auth session intact, so "log out"
+    // navigated to /login while the visitor stayed signed in. signOut ends the session;
+    // the cookies are still cleared because they are what the mock session reads when
+    // authentication is disabled.
     document.cookie = "voone-local-account=; path=/; max-age=0; SameSite=Lax";
     document.cookie = "voone-dev-role=; path=/; max-age=0; SameSite=Lax";
+
+    await signOut({ redirect: false });
+
     router.push("/login");
     router.refresh();
   }
