@@ -37,7 +37,7 @@ const memberSchema = z.object({
 
 type MemberFormValues = z.infer<typeof memberSchema>;
 
-export function MemberForm({ clinicSlug }: { clinicSlug: string }) {
+export function MemberForm() {
   const [added, setAdded] = React.useState<string | null>(null);
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberSchema),
@@ -46,7 +46,7 @@ export function MemberForm({ clinicSlug }: { clinicSlug: string }) {
 
   const mutation = useMutation({
     mutationFn: (values: MemberFormValues) =>
-      addMemberAsStaff(clinicSlug, {
+      addMemberAsStaff({
         name: values.name,
         // As typed — see the note on MembershipSignupInput.phone.
         phone: values.phone,

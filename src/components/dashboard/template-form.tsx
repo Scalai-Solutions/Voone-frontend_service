@@ -11,9 +11,9 @@ import { AlertTriangle, CheckCircle2, CreditCard, Plus, Trash2 } from "lucide-re
 import { z } from "zod";
 
 import { QrCode } from "@/components/shared/qr-code";
+import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, getTemplatePresets, saveTemplate, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 
@@ -185,9 +185,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             <Field label="Nombre del programa" error={form.formState.errors.programName?.message}>
               <Input {...form.register("programName")} placeholder="Gold Beauty Club" />
             </Field>
-            <Field label="Color de fondo" error={form.formState.errors.hexBackgroundColor?.message}>
+            <Field label="Color de fondo" error={form.formState.errors.hexBackgroundColor?.message} htmlFor="template-background-color">
               <div className="flex items-center gap-3 rounded-md border border-input bg-card px-3 py-2 shadow-sm">
-                <input type="color" className="h-8 w-12 cursor-pointer rounded border-0 bg-transparent p-0" value={values.hexBackgroundColor} onChange={(event) => form.setValue("hexBackgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })} />
+                <input id="template-background-color" type="color" className="h-8 w-12 cursor-pointer rounded border-0 bg-transparent p-0" value={values.hexBackgroundColor} onChange={(event) => form.setValue("hexBackgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })} />
                 <input type="hidden" {...form.register("hexBackgroundColor")} />
                 <span className="text-sm text-muted-foreground">{values.hexBackgroundColor}</span>
               </div>
@@ -326,16 +326,6 @@ function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; p
         </div>
       </div>
       <div className="mt-4 rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefitsText || "Los beneficios aparecerán aquí."}</div>
-    </div>
-  );
-}
-
-function Field({ label, error, className, children }: { label: string; error?: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={className}>
-      <Label className="mb-2 block">{label}</Label>
-      {children}
-      {error ? <p className="mt-1 text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

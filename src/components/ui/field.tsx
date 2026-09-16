@@ -8,40 +8,64 @@ import { cn } from "@/lib/utils";
 /**
  * A labelled form row with an error slot.
  *
- * Extracted because this had been copy-pasted into four files. It also associates the
- * label with its control, which those copies did not: it clones the child to inject a
- * generated id, so tapping the label focuses the input and a screen reader announces it.
+ * Extracted because this had been copy-pasted into four files, none of which associated
+ * the label with its control — so tapping a label focused nothing and a screen reader
+ * announced the two separately. By default the single child is cloned to receive a
+ * generated id.
+ *
+ * Pass `htmlFor` when the child is a wrapper rather than the control itself, as with a
+ * colour picker that holds a visible input and a hidden registered one: injecting an id
+ * into the wrapper would point the label at an unfocusable `<div>`, which is worse than
+ * leaving them unassociated.
  */
 export function Field({
   label,
   error,
   hint,
   className,
+  labelClassName,
+  htmlFor,
   children,
 }: {
   label: string;
   error?: string;
   hint?: string;
   className?: string;
-  children: React.ReactElement<{ id?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>;
+  labelClassName?: string;
+  /** Id of the real control, when the child is a wrapper. */
+  htmlFor?: string;
+  children: React.ReactNode;
 }) {
-  const id = React.useId();
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
+  const generatedId = React.useId();
+  const controlId = htmlFor ?? generatedId;
+  const errorId = `${controlId}-error`;
+  const hintId = `${controlId}-hint`;
   const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ");
+
+  const control =
+    !htmlFor && React.isValidElement(children)
+      ? React.cloneElement(
+          children as React.ReactElement<{
+            id?: string;
+            "aria-describedby"?: string;
+            "aria-invalid"?: boolean;
+          }>,
+          {
+            id: controlId,
+            "aria-describedby": describedBy || undefined,
+            "aria-invalid": error ? true : undefined,
+          }
+        )
+      : children;
 
   return (
     <div className={className}>
-      <Label htmlFor={id} className="mb-2 block">
+      <Label htmlFor={controlId} className={cn("mb-2 block", labelClassName)}>
         {label}
       </Label>
-      {React.cloneElement(children, {
-        id,
-        "aria-describedby": describedBy || undefined,
-        "aria-invalid": error ? true : undefined,
-      })}
+      {control}
       {hint ? (
-        <p id={hintId} className={cn("mt-1 text-xs text-muted-foreground")}>
+        <p id={hintId} className="mt-1 text-xs text-muted-foreground">
           {hint}
         </p>
       ) : null}

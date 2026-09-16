@@ -50,9 +50,12 @@ export async function getMockSession(): Promise<VooneSession> {
   return {
     userId: localAccount ?? "dev-user-001",
     role,
-    clinicId: "clinic-aurea",
-    // Matches the backend seed, so a dashboard running against a freshly seeded backend
-    // can create members and render its QR without any configuration.
+    // Both match the backend seed, so a dashboard running against a freshly seeded
+    // backend can add members, write its template and render its QR with no configuration.
+    // The id has to be the real one: template writes are scoped by clinic id, and a
+    // placeholder here meant every one of them failed — silently, while the API client
+    // still fell back to mock data on error.
+    clinicId: "00000000-0000-4000-8000-0000000a0001",
     clinicSlug: "aurea",
     name: role === "voone_admin" ? "Administrador Voone" : "Equipo Clínica Aurea",
   };
