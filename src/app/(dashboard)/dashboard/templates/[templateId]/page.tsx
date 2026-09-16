@@ -1,18 +1,18 @@
 import { notFound } from "next/navigation";
 
 import { TemplateForm } from "@/components/dashboard/template-form";
-import { normalizeTemplateStarterId } from "@/components/dashboard/template-starters";
-import { getTemplate } from "@/lib/api-client";
+import { getTemplate, getTemplatePresets } from "@/lib/api-client";
+import { getCurrentSession } from "@/lib/auth";
 
-export default async function EditTemplatePage({ params, searchParams }: PageProps<"/dashboard/templates/[templateId]">) {
-  const [{ templateId }, query] = await Promise.all([params, searchParams]);
+export default async function EditTemplatePage({ params }: PageProps<"/dashboard/templates/[templateId]">) {
+  const [{ templateId }, session] = await Promise.all([params, getCurrentSession()]);
 
   if (templateId === "new") notFound();
+  if (!session) notFound();
 
-  const starter = normalizeTemplateStarterId(query.starter);
-  const template = await getTemplate(templateId);
+  const [template, presets] = await Promise.all([getTemplate(templateId), getTemplatePresets()]);
 
   return (
-    <TemplateForm key={`${template.id}-${starter ?? "current"}`} initialTemplate={template} starter={starter} />
+    <TemplateForm key={template.id} clinicId={session.clinicId} initialTemplate={template} presets={presets} />
   );
 }

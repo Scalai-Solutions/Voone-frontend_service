@@ -1,14 +1,23 @@
-import { TemplateChooser } from "@/components/dashboard/template-chooser";
+import { redirect } from "next/navigation";
+
+import { TemplateLandingGate } from "@/components/dashboard/template-chooser";
 import { PageHeader } from "@/components/shared/page-kit";
-import { getTemplates } from "@/lib/api-client";
+import { getCurrentClinicTemplate } from "@/lib/api-client";
 import { getCurrentSession, hasRole } from "@/lib/auth";
 
 export default async function TemplatesPage() {
-  const [templates, session] = await Promise.all([getTemplates(), getCurrentSession()]);
+  const session = await getCurrentSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
   const canEdit = hasRole(session, ["owner", "manager"]);
-  const goldTemplate = templates.find((template) => template.id === "gold-beauty") ?? templates[0];
-  const diamondTemplate = templates.find((template) => template.id === "diamond-skin") ?? templates[1] ?? goldTemplate;
-  const scratchTemplate = goldTemplate ?? diamondTemplate;
+  const initialTemplate = await getCurrentClinicTemplate(session.clinicId);
+
+  if (initialTemplate) {
+    redirect(`/dashboard/templates/${initialTemplate.id}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -18,14 +27,7 @@ export default async function TemplatesPage() {
         description="Elige el diseño inicial del pase de la clínica y después ajusta la plantilla en el editor."
       />
 
-      <TemplateChooser
-        canEdit={canEdit}
-        templateIds={{
-          signatureGlow: goldTemplate?.id ?? "gold-beauty",
-          diamondSkin: diamondTemplate?.id ?? "diamond-skin",
-          scratch: scratchTemplate?.id ?? "gold-beauty",
-        }}
-      />
+      <TemplateLandingGate clinicId={session.clinicId} canEdit={canEdit} initialTemplate={initialTemplate} />
     </div>
   );
 }

@@ -3,15 +3,61 @@ import type { Role } from "@/lib/auth";
 export type WalletProvider = "google" | "apple";
 export type ProviderStatus = "added" | "not_added" | "unavailable" | "failed";
 
-export interface Template {
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export interface TemplatePreset {
   id: string;
   name: string;
-  clinicBranding: string;
-  backgroundColor: string;
+  hexBackgroundColor: string;
+  previewImageUrl?: string | null;
+}
+
+export interface TemplateTreatmentInput {
+  name: string;
+  pointsAllotted: number;
+}
+
+export interface SaveTemplateInput {
+  presetId: string;
+  programName: string;
+  hexBackgroundColor: string;
+  logoUrl?: string;
+  heroImageUrl?: string;
   pointsLabel: string;
   tierLabel: string;
-  benefits: string;
+  benefitsText: string;
   infoText: string;
+  treatments: TemplateTreatmentInput[];
+}
+
+export interface Template {
+  id: string;
+  clinicId?: string;
+  presetId?: string;
+  programName: string;
+  hexBackgroundColor: string;
+  logoUrl?: string | null;
+  heroImageUrl?: string | null;
+  pointsLabel: string;
+  tierLabel: string;
+  benefitsText: string;
+  infoText: string;
+  status?: "PENDING" | "ACTIVE" | "FAILED";
+  preset?: TemplatePreset;
+  clinic?: { id: string; name: string };
+  treatments?: TemplateTreatmentInput[];
+  name?: string;
+  clinicBranding?: string;
+  backgroundColor?: string;
+  benefits?: string;
   memberCount: number;
   walletStatus: Record<WalletProvider, ProviderStatus>;
 }
@@ -64,16 +110,6 @@ export interface DashboardOverview {
   recentActivity: Array<{ id: string; label: string; date: string }>;
 }
 
-export interface SaveTemplateInput {
-  name: string;
-  clinicBranding: string;
-  backgroundColor: string;
-  pointsLabel: string;
-  tierLabel: string;
-  benefits: string;
-  infoText: string;
-}
-
 export interface CreateMemberInput {
   name: string;
   identity: string;
@@ -85,28 +121,48 @@ const appleEnabled = process.env.NEXT_PUBLIC_APPLE_WALLET_ENABLED === "true";
 const mockTemplates: Template[] = [
   {
     id: "gold-beauty",
+    clinicId: "clinic-aurea",
+    presetId: "classic-gold",
+    programName: "Gold Beauty Club",
+    hexBackgroundColor: "#ead0bd",
+    pointsLabel: "Saldo Beauty",
+    tierLabel: "Miembro Gold",
+    benefitsText: "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
+    infoText: "Muestra este pase en recepción antes de pagar.",
+    status: "ACTIVE",
+    treatments: [{ name: "Hydrafacial", pointsAllotted: 120 }],
     name: "Gold Beauty Club",
     clinicBranding: "Club Clínica Aurea",
     backgroundColor: "#ead0bd",
-    pointsLabel: "Saldo Beauty",
-    tierLabel: "Miembro Gold",
     benefits: "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
-    infoText: "Muestra este pase en recepción antes de pagar.",
     memberCount: 284,
     walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
   },
   {
     id: "diamond-skin",
+    clinicId: "clinic-aurea",
+    presetId: "modern-dark",
+    programName: "Diamond Skin Plan",
+    hexBackgroundColor: "#2f343a",
+    pointsLabel: "Crédito Skin",
+    tierLabel: "Miembro Diamond",
+    benefitsText: "Revisión avanzada, horarios VIP y lanzamientos exclusivos.",
+    infoText: "Los puntos se actualizan después de cada tratamiento completado.",
+    status: "ACTIVE",
+    treatments: [{ name: "Sesión láser", pointsAllotted: 220 }],
     name: "Diamond Skin Plan",
     clinicBranding: "Club Clínica Aurea",
     backgroundColor: "#2f343a",
-    pointsLabel: "Crédito Skin",
-    tierLabel: "Miembro Diamond",
     benefits: "Revisión avanzada, horarios VIP y lanzamientos exclusivos.",
-    infoText: "Los puntos se actualizan después de cada tratamiento completado.",
     memberCount: 71,
     walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
   },
+];
+
+const mockTemplatePresets: TemplatePreset[] = [
+  { id: "classic-gold", name: "Classic Gold", hexBackgroundColor: "#ead0bd" },
+  { id: "modern-dark", name: "Modern Dark", hexBackgroundColor: "#2a2e35" },
+  { id: "fresh-mint", name: "Fresh Mint", hexBackgroundColor: "#d8efe3" },
 ];
 
 const mockMembers: Member[] = [
@@ -177,7 +233,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Voone API request failed: ${response.status}`);
+    throw new ApiError(`Voone API request failed: ${response.status}`, response.status);
   }
 
   return response.json() as Promise<T>;
@@ -186,7 +242,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 async function withMockFallback<T>(request: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await request();
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
     return fallback;
   }
 }
@@ -195,26 +255,40 @@ export function getTemplates() {
   return withMockFallback(() => apiFetch<Template[]>("/v1/wallet/templates"), mockTemplates);
 }
 
+export function getTemplatePresets() {
+  return withMockFallback(() => apiFetch<TemplatePreset[]>("/v1/templates/presets"), mockTemplatePresets);
+}
+
+export function getCurrentClinicTemplate(clinicId: string) {
+  return withMockFallback(() => apiFetch<Template | null>(`/v1/templates/current?clinicId=${encodeURIComponent(clinicId)}`), null);
+}
+
 export function getTemplate(templateId: string) {
   return withMockFallback(
-    () => apiFetch<Template>(`/v1/wallet/templates/${templateId}`),
+    () => apiFetch<Template>(`/v1/templates/${templateId}`),
     mockTemplates.find((template) => template.id === templateId) ?? mockTemplates[0]
   );
 }
 
-export function saveTemplate(input: SaveTemplateInput, templateId?: string) {
+export function saveTemplate(input: SaveTemplateInput, templateId: string | undefined, clinicId: string) {
   const fallback: Template = {
     id: templateId ?? "new-template",
+    clinicId,
     ...input,
+    name: input.programName,
+    clinicBranding: "Club Clínica Aurea",
+    backgroundColor: input.hexBackgroundColor,
+    benefits: input.benefitsText,
     memberCount: templateId ? mockTemplates.find((template) => template.id === templateId)?.memberCount ?? 0 : 0,
     walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
   };
 
   return withMockFallback(
     () =>
-      apiFetch<Template>(templateId ? `/v1/wallet/templates/${templateId}` : "/v1/wallet/templates", {
-        method: templateId ? "PUT" : "POST",
-        body: JSON.stringify({ providers: ["google", ...(appleEnabled ? ["apple"] : [])], ...input }),
+      apiFetch<Template>(templateId ? `/v1/templates/${templateId}` : "/v1/templates", {
+        method: templateId ? "PATCH" : "POST",
+        headers: { "x-clinic-id": clinicId },
+        body: JSON.stringify(input),
       }),
     fallback
   );
@@ -238,7 +312,7 @@ export function createMember(input: CreateMemberInput) {
     name: input.name,
     identity: input.identity,
     templateId: template.id,
-    templateName: template.name,
+    templateName: template.name ?? template.programName,
     points: 0,
     tier: "Nuevo",
     walletStatus: { google: "not_added", apple: appleEnabled ? "not_added" : "unavailable" },

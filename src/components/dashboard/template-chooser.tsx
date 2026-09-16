@@ -1,24 +1,61 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { ArrowUpRight, Paintbrush, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, LockKeyhole, Paintbrush, Sparkles } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 
 import { templateStarters } from "@/components/dashboard/template-starters";
 import { Button } from "@/components/ui/button";
 import { WalletCard, WALLET_THEMES, type WalletCardTheme } from "@/components/ui/wallet-card";
+import { getCurrentClinicTemplate, getTemplatePresets, type Template } from "@/lib/api-client";
 
-interface TemplateChooserProps {
+interface TemplateLandingGateProps {
+  clinicId: string;
   canEdit: boolean;
-  templateIds: {
-    signatureGlow: string;
-    diamondSkin: string;
-    scratch: string;
-  };
+  initialTemplate: Template | null;
 }
 
-export function TemplateChooser({ canEdit, templateIds }: TemplateChooserProps) {
+export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: TemplateLandingGateProps) {
+  const router = useRouter();
   const reducedMotion = useReducedMotion();
+  const currentTemplate = useQuery({
+    queryKey: ["clinic-template", clinicId],
+    queryFn: () => getCurrentClinicTemplate(clinicId),
+    initialData: initialTemplate,
+  });
+  const presets = useQuery({ queryKey: ["template-presets"], queryFn: getTemplatePresets });
+
+  React.useEffect(() => {
+    if (currentTemplate.data) {
+      router.replace(`/dashboard/templates/${currentTemplate.data.id}`);
+    }
+  }, [currentTemplate.data, router]);
+
+  if (currentTemplate.data) {
+    return null;
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="voone-panel flex items-center gap-4 p-5">
+        <LockKeyhole className="h-5 w-5 text-[#a47845]" />
+        <p className="text-sm text-muted-foreground">Solo owner o manager pueden crear la plantilla Wallet de la clínica.</p>
+      </div>
+    );
+  }
+
+  if (presets.isPending) {
+    return <div className="voone-panel p-5 text-sm text-muted-foreground">Cargando diseños iniciales...</div>;
+  }
+
+  if (presets.error) {
+    return <div className="voone-panel p-5 text-sm text-destructive">No se pudieron cargar las plantillas iniciales.</div>;
+  }
+
+  const [signaturePreset, diamondPreset, scratchPreset] = presets.data;
   const containerVariants = reducedMotion
     ? undefined
     : {
@@ -34,12 +71,12 @@ export function TemplateChooser({ canEdit, templateIds }: TemplateChooserProps) 
   const rows = [
     {
       starter: templateStarters["signature-glow"],
-      href: `/dashboard/templates/${templateIds.signatureGlow}?starter=signature-glow`,
+      href: `/dashboard/templates/new${signaturePreset ? `?presetId=${encodeURIComponent(signaturePreset.id)}` : ""}`,
       theme: WALLET_THEMES.gold,
     },
     {
       starter: templateStarters["diamond-skin"],
-      href: `/dashboard/templates/${templateIds.diamondSkin}?starter=diamond-skin`,
+      href: `/dashboard/templates/new${diamondPreset ? `?presetId=${encodeURIComponent(diamondPreset.id)}` : ""}`,
       theme: WALLET_THEMES.diamond,
     },
   ];
@@ -63,13 +100,11 @@ export function TemplateChooser({ canEdit, templateIds }: TemplateChooserProps) 
               <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{row.starter.title}</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{row.starter.description}</p>
             </div>
-            {canEdit ? (
-              <Button asChild className="mt-auto rounded-2xl px-5">
-                <Link href={row.href}>
-                  Usar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            ) : null}
+            <Button asChild className="mt-auto rounded-2xl px-5">
+              <Link href={row.href}>
+                Usar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </motion.div>
       ))}
@@ -85,13 +120,11 @@ export function TemplateChooser({ canEdit, templateIds }: TemplateChooserProps) 
             <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{templateStarters.scratch.title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{templateStarters.scratch.description}</p>
           </div>
-          {canEdit ? (
-            <Button asChild variant="outline" className="mt-auto rounded-2xl px-5">
-              <Link href={`/dashboard/templates/${templateIds.scratch}?starter=scratch`}>
-                Empezar en blanco <ArrowUpRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          ) : null}
+          <Button asChild variant="outline" className="mt-auto rounded-2xl px-5">
+            <Link href={`/dashboard/templates/new${scratchPreset ? `?presetId=${encodeURIComponent(scratchPreset.id)}` : ""}`}>
+              Empezar en blanco <ArrowUpRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </motion.div>
     </motion.section>

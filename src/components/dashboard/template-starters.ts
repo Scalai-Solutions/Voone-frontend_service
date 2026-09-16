@@ -14,13 +14,16 @@ export interface TemplateStarter {
 }
 
 export const scratchTemplateValues: SaveTemplateInput = {
-  name: "",
-  clinicBranding: "",
-  backgroundColor: "#ead0bd",
+  presetId: "",
+  programName: "",
+  hexBackgroundColor: "#ead0bd",
+  logoUrl: "",
+  heroImageUrl: "",
   pointsLabel: "Saldo Beauty",
   tierLabel: "Miembro Gold",
-  benefits: "",
+  benefitsText: "",
   infoText: "",
+  treatments: [{ name: "Consulta", pointsAllotted: 60 }],
 };
 
 export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
@@ -30,13 +33,19 @@ export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
     eyebrow: "Signature Glow Club",
     description: "Un pase cálido de fidelización para puntos por tratamientos, crédito por visitas y recompensas habituales.",
     values: {
-      name: "Signature Glow Club",
-      clinicBranding: "Club Clínica Aurea",
-      backgroundColor: "#ead0bd",
+      presetId: "",
+      programName: "Signature Glow Club",
+      hexBackgroundColor: "#ead0bd",
+      logoUrl: "",
+      heroImageUrl: "",
       pointsLabel: "Puntos Glow",
       tierLabel: "Miembro Gold",
-      benefits: "Reserva prioritaria, crédito de cumpleaños y recompensas de temporada.",
+      benefitsText: "Reserva prioritaria, crédito de cumpleaños y recompensas de temporada.",
       infoText: "Muestra este pase en recepción antes de pagar para acumular puntos.",
+      treatments: [
+        { name: "Hydrafacial", pointsAllotted: 120 },
+        { name: "Peeling", pointsAllotted: 90 },
+      ],
     },
     appleCard: {
       clinic: "AUREA",
@@ -69,13 +78,19 @@ export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
     eyebrow: "Diamond Skin Plan",
     description: "Un pase premium para saldos de paquetes, ventajas de nivel superior y programas avanzados de piel.",
     values: {
-      name: "Diamond Skin Plan",
-      clinicBranding: "Aurea Skin Studio",
-      backgroundColor: "#2a2e35",
+      presetId: "",
+      programName: "Diamond Skin Plan",
+      hexBackgroundColor: "#2a2e35",
+      logoUrl: "",
+      heroImageUrl: "",
       pointsLabel: "Créditos Skin",
       tierLabel: "Miembro Diamond",
-      benefits: "Agenda VIP, crédito para paquetes láser y vistas privadas de tratamientos.",
+      benefitsText: "Agenda VIP, crédito para paquetes láser y vistas privadas de tratamientos.",
       infoText: "Usa este pase para visitas, saldos de paquetes y beneficios de nivel.",
+      treatments: [
+        { name: "Sesión láser", pointsAllotted: 220 },
+        { name: "Revisión avanzada", pointsAllotted: 140 },
+      ],
     },
     appleCard: {
       clinic: "AUREA",
