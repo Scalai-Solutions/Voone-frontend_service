@@ -288,7 +288,16 @@ async function withMockFallback<T>(request: () => Promise<T>, fallback: T): Prom
   try {
     return await request();
   } catch (error) {
-    if (error instanceof ApiError) {
+    // A 404 means the backend does not implement this endpoint yet, which is precisely the
+    // case these fallbacks exist for — most of the dashboard reads against routes that have
+    // never been built. Anything else is a real failure and still propagates: a 500 or a
+    // 403 must not be quietly replaced with fabricated data.
+    //
+    // Needed as soon as NEXT_PUBLIC_VOONE_API_URL was configured. Before that the missing
+    // variable threw something that was not an ApiError, so every read fell back and the
+    // dashboard rendered; pointing it at a real backend turned those reads into 404s and
+    // took the pages down with a 500.
+    if (error instanceof ApiError && error.status !== 404) {
       throw error;
     }
 

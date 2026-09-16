@@ -3,8 +3,15 @@ import { CreditCard, ShieldCheck, Sparkles } from "lucide-react";
 
 import { LocalLoginForm } from "@/components/auth/local-login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isAuthEnabled } from "@/lib/auth";
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  // proxy.ts appends callbackUrl when it bounces a protected route here, so signing in
+  // returns to where the visitor was actually going.
+  const query = await searchParams;
+  const callbackUrl = typeof query.callbackUrl === "string" ? query.callbackUrl : undefined;
+  const authEnabled = isAuthEnabled();
+
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_12%_12%,rgba(217,180,119,0.32),transparent_32%),radial-gradient(circle_at_88%_10%,rgba(239,220,213,0.86),transparent_34%),linear-gradient(180deg,#faf2ee,#f4e5dc_58%,#efe0d8)]" />
@@ -21,7 +28,7 @@ export default function LoginPage() {
             <div>
               <p className="voone-kicker text-gold-light">Acceso al espacio</p>
               <h1 className="mt-4 max-w-xl font-serif text-5xl font-semibold tracking-tight text-white md:text-6xl">Bienvenido de nuevo.</h1>
-              <p className="mt-5 max-w-lg text-base leading-7 text-white/64">Abre el panel de la clínica o la consola de administración de Voone con las credenciales locales.</p>
+              <p className="mt-5 max-w-lg text-base leading-7 text-white/64">Abre el panel de tu clínica. El acceso que verás depende de tu cuenta.</p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
@@ -36,10 +43,10 @@ export default function LoginPage() {
           <CardHeader className="pb-4 pt-8 md:px-8">
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#a47845]">Iniciar sesión</p>
             <CardTitle className="mt-2 font-serif text-4xl font-semibold tracking-tight">Accede a Voone</CardTitle>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Elige el tipo de espacio, introduce la contraseña y continúa.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Introduce tus credenciales para continuar.</p>
           </CardHeader>
           <CardContent className="pb-8 md:px-8">
-            <LocalLoginForm />
+            <LocalLoginForm authEnabled={authEnabled} callbackUrl={callbackUrl} />
           </CardContent>
         </Card>
       </section>

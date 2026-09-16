@@ -1,96 +1,128 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getSession, signIn } from "next-auth/react";
 import { LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
-const PASSWORD = "voone123";
-
-const ACCOUNTS = {
-  "client.voone.ai": { role: "owner", destination: "/dashboard" },
-  "admin.voone.ai": { role: "voone_admin", destination: "/admin" },
-} as const;
-
-const LOGIN_OPTIONS = [
-  { id: "client.voone.ai", label: "Cliente", detail: "Panel" },
-  { id: "admin.voone.ai", label: "Administración", detail: "Control" },
-] as const;
-
-type AccountKey = keyof typeof ACCOUNTS;
-
-export function LocalLoginForm() {
+/**
+ * Signs in through next-auth.
+ *
+ * It used to compare a hardcoded password client-side and then write the granted role into
+ * a cookie, which meant the browser decided its own privileges: anyone could set
+ * voone-dev-role=voone_admin and be an administrator. The /api/staff route handlers trust
+ * that session while holding STAFF_API_KEY, so on a public URL it handed over the ability
+ * to rewrite any clinic's public page.
+ *
+ * Two things follow from fixing it, and both are deliberate:
+ *
+ *  - There is no longer a "Cliente / Administración" selector. The role comes from the
+ *    server with the session; a client that can choose its own role has no security
+ *    property worth discussing.
+ *  - The destination is derived from the session after signing in, not from what was
+ *    picked before.
+ */
+export function LocalLoginForm({
+  authEnabled,
+  callbackUrl,
+}: {
+  authEnabled: boolean;
+  callbackUrl?: string;
+}) {
   const router = useRouter();
-  const [identifier, setIdentifier] = React.useState("client.voone.ai");
+  const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [pending, setPending] = React.useState(false);
 
-  function submitLogin(event: React.FormEvent<HTMLFormElement>) {
+  // With authentication disabled the credentials provider has nothing to check against and
+  // would fail for a reason that has nothing to do with what was typed. Nothing is gated in
+  // that mode either, so say so and offer the door rather than a form that cannot work.
+  if (!authEnabled) {
+    return (
+      <div className="space-y-4">
+        <p className="rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">
+          La autenticación está desactivada en este entorno, así que no hace falta iniciar
+          sesión. El panel es accesible directamente.
+        </p>
+        <Button asChild className="h-12 w-full rounded-2xl text-[15px]">
+          <Link href="/dashboard">Ir al panel</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setPending(true);
+    setError(null);
 
-    const normalizedIdentifier = identifier.trim().toLowerCase() as AccountKey;
-    const account = ACCOUNTS[normalizedIdentifier];
+    const result = await signIn("credentials", {
+      email: email.trim(),
+      password,
+      // Handled here so a failure can be shown in place instead of bouncing through a
+      // next-auth error page.
+      redirect: false,
+    });
 
-    if (!account || password !== PASSWORD) {
-      setError("Usa un acceso de Voone válido y su contraseña.");
+    if (!result?.ok) {
+      setPending(false);
+      // Deliberately does not say which half was wrong: that difference tells an attacker
+      // whether an address is valid.
+      setError("Credenciales incorrectas.");
       return;
     }
 
-    document.cookie = `voone-local-account=${normalizedIdentifier}; path=/; max-age=31536000; SameSite=Lax`;
-    document.cookie = `voone-dev-role=${account.role}; path=/; max-age=31536000; SameSite=Lax`;
-    router.push(account.destination);
+    // Read the role from the session rather than assuming it: the server decides it, which
+    // is the entire point of the change.
+    const session = await getSession();
+    const destination =
+      callbackUrl ?? (session?.user?.role === "voone_admin" ? "/admin" : "/dashboard");
+
+    router.push(destination);
     router.refresh();
   }
 
   return (
     <form onSubmit={submitLogin} className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/70 bg-[#fbf4ec] p-1.5 shadow-inner">
-        {LOGIN_OPTIONS.map((option) => {
-          const active = identifier.trim().toLowerCase() === option.id;
-
-          return (
-            <button
-              key={option.id}
-              type="button"
-              className={cn(
-                "rounded-xl px-3 py-3 text-left transition-all",
-                active ? "bg-[#2a1b16] text-[#fff8ec] shadow-[0_12px_28px_-18px_rgba(42,27,22,0.95)]" : "text-muted-foreground hover:bg-white/70 hover:text-foreground"
-              )}
-              onClick={() => {
-                setIdentifier(option.id);
-                setError(null);
-              }}
-            >
-              <span className="block text-sm font-bold">{option.label}</span>
-              <span className="mt-1 block text-[11px] opacity-70">{option.detail}</span>
-            </button>
-          );
-        })}
-      </div>
       <div>
-        <Label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]" htmlFor="voone-login-id">Espacio</Label>
+        <Label
+          className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]"
+          htmlFor="voone-login-email"
+        >
+          Email
+        </Label>
         <Input
-          id="voone-login-id"
+          id="voone-login-email"
+          type="email"
           autoComplete="username"
+          required
           className="h-12 rounded-2xl border-[#d9c9b6] bg-white/78 px-4 shadow-sm"
-          value={identifier}
+          value={email}
           onChange={(event) => {
-            setIdentifier(event.target.value);
+            setEmail(event.target.value);
             setError(null);
           }}
-          placeholder="client.voone.ai"
+          placeholder="nombre@voone.ai"
         />
       </div>
       <div>
-        <Label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]" htmlFor="voone-login-password">Contraseña</Label>
+        <Label
+          className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]"
+          htmlFor="voone-login-password"
+        >
+          Contraseña
+        </Label>
         <Input
           id="voone-login-password"
           type="password"
           autoComplete="current-password"
+          required
           className="h-12 rounded-2xl border-[#d9c9b6] bg-white/78 px-4 shadow-sm"
           value={password}
           onChange={(event) => {
@@ -99,9 +131,17 @@ export function LocalLoginForm() {
           }}
         />
       </div>
-      {error ? <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] shadow-[0_18px_42px_-24px_rgba(67,48,43,0.95)]">
-        Entrar <LogIn className="ml-2 h-4 w-4" />
+      {error ? (
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-12 w-full rounded-2xl text-[15px] shadow-[0_18px_42px_-24px_rgba(67,48,43,0.95)]"
+      >
+        {pending ? "Entrando..." : "Entrar"} <LogIn className="ml-2 h-4 w-4" />
       </Button>
     </form>
   );
