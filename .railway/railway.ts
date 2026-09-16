@@ -1,10 +1,18 @@
 import { defineRailway, github, preserve, project, service } from "railway/iac";
 
-// A per-service partial, matching voone-web's and voone-backend's files.
-export const partial = "voone-frontend";
+// A per-service partial, matching voone-backend's file.
+//
+// The service is named voone-web because that is the one holding the voone.ai domain and
+// its certificate. It was already building from this repository — which is how the staff
+// dashboard came to be served on the public marketing domain, unconfigured and with its
+// auth gate off. Configuring that service in place rather than moving the domain avoids a
+// DNS change: voone.ai needs a CNAME to a per-domain Railway target, and re-adding the
+// domain elsewhere may issue a different one, which would take the domain down until
+// Cloudflare caught up.
+export const partial = "voone-web";
 
 export default defineRailway(() => {
-  const app = service("voone-frontend", {
+  const app = service("voone-web", {
     // Built from the repository rather than an uploaded snapshot, so a deploy is
     // reproducible from a commit and pushes to main deploy themselves.
     source: github("Scalai-Solutions/Voone-frontend_service"),
