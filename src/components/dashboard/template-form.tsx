@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, CreditCard, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
+import { QrCode } from "@/components/shared/qr-code";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -283,18 +284,19 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   );
 }
 
-function RandomQr({ seed }: { seed: string }) {
-  const cells = Array.from({ length: 49 }, (_, index) => {
-    const code = seed.charCodeAt(index % Math.max(seed.length, 1)) || 19;
-    return (code * (index + 7) + index * 11) % 5 < 2 || [0, 1, 7, 8, 5, 6, 35, 36, 42, 43, 40, 41].includes(index);
-  });
+// A real, scannable code rather than the decorative grid this used to draw — a preview
+// whose QR cannot be scanned hides exactly the problem a preview should catch. It encodes
+// a plainly marked sample, because a template has no member and so no redemption code yet.
+const PREVIEW_QR_VALUE = "VOONE-EJEMPLO";
 
+function PreviewQr() {
   return (
-    <div className="grid h-32 w-32 grid-cols-7 gap-1 rounded-xl bg-white p-3 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]" aria-label="Vista previa del QR">
-      {cells.map((active, index) => (
-        <span key={index} className={active ? "rounded-[2px] bg-[#241612]" : "rounded-[2px] bg-[#efe2d5]"} />
-      ))}
-    </div>
+    <QrCode
+      value={PREVIEW_QR_VALUE}
+      size={104}
+      className="rounded-xl shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]"
+      title="Vista previa del QR"
+    />
   );
 }
 
@@ -308,7 +310,7 @@ function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; p
           <p className="text-[10px] font-bold uppercase opacity-70">Google Wallet</p>
           <p className="mt-1 text-xs font-semibold opacity-75">{presetName ?? "Preset Voone"}</p>
         </div>
-        <RandomQr seed={`${values.programName}-${values.hexBackgroundColor}`} />
+        <PreviewQr />
       </div>
       <h3 className="mt-6 font-serif text-2xl font-semibold tracking-tight">{values.programName || "Nombre del programa"}</h3>
       <div className="mt-5 grid grid-cols-2 gap-3 text-sm">

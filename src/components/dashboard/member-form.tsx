@@ -1,132 +1,137 @@
 "use client";
 
 import * as React from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Mail, MessageCircle, Send } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { createMember, getTemplates, type Member } from "@/lib/api-client";
+import { ApiError, addMemberAsStaff } from "@/lib/api-client";
+import { normalizeSpanishMobile } from "@/lib/phone-es";
 
 const memberSchema = z.object({
-  name: z.string().min(2, "Añade el nombre del miembro"),
-  identity: z.string().min(5, "Añade un teléfono o email"),
-  templateId: z.string().min(1, "Elige una plantilla"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Añade el nombre del miembro")
+    // Matches the backend, which caps at the pass field's width.
+    .max(64, "El nombre es demasiado largo"),
+  // Was a single loose `identity` accepting a phone or an email with no format check. A
+  // phone is now required and validated: it is the member's identity, it is what the
+  // unique index deduplicates on, and an unnormalized value would violate the database's
+  // E.164 constraint and surface as a 500.
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Añade el móvil del miembro")
+    .refine((value) => normalizeSpanishMobile(value) !== null, "Introduce un móvil español válido"),
+  email: z
+    .union([z.literal(""), z.string().trim().email("Introduce un email válido")])
+    .optional(),
 });
 
 type MemberFormValues = z.infer<typeof memberSchema>;
 
-export function MemberForm() {
-  const [createdMember, setCreatedMember] = React.useState<(Member & { walletLink: string }) | null>(null);
-  const templates = useQuery({ queryKey: ["templates"], queryFn: getTemplates });
+export function MemberForm({ clinicSlug }: { clinicSlug: string }) {
+  const [added, setAdded] = React.useState<string | null>(null);
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberSchema),
-    defaultValues: { name: "", identity: "", templateId: "" },
-  });
-  const mutation = useMutation({
-    mutationFn: createMember,
-    onSuccess: (member) => setCreatedMember(member),
+    defaultValues: { name: "", phone: "", email: "" },
   });
 
-  if (createdMember) {
-    const shareText = encodeURIComponent(`Tu pase Wallet de Voone está listo: ${createdMember.walletLink}`);
-    return (
-      <Card className="mx-auto max-w-xl rounded-lg">
-        <CardHeader>
-          <CardTitle>Miembro creado</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="rounded-lg bg-secondary p-4">
-            <p className="text-sm text-muted-foreground">{createdMember.name}</p>
-            <p className="text-2xl font-semibold tracking-tight">{createdMember.id}</p>
-          </div>
-          <QrBlock value={createdMember.walletLink} />
-          <div className="grid gap-2 sm:grid-cols-3">
-            <Button asChild variant="outline">
-              <a href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noreferrer">
-                <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={`sms:?&body=${shareText}`}>
-                <Send className="mr-2 h-4 w-4" /> SMS
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={`mailto:?subject=Tu pase Voone&body=${shareText}`}>
-                <Mail className="mr-2 h-4 w-4" /> Email
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const mutation = useMutation({
+    mutationFn: (values: MemberFormValues) =>
+      addMemberAsStaff(clinicSlug, {
+        name: values.name,
+        // As typed — see the note on MembershipSignupInput.phone.
+        phone: values.phone,
+        email: values.email ? values.email : undefined,
+      }),
+    onSuccess: (_result, values) => {
+      setAdded(values.name);
+      form.reset();
+    },
+  });
+
+  // The backend answers a new member and an existing one identically, on purpose, so there
+  // is no member id or wallet link to show here. The old success screen displayed a
+  // fabricated id and a QR of a placeholder URL; a confirmation and a way to add the next
+  // person is what a reception desk actually needs.
+  const failure = mutation.error
+    ? mutation.error instanceof ApiError && mutation.error.detail
+      ? mutation.error.detail
+      : "No se ha podido añadir este miembro. Inténtalo de nuevo."
+    : null;
 
   return (
-    <form onSubmit={form.handleSubmit((input) => mutation.mutate(input))} className="mx-auto max-w-2xl space-y-4">
+    <form
+      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+      className="mx-auto max-w-2xl space-y-4"
+      noValidate
+    >
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>Añadir miembro</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Field label="Nombre" error={form.formState.errors.name?.message}>
-            <Input {...form.register("name")} placeholder="Veronica Navarro" />
+          {added ? (
+            <p className="flex items-center gap-2 rounded-md bg-success/10 p-3 text-sm text-success">
+              <Check className="h-4 w-4 shrink-0" aria-hidden />
+              {added} ya es miembro del club.
+            </p>
+          ) : null}
+
+          <Field label="Nombre y apellidos" error={form.formState.errors.name?.message}>
+            <Input {...form.register("name")} autoComplete="off" placeholder="Verónica Navarro" />
           </Field>
-          <Field label="Teléfono o email" error={form.formState.errors.identity?.message}>
-            <Input {...form.register("identity")} placeholder="+34 612 440 901 o nombre@example.com" />
+
+          <Field
+            label="Móvil"
+            error={form.formState.errors.phone?.message}
+            hint="Sólo móviles españoles: 6xx o 7xx."
+          >
+            <Input
+              {...form.register("phone")}
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="612 34 56 78"
+            />
           </Field>
-          <Field label="Plantilla" error={form.formState.errors.templateId?.message}>
-            {templates.isLoading ? (
-              <Skeleton className="h-10 w-full" />
-            ) : (
-              <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm" {...form.register("templateId")}>
-                <option value="">Elige una plantilla</option>
-                {templates.data?.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            )}
+
+          <Field label="Email (opcional)" error={form.formState.errors.email?.message}>
+            <Input
+              {...form.register("email")}
+              type="email"
+              autoComplete="off"
+              placeholder="nombre@example.com"
+            />
           </Field>
-          {mutation.error ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">No se pudo crear este miembro. Inténtalo de nuevo.</p> : null}
+
+          {/* Stated rather than offered as a checkbox: staff cannot consent to marketing on
+              a client's behalf, so the member is created without it and opts in themselves
+              through the QR form. */}
+          <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+            El alta se registra sin consentimiento de marketing. Para recibir comunicaciones,
+            la clienta debe aceptarlo ella misma desde el formulario del código QR.
+          </p>
+
+          {failure ? (
+            <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {failure}
+            </p>
+          ) : null}
+
           <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
-            {mutation.isPending ? "Creando..." : "Crear miembro"}
+            {mutation.isPending ? "Añadiendo..." : "Añadir miembro"}
           </Button>
         </CardContent>
       </Card>
     </form>
-  );
-}
-
-function QrBlock({ value }: { value: string }) {
-  const cells = Array.from({ length: 121 }, (_, index) => (value.charCodeAt(index % value.length) + index * 13) % 4 === 0);
-
-  return (
-    <div className="mx-auto w-fit rounded-lg bg-white p-4 shadow-inner">
-      <div className="grid h-44 w-44 grid-cols-11 grid-rows-11 gap-1">
-        {cells.map((filled, index) => (
-          <span key={index} className={filled ? "rounded-[2px] bg-neutral-950" : "rounded-[2px] bg-white"} />
-        ))}
-      </div>
-      <p className="mt-3 max-w-44 truncate text-center text-xs text-muted-foreground">{value}</p>
-    </div>
-  );
-}
-
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <Label className="mb-2 block">{label}</Label>
-      {children}
-      {error ? <p className="mt-1 text-sm text-destructive">{error}</p> : null}
-    </div>
   );
 }

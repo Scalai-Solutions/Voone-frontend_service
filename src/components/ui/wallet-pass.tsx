@@ -3,6 +3,7 @@
 import * as React from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { Calendar, MessageCircle, Gift, ChevronRight, ExternalLink, Check } from "lucide-react";
+import { QrCode } from "@/components/shared/qr-code";
 
 const CLINIC = "AURÉA";
 
@@ -52,13 +53,9 @@ function FullPass() {
             <p className="text-[10px] text-[#5a4038] leading-tight">Acceso exclusivo a tratamientos, eventos y ofertas de socio</p>
           </div>
         </div>
-        <div className="mx-auto w-[86px] h-[86px] bg-white rounded-md p-1.5 shadow-inner mb-2">
-          <div className="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px]">
-            {Array.from({ length: 36 }).map((_, i) => (
-              <div key={i} className={(i * 7 + (i % 5) + (i % 3)) % 3 === 0 ? "bg-neutral-900 rounded-[1px]" : "bg-transparent"} />
-            ))}
-          </div>
-        </div>
+        {/* A real code, so the mockup shows what a member actually sees. Encodes a marked
+            sample: this component has no member behind it. */}
+        <QrCode value="VOONE-EJEMPLO" size={68} className="mx-auto mb-2 p-1.5" title="Pase de ejemplo" />
         <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">PASE CLUB</p>
         <p className="text-[9px] text-[#8a726c]">Miembro desde 2026</p>
       </div>
