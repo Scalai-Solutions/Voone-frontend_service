@@ -53,7 +53,7 @@ export default function Home() {
       <header className="fixed top-0 inset-x-0 z-50 px-3 pt-3 sm:px-4">
         <div className="max-w-6xl mx-auto flex h-[72px] items-center justify-between rounded-[22px] border border-border/70 bg-background/80 pl-4 pr-3 shadow-[0_12px_34px_-14px_rgba(67,48,43,0.3)] backdrop-blur-md sm:pl-6 sm:pr-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/voone-logo.png" alt="Voone" className="h-14 w-auto object-contain" />
+          <img src="/voone-logo.png" alt="Voone" className="h-9 w-auto object-contain" />
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
             <a href="#producto" className="transition-colors hover:text-foreground">Producto</a>
             <a href="#como-funciona" className="transition-colors hover:text-foreground">Cómo funciona</a>

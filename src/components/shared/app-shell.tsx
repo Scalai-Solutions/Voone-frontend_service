@@ -60,7 +60,10 @@ export function AppShell({
         <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.07]" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(208,161,84,0.19),transparent_70%)]" />
         <Link href={homeHref} className="relative flex items-center gap-3 rounded-lg px-2 py-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#e4be79]/35 bg-[linear-gradient(145deg,#38241c,#100908)] font-serif text-xl font-semibold text-[#e8c17e] shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">V</span>
+          {/* Knockout mark: the sidebar is #130c0a, so this takes the dark variant. The
+              light-surface mark is solid brown and would disappear here. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/voone-mark-dark.png" alt="" className="h-10 w-10 object-contain" />
           <span>
             <span className="block font-serif text-xl font-semibold tracking-wide">VOONE</span>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b89b77]">{area}</span>
