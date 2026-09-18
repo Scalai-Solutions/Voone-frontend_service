@@ -21,8 +21,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <div className="voone-dark-panel order-2 hidden min-h-[520px] p-8 md:p-10 lg:order-1 lg:block">
           <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.08]" />
           <div className="relative flex h-full flex-col justify-between gap-10">
-            <Link href="/" className="inline-block w-fit text-[4.5rem] italic leading-none tracking-normal text-[#fff8ec]" style={{ fontFamily: '"Bodoni 72", Didot, "Times New Roman", serif' }}>
-              Voone
+            <Link href="/" className="inline-block w-fit">
+              {/* Knockout lockup: this panel is dark, so it takes the dark variant. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/voone-logo-dark.png" alt="Voone" className="h-14 w-auto object-contain" />
             </Link>
 
             <div>
