@@ -7,7 +7,7 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function LogoutButton({ className, variant = "outline" }: { className?: string; variant?: "outline" | "ghost" | "secondary" }) {
+export function LogoutButton({ className, variant = "outline", showLabel = false }: { className?: string; variant?: "outline" | "ghost" | "secondary"; showLabel?: boolean }) {
   const router = useRouter();
 
   async function logout() {
@@ -28,13 +28,14 @@ export function LogoutButton({ className, variant = "outline" }: { className?: s
     <Button
       type="button"
       variant={variant}
-      size="icon"
+      size={showLabel ? "default" : "icon"}
       aria-label="Cerrar sesión"
       title="Cerrar sesión"
       className={cn("text-destructive hover:bg-destructive/10 hover:text-destructive", className)}
       onClick={logout}
     >
       <LogOut className="h-4 w-4" />
+      {showLabel ? <span>Cerrar sesión</span> : null}
     </Button>
   );
 }

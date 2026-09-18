@@ -1,15 +1,15 @@
 "use client";
 
+import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, LayoutDashboard, QrCode, Settings, Sparkles, Users } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { Bell, LayoutDashboard, ScanLine, Settings, Users, WalletCards, type LucideIcon } from "lucide-react";
+import { motion } from "motion/react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth";
-import { formatRole } from "@/lib/roles";
 
 export type ClinicShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings";
 
@@ -17,14 +17,15 @@ export interface ClinicShellNavItem {
   href: string;
   label: string;
   icon: ClinicShellIcon;
+  emblem?: boolean;
 }
 
-const ICONS: Record<ClinicShellIcon, React.ComponentType<{ className?: string }>> = {
+const ICONS: Record<ClinicShellIcon, LucideIcon> = {
   overview: LayoutDashboard,
-  templates: CreditCard,
+  templates: WalletCards,
   members: Users,
-  scan: QrCode,
-  engage: Sparkles,
+  scan: ScanLine,
+  engage: Bell,
   settings: Settings,
 };
 
@@ -38,29 +39,48 @@ export function ClinicDashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const reducedMotion = useReducedMotion();
-  const compactScan = pathname.startsWith("/dashboard/scan");
+  const [profileOpen, setProfileOpen] = React.useState(false);
+  const profileMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!profileOpen) return;
+
+    function closeProfileMenu(event: PointerEvent) {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+
+    function closeProfileMenuWithEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setProfileOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", closeProfileMenu);
+    document.addEventListener("keydown", closeProfileMenuWithEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeProfileMenu);
+      document.removeEventListener("keydown", closeProfileMenuWithEscape);
+    };
+  }, [profileOpen]);
 
   return (
-    <div className="relative isolate min-h-screen overflow-x-clip bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_15%_8%,rgba(217,180,119,0.28),transparent_30%),radial-gradient(circle_at_82%_10%,rgba(239,220,213,0.8),transparent_34%),linear-gradient(180deg,#faf2ee,#f4e5dc_58%,#efe0d8)]" />
-      <div className="voone-grain pointer-events-none fixed inset-0 z-0 opacity-[0.04]" />
+    <div className="relative isolate min-h-screen overflow-x-clip bg-[#f6f1ed] text-[#2e2421]">
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.72),transparent_28%),radial-gradient(circle_at_86%_10%,rgba(255,255,255,0.52),transparent_30%),linear-gradient(180deg,#f7f1ed,#f3ece8_58%,#f5efeb)]" />
 
-      <header className="fixed inset-x-0 top-0 z-40 px-3 pt-3 sm:px-4">
-        <div className="pointer-events-none absolute inset-x-0 -top-8 z-0 h-28 bg-[#f4e6dc]/55 blur-2xl backdrop-blur-2xl" />
+      <header className="sticky inset-x-0 top-0 z-40 px-4 py-5 sm:px-8 lg:px-10">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-32 bg-[#f6f1ed]/82 backdrop-blur-xl" />
         <motion.div
-          initial={reducedMotion ? false : { opacity: 0, y: -18, scale: 0.98 }}
-          animate={reducedMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)] items-center gap-3 xl:grid-cols-[auto_minmax(520px,720px)_auto]"
+          initial={false}
+          className="relative z-10 mx-auto grid max-w-[1500px] grid-cols-[1fr_auto] items-center gap-3 xl:grid-cols-[1fr_auto_1fr]"
         >
-          <Link href="/dashboard" className="flex h-[58px] w-[168px] min-w-0 items-center justify-start overflow-visible px-1">
-            <span className="text-[3.15rem] italic leading-none tracking-normal text-[#3d211e] drop-shadow-[0_10px_24px_rgba(61,33,30,0.16)]" style={{ fontFamily: '"Bodoni 72", Didot, "Times New Roman", serif' }}>
-              Voone
-            </span>
+          <Link href="/dashboard" className="relative z-20 h-10 w-[180px] overflow-hidden" aria-label="Voone inicio">
+            <Image src="/voone-logo.png" alt="Voone" fill sizes="180px" priority className="object-contain object-left" />
           </Link>
 
-          <nav className="ml-auto flex h-[58px] min-w-0 justify-end gap-1 overflow-visible rounded-[30px] border border-white/10 px-3 pb-1 pt-2 shadow-[0_22px_42px_-26px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] md:justify-center xl:mx-auto xl:w-full" style={{ background: "var(--dashboard-surface)" }}>
+          <nav className="ml-auto flex min-h-14 max-w-[calc(100vw-2rem)] items-center gap-1 overflow-x-auto rounded-full bg-[#201715] p-1.5 shadow-[0_16px_38px_-28px_rgba(0,0,0,0.85)] no-scrollbar xl:mx-auto" aria-label="Navegación principal">
             {navItems.map((item) => {
               const Icon = ICONS[item.icon];
               const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
@@ -69,56 +89,50 @@ export function ClinicDashboardShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-label={item.emblem ? "Voone, volver al inicio" : item.label}
                   className={cn(
-                    "group relative inline-flex h-12 min-w-[84px] shrink-0 flex-col items-center justify-end rounded-[26px] px-2 pb-1 pt-6 text-[11px] font-bold italic transition-all duration-300 hover:text-white md:min-w-[92px]",
-                    active ? "text-white" : "text-white/58"
+                    "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-xs font-semibold transition sm:px-4",
+                    item.emblem && "w-12 px-0 hover:bg-transparent",
+                    active && !item.emblem ? "bg-[#f5e8dd] text-[#35241f] shadow-sm hover:bg-[#fff7ef] hover:text-[#35241f]" : "text-[#eadfd8] hover:bg-white/10 hover:text-white",
+                    active && item.emblem && "text-[#35241f]"
                   )}
                 >
-                  {active ? (
-                    <>
-                      <motion.span
-                        layoutId="clinic-nav-active-notch"
-                        className="absolute left-1/2 top-[-9px] h-12 w-[76px] -translate-x-1/2 rounded-full"
-                        style={{ background: "var(--dashboard-surface)" }}
-                        transition={{ type: "spring", stiffness: 430, damping: 34 }}
-                      />
-                      <motion.span
-                        layoutId="clinic-nav-active-orb"
-                        className="absolute left-1/2 top-[-22px] z-10 flex h-[48px] w-[48px] -translate-x-1/2 items-center justify-center rounded-full border-[7px] border-background text-white shadow-[0_18px_34px_-16px_rgba(0,0,0,0.98)]"
-                        style={{ background: "var(--dashboard-surface)" }}
-                        transition={{ type: "spring", stiffness: 430, damping: 34 }}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </motion.span>
-                    </>
-                  ) : (
-                    <Icon className="absolute top-0.5 h-5 w-5 text-white/52 transition-colors group-hover:text-white/82" />
-                  )}
-                  <span className={cn("relative z-10 mt-1.5 leading-none", active && "translate-y-0.5")}>{item.label}</span>
+                  {item.emblem ? (
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f5e8dd] p-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_8px_20px_-14px_rgba(0,0,0,0.75)]">
+                      <Image src="/2.svg" alt="" fill sizes="40px" className="rounded-full object-contain p-1" />
+                    </span>
+                  ) : <Icon className="h-4 w-4" strokeWidth={1.8} />}
+                  <span className={cn(item.emblem && "sr-only")}>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          <div className="hidden shrink-0 items-center gap-3 rounded-[24px] border border-white/70 bg-background/78 px-3 py-2.5 shadow-[0_18px_48px_-34px_rgba(67,48,43,0.72)] backdrop-blur-xl xl:flex">
-            <Badge variant="outline" className="border-gold/35 bg-white/45 px-3 py-1.5 capitalize text-foreground shadow-sm">
-              {formatRole(session.role)}
-            </Badge>
-            <span className="h-10 w-px bg-border" />
-            <div className="text-right">
-              <p className="text-sm font-semibold">{session.name}</p>
-              <p className="text-xs text-muted-foreground">Clínica Aurea</p>
+          <div className="hidden justify-self-end xl:flex">
+            <div ref={profileMenuRef} className="relative flex items-center gap-2 rounded-full border border-[#ded2cb] bg-white/70 p-1.5 shadow-[0_14px_40px_-34px_rgba(67,48,43,0.72)] backdrop-blur-xl">
+              <Link href="/dashboard/settings" className="rounded-full px-3 py-2 text-left transition hover:bg-white" aria-label="Abrir perfil">
+                <p className="text-xs font-semibold leading-4">{session.name}</p>
+                <p className="text-[10px] leading-4 text-[#8c7870]">Perfil · Clínica Aurea</p>
+              </Link>
+              <button type="button" onClick={() => setProfileOpen((open) => !open)} className="rounded-full border border-[#e4d8d1] bg-[#fbf8f6] p-2.5 text-[#8e4d41]" aria-label="Abrir ajustes de perfil" aria-expanded={profileOpen}>
+                <Settings className="h-4 w-4" />
+              </button>
+              {profileOpen ? (
+                <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-56 rounded-2xl border border-[#e3d5cd] bg-[#fffaf6] p-2 shadow-xl">
+                  <Link href="/dashboard/settings" onClick={() => setProfileOpen(false)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><Settings className="h-4 w-4" /> Ajustes de perfil</Link>
+                  <LogoutButton showLabel className="mt-1 w-full justify-start gap-2 rounded-xl border-0 bg-transparent px-3 py-2.5 text-sm font-semibold text-[#8e4d41] hover:bg-[#f4e8df]" variant="ghost" />
+                </div>
+              ) : null}
             </div>
-            <LogoutButton className="rounded-2xl border-border/70 bg-white/55" />
           </div>
         </motion.div>
       </header>
 
       <div className="fixed bottom-3 left-3 z-50 xl:hidden">
-        <LogoutButton className="rounded-2xl border-white/70 bg-background/90 shadow-xl backdrop-blur" />
+        <LogoutButton className="rounded-full border-white/70 bg-background/90 shadow-xl backdrop-blur" />
       </div>
 
-      <main className={cn("relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8", compactScan ? "h-screen overflow-hidden pb-3 pt-[5.75rem]" : "min-h-screen pb-16 pt-24")}>
+      <main className="relative z-10 mx-auto max-w-[1500px] px-4 pb-8 pt-8 sm:px-8 lg:px-10">
         {children}
       </main>
     </div>

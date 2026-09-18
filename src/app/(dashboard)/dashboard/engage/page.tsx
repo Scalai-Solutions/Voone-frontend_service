@@ -1,166 +1,121 @@
 "use client";
 
 import * as React from "react";
-import { BellRing, CalendarClock, CheckCircle2, Clock3, MapPin, Send, Smartphone } from "lucide-react";
+import { AlertTriangle, Plus, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Field } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
-const triggerRules = [
-  { id: "visit", label: "Tras la visita", detail: "Enviar después de acreditar puntos", time: "10 minutos" },
-  { id: "inactive", label: "Recuperación", detail: "Enviar cuando un miembro lleva tiempo sin venir", time: "30 días" },
-  { id: "birthday", label: "Cumpleaños", detail: "Enviar un recordatorio con crédito de cumpleaños", time: "09:00" },
-  { id: "tier", label: "Cerca de nivel", detail: "Enviar cuando un miembro está cerca de una recompensa", time: "80% progreso" },
-];
+const automaticMessages = ["Después de una visita", "Recuperación", "Cumpleaños"];
+const manualQuotaTotal = 30;
+const manualQuotaRemaining = 24;
+const manualQuotaLowThreshold = 5;
+const manualQuotaUsedPercent = Math.round(((manualQuotaTotal - manualQuotaRemaining) / manualQuotaTotal) * 100);
+const manualQuotaIsLow = manualQuotaRemaining < manualQuotaLowThreshold;
 
-const recentDispatches = [
-  "Verónica recibió el recordatorio de recompensa Hydrafacial",
-  "Mateo entró en la geocerca Diamond Skin",
-  "Lucía recibió un mensaje de recuperación",
-];
-
-export default function NotificationsPage() {
-  const [selectedRule, setSelectedRule] = React.useState("visit");
-  const activeRule = triggerRules.find((rule) => rule.id === selectedRule) ?? triggerRules[0];
+export default function CommunicationsPage() {
+  const [composeOpen, setComposeOpen] = React.useState(false);
+  const [noticeTab, setNoticeTab] = React.useState<"manuales" | "automaticos">("manuales");
+  const [title, setTitle] = React.useState("Tu próxima recompensa está cerca");
+  const [body, setBody] = React.useState("Reserva tu próxima visita esta semana y añade puntos extra a tu pase.");
+  const [audience, setAudience] = React.useState("Todos los miembros activos");
+  const [sendWhen, setSendWhen] = React.useState("Ahora");
+  const maxLength = 180;
 
   return (
-    <div className="space-y-5">
-      <section className="voone-dark-panel px-5 py-6 md:px-8">
-        <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.08]" />
-        <div className="relative flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="voone-kicker">Avisos</p>
-            <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-white">Centro de notificaciones</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/58">Crea reglas push para visitas, recompensas, cumpleaños y recordatorios por ubicación cercana.</p>
-          </div>
-          <div className="rounded-2xl border border-white/12 bg-white/[0.07] px-4 py-3 text-sm text-white/70">
-            <span className="font-serif text-3xl text-white">4</span> reglas activas
-          </div>
+    <section className="text-[#2e2421]">
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#b7874a]">Comunicación con tu comunidad</p>
+          <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">Comunicaciones</h1>
+          <p className="mt-2 text-sm text-[#927e72]">Crea mensajes claros y envíalos cuando tenga sentido para tus clientes.</p>
         </div>
-      </section>
+        <button onClick={() => setComposeOpen(true)} className="rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]"><Plus size={16} className="mr-1 inline" /> Mandar nueva comunicación</button>
+      </div>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
-          <Card className="rounded-[24px] border-[#d8c5b6] bg-[#fffaf3]/88 shadow-[0_22px_60px_-46px_rgba(67,48,43,0.72)] backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <CalendarClock className="h-5 w-5 text-gold" />
-                ¿Cuándo se envía?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              {triggerRules.map((rule) => (
-                <button
-                  key={rule.id}
-                  type="button"
-                  className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${selectedRule === rule.id ? "border-[#241612] bg-[#241612] text-white shadow-[0_18px_44px_-32px_rgba(36,22,18,0.9)]" : "border-border bg-white/60"}`}
-                  onClick={() => setSelectedRule(rule.id)}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-bold">{rule.label}</span>
-                    <span className={selectedRule === rule.id ? "rounded-full bg-white/12 px-2.5 py-1 text-[11px] text-gold-light" : "rounded-full bg-gold/10 px-2.5 py-1 text-[11px] font-bold text-[#7a5526]"}>{rule.time}</span>
-                  </div>
-                  <p className={selectedRule === rule.id ? "mt-2 text-sm leading-5 text-white/62" : "mt-2 text-sm leading-5 text-muted-foreground"}>{rule.detail}</p>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#d8c5b6] bg-[#fffaf3]/88 shadow-[0_22px_60px_-46px_rgba(67,48,43,0.72)] backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between gap-3 text-lg">
-                <span className="flex items-center gap-2"><BellRing className="h-5 w-5 text-gold" /> Mensaje y disparador</span>
-                <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs font-bold text-[#7a5526]">{activeRule.label}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field labelClassName="text-sm font-semibold" label="Audiencia">
-                <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none">
-                  <option>Todos los miembros activos</option>
-                  <option>Nivel Gold</option>
-                  <option>Wallet no añadida</option>
-                  <option>Cerca de la clínica</option>
-                </select>
-              </Field>
-              <Field labelClassName="text-sm font-semibold" label="Ventana de envío">
-                <select className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none">
-                  <option>Inmediatamente al coincidir la regla</option>
-                  <option>Mañana, 09:00-11:00</option>
-                  <option>Tarde, 15:00-18:00</option>
-                </select>
-              </Field>
-              <Field labelClassName="text-sm font-semibold" label="Título de la notificación" className="md:col-span-2">
-                <Input placeholder="Tu próxima recompensa está cerca" />
-              </Field>
-              <Field labelClassName="text-sm font-semibold" label="Cuerpo del push" className="md:col-span-2">
-                <Textarea placeholder="Reserva tu próxima visita esta semana y añadiremos puntos extra a tu pase." />
-              </Field>
-              <Button className="h-12 rounded-2xl md:col-span-2">
-                <Send className="mr-2 h-4 w-4" /> Guardar regla de notificación
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#d8c5b6] bg-[#fffaf3]/88 shadow-[0_22px_60px_-46px_rgba(67,48,43,0.72)] backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg"><MapPin className="h-5 w-5 text-gold" /> Disparador por ubicación</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field labelClassName="text-sm font-semibold" label="Dirección" className="md:col-span-2">
-                <Input placeholder="Calle de Serrano 41, Madrid" />
-              </Field>
-              <Field labelClassName="text-sm font-semibold" label="Latitud"><Input inputMode="decimal" placeholder="40.4264" /></Field>
-              <Field labelClassName="text-sm font-semibold" label="Longitud"><Input inputMode="decimal" placeholder="-3.6879" /></Field>
-              <Field labelClassName="text-sm font-semibold" label="Radio"><Input placeholder="250 m" /></Field>
-              <Field labelClassName="text-sm font-semibold" label="Pausa"><Input placeholder="7 días" /></Field>
-            </CardContent>
-          </Card>
+      <div className="mt-7 grid max-w-[940px] gap-4 md:grid-cols-2">
+        <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Mensajes manuales</p>
+          <p className="mt-3 font-serif text-4xl font-semibold">{manualQuotaRemaining} <span className="font-sans text-sm font-normal text-[#c9b7ad]">/ {manualQuotaTotal} restantes</span></p>
+          <div className="mt-3 h-1.5 rounded-full bg-white/15"><div className="h-full rounded-full bg-[#d6a979]" style={{ width: `${manualQuotaUsedPercent}%` }} /></div>
+          <p className="mt-2 text-xs text-[#c9b7ad]">Tu plan Aura · Se renueva el 1 de octubre</p>
         </div>
+        <div className="rounded-3xl border border-[#e2d5cc] bg-white/75 p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Estado de envíos</p>
+          <p className="mt-3 font-serif text-4xl font-semibold">1.248</p>
+          <p className="mt-2 text-sm text-[#927e72]">Envíos este mes</p>
+        </div>
+      </div>
 
-        <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
-          <div className="voone-dark-panel p-5">
-            <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.08]" />
-            <div className="relative">
-              <p className="voone-kicker">Vista previa</p>
-              <div className="mt-4 rounded-[34px] border border-white/12 bg-[#0b0706] p-3 shadow-2xl">
-                <div className="rounded-[28px] bg-[#f4eee8] p-4 text-[#241612]">
-                  <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#241612] text-gold-light"><Smartphone className="h-5 w-5" /></span>
-                    <div>
-                      <p className="text-sm font-bold">Voone Wallet</p>
-                      <p className="text-xs text-muted-foreground">Tu próxima recompensa está cerca</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-2xl bg-[#241612] p-4 text-white">
-                    <p className="text-xs uppercase tracking-[0.18em] text-gold-light/70">Disparador seleccionado</p>
-                    <p className="mt-2 font-serif text-2xl font-semibold">{activeRule.label}</p>
-                    <p className="mt-2 text-sm text-white/58">{activeRule.detail}</p>
-                  </div>
-                </div>
-              </div>
+      {manualQuotaIsLow ? (
+        <div className="mt-4 flex max-w-[940px] items-start gap-3 rounded-2xl border border-[#d86d5e]/40 bg-[#fff7f5] px-4 py-3 text-sm font-semibold text-[#8f3f35] shadow-[0_14px_34px_-28px_rgba(185,65,53,0.7)]" role="alert">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#b94135]" />
+          <p>{`Alerta de cuota activa: avisaremos cuando queden ${manualQuotaLowThreshold} mensajes manuales.`}</p>
+        </div>
+      ) : null}
+
+      <div className="mt-6 flex gap-1 overflow-x-auto rounded-2xl border border-[#e2d5cc] bg-white/60 p-1 no-scrollbar">
+        <button onClick={() => setNoticeTab("manuales")} className={cn("shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold", noticeTab === "manuales" ? "bg-[#2d211e] text-white" : "text-[#806d63]")}>Mensajes manuales <span className="ml-1 text-xs opacity-70">{manualQuotaRemaining} restantes</span></button>
+        <button onClick={() => setNoticeTab("automaticos")} className={cn("shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold", noticeTab === "automaticos" ? "bg-[#2d211e] text-white" : "text-[#806d63]")}>Automáticos <span className="ml-1 text-xs opacity-70">8 restantes</span></button>
+      </div>
+
+      <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{noticeTab === "manuales" ? "Mensaje manual" : "Mensajes automáticos"}</p>
+              <h2 className="mt-2 font-serif text-2xl font-semibold">{noticeTab === "manuales" ? "Crea una comunicación" : "Automatizaciones de tu plan"}</h2>
             </div>
+            <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{noticeTab === "manuales" ? `${manualQuotaRemaining} disponibles` : "8 disponibles"}</span>
           </div>
 
-          <Card className="rounded-[24px] border-[#d8c5b6] bg-[#fffaf3]/88 shadow-[0_22px_60px_-46px_rgba(67,48,43,0.72)] backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Clock3 className="h-5 w-5 text-gold" /> Actividad reciente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {recentDispatches.map((dispatch) => (
-                <div key={dispatch} className="voone-soft-row flex items-center gap-3 px-4 py-3 text-sm">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-                  <span className="font-medium">{dispatch}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </aside>
-      </section>
+          {noticeTab === "manuales" ? (
+            <>
+              <label className="mt-5 block text-sm font-semibold">Título<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={60} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]" /></label>
+              <label className="mt-4 block text-sm font-semibold">Cuerpo del mensaje<textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, maxLength))} rows={4} className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]" /><span className="mt-1 block text-right text-xs text-[#927e72]">{body.length}/{maxLength}</span></label>
+              <button onClick={() => setComposeOpen(true)} className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white">Configurar envío</button>
+            </>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {automaticMessages.map((message) => <div key={message} className="flex items-center justify-between rounded-2xl border border-[#eadfd8] p-4"><span className="font-semibold">{message}</span><span className="h-2.5 w-2.5 rounded-full bg-[#6b9a72]" /></div>)}
+            </div>
+          )}
+        </div>
+        <Preview title={title} body={body} />
+      </div>
+
+      {composeOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1513]/70 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="compose-title">
+          <div className="grid w-full max-w-4xl gap-5 rounded-3xl bg-[#fffaf6] p-6 shadow-2xl lg:grid-cols-[1fr_300px]">
+            <div>
+              <div className="flex items-center justify-between">
+                <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Nueva comunicación</p><h2 id="compose-title" className="mt-2 font-serif text-3xl font-semibold">Editar envío</h2></div>
+                <button onClick={() => setComposeOpen(false)} aria-label="Cerrar"><X /></button>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-semibold">Segmento<select value={audience} onChange={(event) => setAudience(event.target.value)} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"><option>Todos los miembros activos</option><option>Clientes Gold</option><option>Mujeres · 25-40 · Madrid</option></select></label>
+                <label className="text-sm font-semibold">Cuándo<select value={sendWhen} onChange={(event) => setSendWhen(event.target.value)} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"><option>Ahora</option><option>Programar para mañana</option><option>Programar fecha y hora</option></select></label>
+              </div>
+              <label className="mt-4 block text-sm font-semibold">Título<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={60} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal" /></label>
+              <label className="mt-4 block text-sm font-semibold">Cuerpo del mensaje<textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, maxLength))} rows={5} className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal" /><span className="mt-1 block text-right text-xs text-[#927e72]">{body.length}/{maxLength}</span></label>
+              <button onClick={() => setComposeOpen(false)} className="mt-4 w-full rounded-full bg-[#b8864b] py-3 font-semibold text-white">{sendWhen === "Ahora" ? "Enviar ahora" : "Programar comunicación"}</button>
+            </div>
+            <Preview title={title} body={body} compact />
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function Preview({ title, body, compact = false }: { title: string; body: string; compact?: boolean }) {
+  return (
+    <div className={cn("rounded-3xl bg-[#2d211e] p-5 text-white", !compact && "min-h-[300px]")}>
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Vista previa</p>
+      <div className="mt-4 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]">
+        <p className="font-semibold">Voone Wallet</p>
+        <p className="mt-3 font-semibold">{title || "Título del mensaje"}</p>
+        <p className="mt-2 text-sm leading-5 text-[#806e66]">{body || "El contenido aparecerá aquí mientras escribes."}</p>
+      </div>
     </div>
   );
 }

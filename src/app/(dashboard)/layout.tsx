@@ -3,12 +3,11 @@ import { AccessPanel } from "@/components/shared/app-shell";
 import { getCurrentSession, hasRole, type Role } from "@/lib/auth";
 
 const navItems: Array<ClinicShellNavItem & { roles: Role[] }> = [
-  { href: "/dashboard", label: "Inicio", icon: "overview", roles: ["owner", "manager", "staff"] },
-  { href: "/dashboard/templates", label: "Plantillas", icon: "templates", roles: ["owner", "manager"] },
+  { href: "/dashboard/templates", label: "Mi centro", icon: "templates", roles: ["owner", "manager"] },
   { href: "/dashboard/members", label: "Miembros", icon: "members", roles: ["owner", "manager", "staff"] },
+  { href: "/dashboard", label: "Voone", icon: "overview", roles: ["owner", "manager", "staff"], emblem: true },
   { href: "/dashboard/scan", label: "Escanear", icon: "scan", roles: ["owner", "manager", "staff"] },
-  { href: "/dashboard/engage", label: "Avisos", icon: "engage", roles: ["owner", "manager"] },
-  { href: "/dashboard/settings", label: "Ajustes", icon: "settings", roles: ["owner", "manager"] },
+  { href: "/dashboard/engage", label: "Comunicaciones", icon: "engage", roles: ["owner", "manager"] },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

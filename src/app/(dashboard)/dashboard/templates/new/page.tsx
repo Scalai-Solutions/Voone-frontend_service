@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { TemplateForm } from "@/components/dashboard/template-form";
-import { PageHeader } from "@/components/shared/page-kit";
 import { getCurrentClinicTemplate, getTemplatePresets } from "@/lib/api-client";
 import { getCurrentSession } from "@/lib/auth";
 
@@ -19,8 +18,13 @@ export default async function NewTemplatePage({ searchParams }: { searchParams: 
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader eyebrow="Nueva plantilla" title="Crear pase Wallet" description="Selecciona un punto de partida y define el programa de puntos de la clínica." />
+    <div className="space-y-3">
+      <div className="mx-auto flex max-w-[1120px] flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Nueva plantilla</p>
+          <h1 className="mt-1 font-serif text-3xl font-semibold tracking-[-0.02em] text-[#2e2421]">Crear pase Wallet</h1>
+        </div>
+      </div>
       <TemplateForm clinicId={session.clinicId} presets={presets} selectedPresetId={typeof query.presetId === "string" ? query.presetId : undefined} />
     </div>
   );

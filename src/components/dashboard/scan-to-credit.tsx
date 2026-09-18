@@ -2,12 +2,8 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, CheckCircle2, QrCode, RotateCcw, Search, Sparkles, UserRound } from "lucide-react";
+import { CheckCircle2, ChevronDown, QrCode, ScanLine, Search } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { creditMember, getMembers, getTreatments, type Member, type Treatment } from "@/lib/api-client";
 
 export function ScanToCredit() {
@@ -16,37 +12,44 @@ export function ScanToCredit() {
   const members = useQuery({ queryKey: ["members"], queryFn: getMembers });
   const treatments = useQuery({ queryKey: ["treatments"], queryFn: getTreatments });
   const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
-  const [selectedTreatment, setSelectedTreatment] = React.useState<Treatment | null>(null);
+  const [selectedTreatmentId, setSelectedTreatmentId] = React.useState("");
+  const [treatmentSearch, setTreatmentSearch] = React.useState("");
   const [manualMemberId, setManualMemberId] = React.useState("");
-  const [manualPoints, setManualPoints] = React.useState("");
   const [referralCode, setReferralCode] = React.useState("");
-  const [showReferral, setShowReferral] = React.useState(false);
-  const [scanMessage, setScanMessage] = React.useState("Apunta la cámara al QR del miembro.");
-  const [successBalance, setSuccessBalance] = React.useState<number | null>(null);
-  const [toast, setToast] = React.useState<string | null>(null);
-  const [displayedPoints, setDisplayedPoints] = React.useState<number | null>(null);
+  const [scanMessage, setScanMessage] = React.useState("Escanea el pase del cliente para empezar");
+  const [notice, setNotice] = React.useState("");
+
+  const selectedTreatment = treatments.data?.find((treatment) => treatment.id === selectedTreatmentId) ?? null;
+  const filteredTreatments = React.useMemo(() => {
+    const normalizedSearch = treatmentSearch.trim().toLowerCase();
+
+    if (!normalizedSearch) return treatments.data ?? [];
+
+    return (treatments.data ?? []).filter((treatment) =>
+      `${treatment.name} ${treatment.points}`.toLowerCase().includes(normalizedSearch)
+    );
+  }, [treatmentSearch, treatments.data]);
 
   const confirmMutation = useMutation({
-    mutationFn: ({ member, points, label }: { member: Member; points: number; label: string }) => creditMember(member.id, points, label, referralCode || undefined),
-    onMutate: async ({ member, points }) => {
-      setDisplayedPoints((current) => (current ?? member.points) + points);
-      return { previousPoints: displayedPoints ?? member.points };
-    },
-    onError: (_error, _variables, context) => {
-      setDisplayedPoints(context?.previousPoints ?? null);
-      setToast("No se guardaron los puntos. Inténtalo una vez más antes de que el miembro se vaya.");
+    mutationFn: ({ member, treatment }: { member: Member; treatment: Treatment }) => creditMember(member.id, treatment.points, treatment.name, referralCode || undefined),
+    onError: () => {
+      setNotice("No se guardaron los puntos. Inténtalo una vez más antes de que el miembro se vaya.");
     },
     onSuccess: (member) => {
       setSelectedMember(member);
-      setDisplayedPoints(member.points);
-      setSuccessBalance(member.points);
+      setNotice(`Premio canjeado. Nuevo saldo: ${member.points.toLocaleString("es-ES")} puntos`);
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["member", member.id] });
     },
   });
 
   const findMember = React.useCallback(
-    (value: string) => members.data?.find((member) => member.id.toLowerCase() === value.toLowerCase() || member.identity.toLowerCase() === value.toLowerCase()),
+    (value: string) => {
+      const normalizedValue = value.trim().toLowerCase();
+      return members.data?.find((member) => {
+        return member.id.toLowerCase() === normalizedValue || member.identity.toLowerCase() === normalizedValue || member.name.toLowerCase().includes(normalizedValue);
+      });
+    },
     [members.data]
   );
 
@@ -68,17 +71,17 @@ export function ScanToCredit() {
         controls = await decodeFromVideoDevice(undefined, videoRef.current, (result) => {
           const text = result?.getText();
           if (!text) return;
-          const member = findMember(text.trim());
+          const member = findMember(text);
           if (member) {
             setSelectedMember(member);
-            setDisplayedPoints(member.points);
-            setScanMessage("Miembro encontrado. Elige los puntos a añadir.");
+            setManualMemberId(member.name);
+            setScanMessage("Miembro encontrado. Selecciona un tratamiento.");
           } else {
-            setScanMessage("Ningún miembro coincide con este código. Busca por ID abajo.");
+            setScanMessage("Ningún miembro coincide con este código. Busca por nombre o ID.");
           }
         });
       } catch {
-        setScanMessage("No se pudo iniciar la cámara. Busca por ID abajo.");
+        setScanMessage("No se pudo iniciar la cámara. Busca por nombre o ID.");
       }
     }
 
@@ -89,176 +92,119 @@ export function ScanToCredit() {
     };
   }, [findMember]);
 
-  const points = selectedTreatment?.points ?? Number(manualPoints || 0);
+  function handleManualSearch() {
+    const member = findMember(manualMemberId);
+    if (member) {
+      setSelectedMember(member);
+      setNotice(`Miembro encontrado: ${member.name}`);
+      setScanMessage("Miembro encontrado. Selecciona un tratamiento.");
+    } else {
+      setNotice("Escribe un nombre, móvil o ID válido para buscar.");
+    }
+  }
 
-  function resetForNextScan() {
-    setSelectedMember(null);
-    setSelectedTreatment(null);
-    setManualMemberId("");
-    setManualPoints("");
-    setReferralCode("");
-    setSuccessBalance(null);
-    setDisplayedPoints(null);
-    setScanMessage("Listo para el siguiente miembro.");
+  function handleCredit() {
+    if (!selectedMember || !selectedTreatment) {
+      setNotice("Selecciona un miembro y un tratamiento antes de canjear.");
+      return;
+    }
+
+    confirmMutation.mutate({ member: selectedMember, treatment: selectedTreatment });
+  }
+
+  function handleReferralCode() {
+    const normalizedCode = referralCode.trim();
+
+    if (!normalizedCode) {
+      setNotice("Introduce un código de referido.");
+      return;
+    }
+
+    if (!selectedMember) {
+      setNotice("Busca y selecciona el miembro antes de añadir el referido.");
+      return;
+    }
+
+    const confirmed = window.confirm(`El código ${normalizedCode} se añadirá a ${selectedMember.name} (${selectedMember.id}). ¿Es la persona correcta?`);
+
+    if (confirmed) {
+      setNotice(`Código ${normalizedCode} confirmado para ${selectedMember.name}.`);
+    }
   }
 
   return (
-    <div className="h-full min-h-0">
-      <div className="grid h-full min-h-0 gap-4 sm:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="voone-dark-panel overflow-hidden p-0">
-          <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.08]" />
-          <div className="relative h-full min-h-0">
-            <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover opacity-72" muted playsInline />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(217,180,119,0.14),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.18),rgba(0,0,0,0.78))]" />
-
-            <div className="absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 py-2 text-sm font-bold text-white backdrop-blur-xl">
-                <QrCode className="h-4 w-4 text-gold-light" />
-                Cámara activa
-              </div>
-              <Button type="button" variant="secondary" size="sm" className="rounded-full" onClick={resetForNextScan}>
-                <RotateCcw className="mr-2 h-4 w-4" /> Reiniciar
-              </Button>
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-[#f5e3cc]/12 px-4 py-2 text-sm text-gold-light backdrop-blur-xl">
-                <Sparkles className="h-4 w-4" />
-                {points > 0 ? `+${points.toLocaleString()} pendientes` : "Elige puntos"}
-              </div>
-            </div>
-
-            <div className="absolute left-1/2 top-1/2 h-[210px] w-[210px] -translate-x-1/2 -translate-y-1/2 rounded-[32px] border border-white/16 bg-white/[0.03] shadow-[0_0_0_9999px_rgba(0,0,0,0.18)] backdrop-blur-[2px] md:h-[300px] md:w-[300px]">
-              <span className="absolute -left-1 -top-1 h-16 w-16 rounded-tl-[34px] border-l-4 border-t-4 border-gold-light" />
-              <span className="absolute -right-1 -top-1 h-16 w-16 rounded-tr-[34px] border-r-4 border-t-4 border-gold-light" />
-              <span className="absolute -bottom-1 -left-1 h-16 w-16 rounded-bl-[34px] border-b-4 border-l-4 border-gold-light" />
-              <span className="absolute -bottom-1 -right-1 h-16 w-16 rounded-br-[34px] border-b-4 border-r-4 border-gold-light" />
-              <div className="absolute inset-x-8 top-1/2 h-px bg-gold-light/65 shadow-[0_0_24px_rgba(217,180,119,0.75)]" />
-              <div className="flex h-full items-center justify-center text-center">
-                <div className="rounded-2xl border border-white/12 bg-black/24 px-4 py-3 backdrop-blur-xl">
-                  <QrCode className="mx-auto h-7 w-7 text-gold-light" />
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/58">Alinea el QR</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="absolute inset-x-4 bottom-4 rounded-[24px] border border-white/12 bg-[#110a08]/72 p-4 text-white shadow-2xl backdrop-blur-2xl">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm text-white/62">{scanMessage}</p>
-                  {selectedMember ? (
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-light text-[#241612]">
-                        <UserRound className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="font-serif text-2xl font-semibold">{selectedMember.name}</p>
-                        <p className="text-sm text-white/64">Saldo actual: {(displayedPoints ?? selectedMember.points).toLocaleString()} puntos</p>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold-light/72">Próximo crédito</p>
-                  <p className="font-serif text-3xl font-semibold">{points > 0 ? `+${points.toLocaleString()}` : "--"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="max-h-full space-y-3 overflow-y-auto pr-1">
-          {toast ? <p className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm font-medium text-destructive">{toast}</p> : null}
-          {successBalance !== null ? (
-            <div className="rounded-[26px] border border-success/30 bg-success/10 p-6 text-center text-success shadow-[0_22px_50px_-40px_rgba(47,125,87,0.75)]">
-              <CheckCircle2 className="mx-auto h-12 w-12" />
-              <p className="mt-3 font-serif text-3xl font-semibold">Guardado</p>
-              <p className="mt-1 text-sm">Nuevo saldo: {successBalance.toLocaleString()} puntos</p>
-              <Button type="button" className="mt-5 rounded-2xl" onClick={resetForNextScan}>Escanear siguiente miembro</Button>
-            </div>
-          ) : null}
-
-          <div className="voone-panel p-4">
-            <div className="relative">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="voone-kicker">Miembro</p>
-                  <h2 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Buscar titular del pase</h2>
-                </div>
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#241612] text-gold-light">
-                  <Search className="h-5 w-5" />
-                </span>
-              </div>
-              <Label className="mb-2 mt-4 block">Búsqueda manual</Label>
-              <div className="flex gap-2">
-                <Input value={manualMemberId} onChange={(event) => setManualMemberId(event.target.value)} placeholder="MEM-1048" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={() => {
-                    const member = findMember(manualMemberId.trim());
-                    if (member) {
-                      setSelectedMember(member);
-                      setDisplayedPoints(member.points);
-                      setScanMessage("Miembro encontrado. Elige los puntos a añadir.");
-                    } else {
-                      setScanMessage("No hay ningún miembro con ese ID.");
-                    }
-                  }}
-                >
-                  Buscar
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="voone-panel p-4">
-            <div className="relative">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="voone-kicker">Tratamiento</p>
-                  <h2 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Acreditar la visita</h2>
-                </div>
-                <BadgeCheck className="h-6 w-6 text-gold" />
-              </div>
-              {treatments.isLoading ? <Skeleton className="mt-4 h-36 w-full" /> : null}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {treatments.data?.map((treatment) => (
-                  <button
-                    key={treatment.id}
-                    type="button"
-                    className={`min-h-20 rounded-2xl border px-3 py-3 text-left shadow-sm transition-all hover:-translate-y-0.5 ${selectedTreatment?.id === treatment.id ? "border-[#241612] bg-[#241612] text-white shadow-[0_20px_45px_-28px_rgba(36,22,18,0.9)]" : "border-border bg-[#fffaf3]/78 text-foreground"}`}
-                    onClick={() => {
-                      setSelectedTreatment(treatment);
-                      setManualPoints("");
-                    }}
-                  >
-                    <span className="block text-xs font-semibold sm:text-sm">{treatment.name}</span>
-                    <span className="mt-2 block font-serif text-2xl font-semibold">+{treatment.points}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-4">
-                <Label className="mb-2 block">Cantidad manual</Label>
-                <Input type="number" inputMode="numeric" min="1" value={manualPoints} onChange={(event) => { setManualPoints(event.target.value); setSelectedTreatment(null); }} placeholder="Puntos" />
-              </div>
-
-              <button type="button" className="mt-4 text-sm font-bold text-primary" onClick={() => setShowReferral((value) => !value)}>
-                {showReferral ? "Ocultar código de referido" : "Añadir código de referido"}
-              </button>
-              {showReferral ? <Input className="mt-2" value={referralCode} onChange={(event) => setReferralCode(event.target.value)} placeholder="Código de referido opcional" /> : null}
-
-              <Button
-                type="button"
-                className="mt-4 h-12 w-full rounded-2xl text-base"
-                disabled={!selectedMember || points <= 0 || confirmMutation.isPending}
-                onClick={() => selectedMember && confirmMutation.mutate({ member: selectedMember, points, label: selectedTreatment?.name ?? "Crédito manual" })}
-              >
-                {confirmMutation.isPending ? "Guardando..." : selectedMember ? `Confirmar ${points > 0 ? `+${points.toLocaleString()}` : ""} puntos` : "Selecciona primero un miembro"}
-              </Button>
-            </div>
-          </div>
-        </aside>
+    <section className="text-[#2e2421]">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#b7874a]">Operativa diaria</p>
+          <h1 className="mt-2 font-serif text-4xl font-semibold tracking-[-0.03em]">Escanear visita</h1>
+          <p className="mt-2 text-sm text-[#927e72]">Registra una visita y aplica el tratamiento correcto.</p>
+        </div>
+        <div className="rounded-full border border-[#decfc5] bg-white/70 px-4 py-2 text-xs font-semibold text-[#725c51]"><ScanLine size={15} className="mr-2 inline text-[#b8864b]" /> Cámara activa</div>
       </div>
-    </div>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-[28px] bg-[#211918] p-5 shadow-[0_18px_50px_rgba(67,42,30,0.14)] lg:min-h-[440px]">
+          <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover opacity-20" muted playsInline />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(174,131,92,0.16),transparent_42%)]" />
+          <div className="relative flex h-[245px] w-[245px] items-center justify-center rounded-[28px] border border-[#dfb97d]/50">
+            <div className="absolute left-[-1px] top-12 h-16 w-1 rounded-full bg-[#e5bd80]" />
+            <div className="absolute right-[-1px] top-12 h-16 w-1 rounded-full bg-[#e5bd80]" />
+            <div className="absolute bottom-12 left-[-1px] h-16 w-1 rounded-full bg-[#e5bd80]" />
+            <div className="absolute bottom-12 right-[-1px] h-16 w-1 rounded-full bg-[#e5bd80]" />
+            <div className="rounded-2xl border border-white/15 bg-white/[0.06] px-8 py-6 text-center text-[#f1d09a]">
+              <QrCode size={42} className="mx-auto" />
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.26em] text-[#cbb4a6]">Alinea el QR</p>
+            </div>
+          </div>
+          <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-[#c9bbb3]">
+            <span>{selectedMember ? `${selectedMember.name} · ${selectedMember.points.toLocaleString("es-ES")} puntos` : scanMessage}</span>
+            <span className="font-semibold text-[#d6a979]">{confirmMutation.isPending ? "Guardando" : "Listo"}</span>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5">
+            <div className="flex items-center justify-between">
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Miembro</p><h2 className="mt-2 font-serif text-2xl font-semibold">Buscar titular</h2></div>
+              <Search className="text-[#b8864b]" />
+            </div>
+            <div className="mt-4 flex gap-2">
+              <input value={manualMemberId} onChange={(event) => setManualMemberId(event.target.value)} placeholder="Nombre, móvil o MEM-1048" className="min-w-0 flex-1 rounded-xl border border-[#ded1c8] bg-white px-3 py-3 text-sm outline-none focus:border-[#b8864b]" />
+              <button onClick={handleManualSearch} className="rounded-xl bg-[#2d211e] px-4 text-sm font-semibold text-white">Buscar</button>
+            </div>
+            {selectedMember ? <div className="mt-3 rounded-xl bg-[#f4e9df] px-3 py-2 text-sm"><span className="font-semibold">{selectedMember.name}</span><span className="ml-2 text-[#89756a]">· {selectedMember.tier} · {selectedMember.points.toLocaleString("es-ES")} puntos</span></div> : null}
+          </div>
+
+          <div className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Tratamiento</p>
+            <h2 className="mt-2 font-serif text-2xl font-semibold">Acreditar visita</h2>
+            <label className="mt-4 flex items-center gap-3 rounded-xl border border-[#ded1c8] bg-white px-3 py-3 text-[#927e72]">
+              <Search size={17} />
+              <span className="sr-only">Buscar tratamiento</span>
+              <input value={treatmentSearch} onChange={(event) => setTreatmentSearch(event.target.value)} placeholder="Buscar por nombre o puntos" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+            </label>
+            <div className="relative mt-4">
+              <select value={selectedTreatmentId} onChange={(event) => setSelectedTreatmentId(event.target.value)} className="w-full appearance-none rounded-xl border border-[#ded1c8] bg-white px-4 py-3 pr-10 text-sm font-medium outline-none focus:border-[#b8864b]">
+                <option value="">{treatments.isLoading ? "Cargando tratamientos" : "Selecciona un tratamiento"}</option>
+                {filteredTreatments.map((treatment) => <option key={treatment.id} value={treatment.id}>{treatment.name} · {treatment.points} puntos</option>)}
+              </select>
+              <ChevronDown size={17} className="pointer-events-none absolute right-4 top-3.5 text-[#927e72]" />
+            </div>
+            {treatmentSearch && !filteredTreatments.length ? <p className="mt-2 text-xs font-semibold text-[#9b633e]">No hay tratamientos que coincidan con esa búsqueda.</p> : null}
+            {selectedTreatment ? <button onClick={handleCredit} disabled={!selectedMember || confirmMutation.isPending} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#9e6d3d] disabled:cursor-not-allowed disabled:opacity-55"><CheckCircle2 size={17} /> Canjear premio</button> : null}
+          </div>
+
+          <div className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Código de referido</p>
+            <div className="mt-3 flex gap-2">
+              <input value={referralCode} onChange={(event) => setReferralCode(event.target.value)} placeholder="AUREA-2026" className="min-w-0 flex-1 rounded-xl border border-[#ded1c8] bg-white px-3 py-3 text-sm outline-none focus:border-[#b8864b]" />
+              <button onClick={handleReferralCode} className="rounded-xl border border-[#cdb9aa] px-3 text-sm font-semibold text-[#754b36]">Añadir</button>
+            </div>
+            {notice ? <div role="alert" className="mt-3 rounded-xl bg-[#e9f3e8] px-3 py-2 text-sm font-semibold text-[#3d6a48]"><CheckCircle2 size={15} className="mr-1 inline" />{notice}</div> : null}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

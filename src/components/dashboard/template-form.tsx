@@ -3,19 +3,21 @@
 /* eslint-disable react-hooks/incompatible-library */
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, CreditCard, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, CreditCard, Eye, FileText, Info, ListChecks, Paintbrush, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
 import { QrCode } from "@/components/shared/qr-code";
-import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, getTemplatePresets, saveTemplate, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 const optionalUrlSchema = z.string().url("Usa una URL válida").max(2048).optional().or(z.literal(""));
 
@@ -33,6 +35,14 @@ const templateSchema = z.object({
 });
 
 type TemplateFormValues = z.infer<typeof templateSchema>;
+type TemplateTab = "edit" | "preview" | "treatments" | "center";
+
+const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: "edit", label: "Edit Template", icon: Paintbrush },
+  { id: "preview", label: "Live Preview", icon: Eye },
+  { id: "treatments", label: "Tratamientos", icon: ListChecks },
+  { id: "center", label: "Información del centro", icon: Building2 },
+];
 
 const emptyValues: TemplateFormValues = {
   presetId: "",
@@ -46,6 +56,18 @@ const emptyValues: TemplateFormValues = {
   infoText: "",
   treatments: [{ name: "Consulta", pointsAllotted: 60 }],
 };
+
+const clinicDetails = [
+  { label: "Nombre comercial", value: "Clínica Aurea" },
+  { label: "Razón social", value: "Aurea Beauty S.L." },
+  { label: "CIF", value: "B-72938410" },
+  { label: "Dirección", value: "Calle Serrano 42, 28001 Madrid" },
+  { label: "Teléfono", value: "+34 910 240 118" },
+  { label: "Persona de contacto", value: "Ana López · Directora" },
+  { label: "Tiempo como miembro", value: "2 años y 6 meses" },
+  { label: "Número de cuenta", value: "ES12 3456 7890 1234 5678" },
+  { label: "Email", value: "hola@clinicaaurea.com" },
+];
 
 function toFormValues(template: Template | undefined, selectedPreset: TemplatePreset | undefined): TemplateFormValues {
   if (!template) {
@@ -89,6 +111,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const availablePresets = presetsQuery.data;
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
   const [selectedPreset, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
+  const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
@@ -157,86 +180,112 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   }
 
   return (
-    <form onSubmit={form.handleSubmit((input) => mutation.mutate(input))} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-4">
-        <section className="voone-panel p-5">
-          <p className="voone-kicker">Diseño inicial</p>
-          <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">{initialTemplate ? "Editar plantilla" : "Selecciona un preset"}</h1>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {availablePresets.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className={preset.id === values.presetId ? "rounded-lg border border-[#a47845] bg-[#fff8ed] p-4 text-left shadow-sm" : "rounded-lg border border-border bg-card/70 p-4 text-left transition-colors hover:border-[#c8a36a]"}
-                onClick={() => selectPreset(preset)}
-              >
-                <span className="block h-10 w-10 rounded-full border border-black/10" style={{ backgroundColor: preset.hexBackgroundColor }} />
-                <span className="mt-4 block font-serif text-xl font-semibold">{preset.name}</span>
-              </button>
-            ))}
-          </div>
-          {form.formState.errors.presetId?.message ? <p className="mt-2 text-sm text-destructive">{form.formState.errors.presetId.message}</p> : null}
-        </section>
+    <form onSubmit={form.handleSubmit((input) => mutation.mutate(input))} className="mx-auto max-w-[1120px] space-y-3">
+      <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/70 p-1">
+        {templateTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition", activeTab === tab.id ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}> 
+              <Icon className="h-4 w-4" /> {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-        <section className="voone-panel p-5">
-          <p className="voone-kicker">Detalles del pase</p>
-          <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Contenido Wallet</h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <Field label="Nombre del programa" error={form.formState.errors.programName?.message}>
-              <Input {...form.register("programName")} placeholder="Gold Beauty Club" />
-            </Field>
-            <Field label="Color de fondo" error={form.formState.errors.hexBackgroundColor?.message} htmlFor="template-background-color">
-              <div className="flex items-center gap-3 rounded-md border border-input bg-card px-3 py-2 shadow-sm">
-                <input id="template-background-color" type="color" className="h-8 w-12 cursor-pointer rounded border-0 bg-transparent p-0" value={values.hexBackgroundColor} onChange={(event) => form.setValue("hexBackgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })} />
-                <input type="hidden" {...form.register("hexBackgroundColor")} />
-                <span className="text-sm text-muted-foreground">{values.hexBackgroundColor}</span>
-              </div>
-            </Field>
-            <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
-              <Input {...form.register("logoUrl")} placeholder="https://..." />
-            </Field>
-            <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message}>
-              <Input {...form.register("heroImageUrl")} placeholder="https://..." />
-            </Field>
-            <Field label="Comprobar contraste de imagen" className="md:col-span-2">
-              <Input type="file" accept="image/*" onChange={(event) => checkHeroContrast(event.target.files?.[0])} />
-              {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
-            </Field>
+      {activeTab === "edit" ? (
+        <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-4 lg:grid-cols-[1fr_0.95fr]">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Edit Template</p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Diseño y contenido</h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {availablePresets.map((preset) => (
+                <button key={preset.id} type="button" className={cn("flex items-center gap-3 rounded-2xl border p-3 text-left transition", preset.id === values.presetId ? "border-[#a47845] bg-[#fff8ed] shadow-sm" : "border-[#ded1c8] bg-white/70 hover:border-[#c8a36a]")} onClick={() => selectPreset(preset)}>
+                  <span className="h-8 w-8 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: preset.hexBackgroundColor }} />
+                  <span className="text-sm font-semibold">{preset.name}</span>
+                </button>
+              ))}
+            </div>
+            {form.formState.errors.presetId?.message ? <p className="mt-2 text-sm text-destructive">{form.formState.errors.presetId.message}</p> : null}
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Nombre del programa" error={form.formState.errors.programName?.message}>
+                <Input {...form.register("programName")} placeholder="Gold Beauty Club" />
+              </Field>
+              <Field label="Color de fondo" error={form.formState.errors.hexBackgroundColor?.message} htmlFor="template-background-color">
+                <div className="flex h-10 items-center gap-3 rounded-xl border border-[#ded1c8] bg-white px-3 shadow-sm">
+                  <input id="template-background-color" type="color" className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0" value={values.hexBackgroundColor} onChange={(event) => form.setValue("hexBackgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })} />
+                  <input type="hidden" {...form.register("hexBackgroundColor")} />
+                  <span className="text-sm text-[#806d63]">{values.hexBackgroundColor}</span>
+                </div>
+              </Field>
+              <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
+                <Input {...form.register("logoUrl")} placeholder="https://..." />
+              </Field>
+              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message}>
+                <Input {...form.register("heroImageUrl")} placeholder="https://..." />
+              </Field>
+              <Field label="Comprobar contraste" className="sm:col-span-2">
+                <Input type="file" accept="image/*" onChange={(event) => checkHeroContrast(event.target.files?.[0])} />
+                {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
+              </Field>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Texto Wallet</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <Field label="Etiqueta de puntos" error={form.formState.errors.pointsLabel?.message}>
+                <Input {...form.register("pointsLabel")} placeholder="Saldo Beauty" />
+              </Field>
+              <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
+                <Input {...form.register("tierLabel")} placeholder="Miembro Gold" />
+              </Field>
+              <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                <Textarea rows={2} className="min-h-16" {...form.register("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
+              </Field>
+              <Field label="Texto informativo" error={form.formState.errors.infoText?.message} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                <Textarea rows={2} className="min-h-16" {...form.register("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
+              </Field>
+            </div>
           </div>
         </section>
+      ) : null}
 
-        <section className="voone-panel p-5">
-          <p className="voone-kicker">Recompensas</p>
-          <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Texto para miembros</h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <Field label="Etiqueta de puntos" error={form.formState.errors.pointsLabel?.message}>
-              <Input {...form.register("pointsLabel")} placeholder="Saldo Beauty" />
-            </Field>
-            <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
-              <Input {...form.register("tierLabel")} placeholder="Miembro Gold" />
-            </Field>
-            <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} className="md:col-span-2">
-              <Textarea {...form.register("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
-            </Field>
-            <Field label="Texto informativo" error={form.formState.errors.infoText?.message} className="md:col-span-2">
-              <Textarea {...form.register("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
-            </Field>
+      {activeTab === "preview" ? (
+        <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Live Preview</p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Cambios de contenido van en Edit Template y los puntos se gestionan en Tratamientos.</p>
+            <div className="mt-5 max-w-[360px]"><PassPreviewCard values={values} presetName={selectedPreset?.name} /></div>
+          </div>
+          <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Proveedor</p><h3 className="mt-2 font-serif text-2xl font-semibold">Google Wallet</h3></div>
+              <CreditCard className="h-6 w-6 text-[#e8cf9a]" />
+            </div>
+            <div className="mt-5 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]">
+              <p className="font-semibold">{values.programName || "Nombre del programa"}</p>
+              <p className="mt-2 text-sm text-[#806e66]">{values.infoText || "El texto informativo aparecerá aquí."}</p>
+            </div>
           </div>
         </section>
+      ) : null}
 
-        <section className="voone-panel p-5">
+      {activeTab === "treatments" ? (
+        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="voone-kicker">Tratamientos</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Tratamientos</p>
               <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Puntos por tratamiento</h2>
             </div>
             <Button type="button" variant="outline" className="rounded-2xl" onClick={() => treatments.append({ name: "", pointsAllotted: 0 })}>
               <Plus className="mr-2 h-4 w-4" /> Añadir
             </Button>
           </div>
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 overflow-hidden rounded-2xl border border-[#eadfd8]">
             {treatments.fields.map((field, index) => (
-              <div key={field.id} className="grid gap-3 rounded-lg border border-border bg-card/70 p-3 sm:grid-cols-[1fr_140px_auto]">
+              <div key={field.id} className="grid gap-3 border-b border-[#eadfd8] bg-[#fffaf6] p-3 last:border-b-0 sm:grid-cols-[1fr_140px_auto]">
                 <Field label="Tratamiento" error={form.formState.errors.treatments?.[index]?.name?.message}>
                   <Input {...form.register(`treatments.${index}.name`)} placeholder="Hydrafacial" />
                 </Field>
@@ -251,49 +300,51 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
           </div>
           {typeof form.formState.errors.treatments?.message === "string" ? <p className="mt-2 text-sm text-destructive">{form.formState.errors.treatments.message}</p> : null}
         </section>
+      ) : null}
 
-        <section className="voone-panel p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-h-6 text-sm">
-              {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : null}
+      {activeTab === "center" ? (
+        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Información del centro</p>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Datos de Clínica Aurea</h2>
+              <p className="mt-2 text-sm leading-6 text-[#927e72]">Esta pestaña muestra la información del negocio que acompaña a las plantillas y enlaces del centro.</p>
             </div>
-            <Button type="submit" className="rounded-2xl px-6" disabled={mutation.isPending}>
-              {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar plantilla" : "Crear plantilla"}
-            </Button>
+            <Info className="h-6 w-6 text-[#b8864b]" />
           </div>
-        </section>
-      </div>
-
-      <aside className="no-scrollbar space-y-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
-        <section className="voone-dark-panel p-5">
-          <div className="relative">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="voone-kicker">Vista previa</p>
-                <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-white">Google Wallet</h2>
+          <div className="mt-5 grid gap-x-16 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+            {clinicDetails.map((detail) => (
+              <div key={detail.label}>
+                <p className="text-xs text-[#927e72]">{detail.label}</p>
+                <p className="mt-1 font-semibold">{detail.value}</p>
               </div>
-              <CreditCard className="h-6 w-6 text-gold-light" />
-            </div>
-            <div className="mt-5">
-              <PassPreviewCard values={values} presetName={selectedPreset?.name} />
-            </div>
+            ))}
           </div>
+          <Link href="/dashboard/settings" className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><FileText className="h-4 w-4" /> Editar información completa</Link>
         </section>
-      </aside>
+      ) : null}
+
+      <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-h-6 text-sm">
+            {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan en la plantilla Wallet de la clínica.</span>}
+          </div>
+          <Button type="submit" className="h-10 rounded-2xl px-6" disabled={mutation.isPending}>
+            {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar plantilla" : "Crear plantilla"}
+          </Button>
+        </div>
+      </section>
     </form>
   );
 }
 
-// A real, scannable code rather than the decorative grid this used to draw — a preview
-// whose QR cannot be scanned hides exactly the problem a preview should catch. It encodes
-// a plainly marked sample, because a template has no member and so no redemption code yet.
 const PREVIEW_QR_VALUE = "VOONE-EJEMPLO";
 
 function PreviewQr() {
   return (
     <QrCode
       value={PREVIEW_QR_VALUE}
-      size={104}
+      size={92}
       className="rounded-xl shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]"
       title="Vista previa del QR"
     />
@@ -304,7 +355,7 @@ function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; p
   const foreground = textColorFor(values.hexBackgroundColor);
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-white/45 p-5 shadow-[0_28px_70px_-42px_rgba(67,48,43,0.82)]" style={{ background: values.hexBackgroundColor, color: foreground }}>
+    <div className="overflow-hidden rounded-[24px] border border-white/45 p-4 shadow-[0_28px_70px_-42px_rgba(67,48,43,0.82)]" style={{ background: values.hexBackgroundColor, color: foreground }}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[10px] font-bold uppercase opacity-70">Google Wallet</p>
@@ -312,11 +363,11 @@ function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; p
         </div>
         <PreviewQr />
       </div>
-      <h3 className="mt-6 font-serif text-2xl font-semibold tracking-tight">{values.programName || "Nombre del programa"}</h3>
-      <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+      <h3 className="mt-5 font-serif text-2xl font-semibold tracking-tight">{values.programName || "Nombre del programa"}</h3>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-2xl bg-white/14 p-3">
           <p className="text-[10px] uppercase opacity-70">Puntos</p>
-          <p className="mt-1 font-serif text-2xl font-semibold">1,250</p>
+          <p className="mt-1 font-serif text-2xl font-semibold">1.250</p>
           <p className="text-xs opacity-70">{values.pointsLabel || "Etiqueta de puntos"}</p>
         </div>
         <div className="rounded-2xl bg-white/14 p-3">
@@ -325,7 +376,7 @@ function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; p
           <p className="text-xs opacity-70">{values.tierLabel || "Etiqueta de nivel"}</p>
         </div>
       </div>
-      <div className="mt-4 rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefitsText || "Los beneficios aparecerán aquí."}</div>
+      <div className="mt-3 max-h-16 overflow-hidden rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefitsText || "Los beneficios aparecerán aquí."}</div>
     </div>
   );
 }

@@ -1,20 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMember } from "@/lib/api-client";
+import { creditMember, getMember, type Member } from "@/lib/api-client";
 
 export function MemberDetail({ memberId }: { memberId: string }) {
+  const queryClient = useQueryClient();
   const [deactivated, setDeactivated] = useState(false);
+  const [manualPoints, setManualPoints] = useState("");
+  const [manualReason, setManualReason] = useState("");
+  const [notice, setNotice] = useState("");
   const member = useQuery({ queryKey: ["member", memberId], queryFn: () => getMember(memberId) });
+  const manualPointsMutation = useMutation({
+    mutationFn: ({ points, reason }: { points: number; reason: string }) => creditMember(memberId, points, reason),
+    onError: () => {
+      setNotice("No se pudieron añadir los puntos. Inténtalo de nuevo.");
+    },
+    onSuccess: (updatedMember) => {
+      queryClient.setQueryData<Member>(["member", memberId], updatedMember);
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      setManualPoints("");
+      setManualReason("");
+      setNotice(`Cambio manual registrado. Nuevo saldo: ${updatedMember.points.toLocaleString("es-ES")} puntos.`);
+    },
+  });
 
   if (member.isLoading) return <Skeleton className="h-80 w-full" />;
   if (member.error || !member.data) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudo cargar el miembro.</div>;
+
+  function submitManualPoints(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const points = Number.parseInt(manualPoints, 10);
+    const reason = manualReason.trim();
+
+    if (!Number.isFinite(points) || points <= 0 || !reason) {
+      setNotice("Indica una cantidad positiva y un motivo para registrar el cambio.");
+      return;
+    }
+
+    manualPointsMutation.mutate({ points, reason: `Ajuste manual: ${reason}` });
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
@@ -37,6 +69,41 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
           {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}
+          <form onSubmit={submitManualPoints} className="rounded-lg border border-border bg-background/70 p-4">
+            <p className="text-sm font-semibold">Añadir puntos manualmente</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[120px_1fr]">
+              <label className="text-xs font-medium text-muted-foreground">
+                Puntos
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={manualPoints}
+                  onChange={(event) => {
+                    setManualPoints(event.target.value);
+                    setNotice("");
+                  }}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Motivo
+                <input
+                  value={manualReason}
+                  onChange={(event) => {
+                    setManualReason(event.target.value);
+                    setNotice("");
+                  }}
+                  placeholder="Corrección aprobada, bono especial..."
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+            </div>
+            <Button type="submit" className="mt-3 w-full" disabled={manualPointsMutation.isPending}>
+              <Plus className="mr-2 h-4 w-4" /> {manualPointsMutation.isPending ? "Guardando" : "Registrar ajuste"}
+            </Button>
+            {notice ? <p role="status" className="mt-3 rounded-md bg-muted/70 p-3 text-sm text-muted-foreground">{notice}</p> : null}
+          </form>
           <Button
             type="button"
             variant="destructive"
@@ -56,15 +123,15 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           <CardTitle>Historial</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {member.data.history.map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-md border border-border bg-background/70 px-4 py-3 text-sm">
+          {member.data.history.length ? member.data.history.map((item) => (
+            <div key={item.id} className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3 text-sm">
               <div>
                 <p className="font-medium">{item.label}</p>
-                <p className="text-muted-foreground">{item.date}</p>
+                <p className="text-muted-foreground">{item.date} · Registro bloqueado</p>
               </div>
               <span className="font-semibold text-success">+{item.points}</span>
             </div>
-          ))}
+          )) : <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">Aún no hay movimientos de puntos.</p>}
         </CardContent>
       </Card>
     </div>

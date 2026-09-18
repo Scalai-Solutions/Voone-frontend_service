@@ -78,7 +78,7 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
 
   return (
     <motion.section
-      className="grid gap-4 lg:grid-cols-3"
+      className="mx-auto grid max-w-[1160px] gap-3 lg:grid-cols-3"
       initial={reducedMotion ? false : "hidden"}
       animate={reducedMotion ? undefined : "visible"}
       variants={containerVariants}
@@ -88,8 +88,8 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
         const isDisabled = Boolean(selectedTemplate && !isSelected);
 
         return (
-          <motion.div key={row.starter.id} className={cn("voone-panel h-full p-4 md:p-5", isSelected && "ring-2 ring-gold/70", isDisabled && "grayscale opacity-45")} variants={cardVariants}>
-            <div className="relative flex h-full flex-col gap-5">
+          <motion.div key={row.starter.id} className={cn("voone-panel h-full p-3 md:p-4", isSelected && "ring-2 ring-gold/70", isDisabled && "grayscale opacity-45")} variants={cardVariants}>
+            <div className="relative flex h-full flex-col gap-3">
               {isSelected ? <SelectedTemplateTag /> : null}
               <OverlappingWalletCards starter={row.starter} theme={row.theme} reducedMotion={reducedMotion} />
               <div>
@@ -97,8 +97,8 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
                   <Sparkles className="h-3.5 w-3.5" />
                   {row.starter.eyebrow}
                 </div>
-                <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{row.starter.title}</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{row.starter.description}</p>
+                <h2 className="mt-2 font-serif text-2xl font-semibold tracking-tight text-foreground">{row.starter.title}</h2>
+                <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-muted-foreground">{row.starter.description}</p>
               </div>
               <TemplateCardAction href={row.href} isSelected={isSelected} isDisabled={isDisabled} selectedTemplateId={selectedTemplate?.id} />
             </div>
@@ -108,13 +108,13 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
 
       <motion.div
         className={cn(
-          "voone-panel h-full p-4 md:p-5",
+          "voone-panel h-full p-3 md:p-4",
           isScratchSelected && "ring-2 ring-gold/70",
           isScratchDisabled && "grayscale opacity-45"
         )}
         variants={cardVariants}
       >
-        <div className="relative flex h-full flex-col gap-5">
+        <div className="relative flex h-full flex-col gap-3">
           {isScratchSelected ? <SelectedTemplateTag /> : null}
           <BlankTemplateCard reducedMotion={reducedMotion} />
           <div>
@@ -122,8 +122,8 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
               <Paintbrush className="h-3.5 w-3.5" />
               {templateStarters.scratch.eyebrow}
             </div>
-            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-foreground">{templateStarters.scratch.title}</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{templateStarters.scratch.description}</p>
+            <h2 className="mt-2 font-serif text-2xl font-semibold tracking-tight text-foreground">{templateStarters.scratch.title}</h2>
+            <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-muted-foreground">{templateStarters.scratch.description}</p>
           </div>
           <TemplateCardAction
             href={`/dashboard/templates/new${scratchPreset ? `?presetId=${encodeURIComponent(scratchPreset.id)}` : ""}`}
@@ -156,7 +156,7 @@ function TemplateCardAction({
 }) {
   if (isSelected && selectedTemplateId) {
     return (
-      <Button asChild className="mt-auto rounded-2xl px-5">
+      <Button asChild className="mt-auto h-10 rounded-2xl px-4">
         <Link href={`/dashboard/templates/${selectedTemplateId}`}>
           Editar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
         </Link>
@@ -166,14 +166,14 @@ function TemplateCardAction({
 
   if (isDisabled) {
     return (
-      <Button disabled variant={variant} className="mt-auto rounded-2xl px-5">
+      <Button disabled variant={variant} className="mt-auto h-10 rounded-2xl px-4">
         No disponible <LockKeyhole className="ml-2 h-4 w-4" />
       </Button>
     );
   }
 
   return (
-    <Button asChild variant={variant} className="mt-auto rounded-2xl px-5">
+    <Button asChild variant={variant} className="mt-auto h-10 rounded-2xl px-4">
       <Link href={href}>
         {idleLabel} <ArrowUpRight className="ml-2 h-4 w-4" />
       </Link>
@@ -183,7 +183,7 @@ function TemplateCardAction({
 
 function SelectedTemplateTag() {
   return (
-    <span className="absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-[#fff8ed] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8f6330] shadow-sm">
+    <span className="absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-[#fff8ed] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8f6330] shadow-sm">
       <CheckCircle2 className="h-3.5 w-3.5" />
       Seleccionada
     </span>
@@ -192,9 +192,9 @@ function SelectedTemplateTag() {
 
 function OverlappingWalletCards({ starter, theme, reducedMotion }: { starter: (typeof templateStarters)["signature-glow"]; theme: WalletCardTheme; reducedMotion: boolean | null }) {
   return (
-    <div className="relative mx-auto h-[265px] w-[260px] overflow-visible sm:w-[280px] xl:w-[300px]">
+    <div className="relative mx-auto h-[190px] w-[215px] overflow-visible sm:w-[230px]">
       <motion.div
-        className="absolute left-0 top-4 origin-top-left -rotate-6 scale-[0.46] sm:scale-[0.48] xl:scale-[0.5]"
+        className="absolute left-2 top-2 origin-top-left -rotate-6 scale-[0.32] sm:scale-[0.34]"
         initial={reducedMotion ? false : { opacity: 0, x: -26, y: 34 }}
         animate={reducedMotion ? undefined : { opacity: 1, x: 0, y: 0 }}
         transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
@@ -202,7 +202,7 @@ function OverlappingWalletCards({ starter, theme, reducedMotion }: { starter: (t
         <WalletCard data={starter.appleCard} theme={theme} defaultExpanded interactive={false} />
       </motion.div>
       <motion.div
-        className="absolute left-[100px] top-8 origin-top-left rotate-5 scale-[0.46] sm:left-[108px] sm:scale-[0.48] xl:left-[116px] xl:scale-[0.5]"
+        className="absolute left-[92px] top-5 origin-top-left rotate-5 scale-[0.32] sm:left-[100px] sm:scale-[0.34]"
         initial={reducedMotion ? false : { opacity: 0, x: 30, y: 40 }}
         animate={reducedMotion ? undefined : { opacity: 1, x: 0, y: 0 }}
         transition={{ duration: 0.72, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -216,7 +216,7 @@ function OverlappingWalletCards({ starter, theme, reducedMotion }: { starter: (t
 function BlankTemplateCard({ reducedMotion }: { reducedMotion: boolean | null }) {
   return (
     <motion.div
-      className="relative mx-auto h-[235px] w-[260px] overflow-hidden rounded-[24px] border border-dashed border-[#c8bbae] bg-[linear-gradient(145deg,#fffdf8_0%,#f4eee6_100%)] p-6 shadow-inner sm:w-[280px] xl:w-[300px]"
+      className="relative mx-auto h-[190px] w-[215px] overflow-hidden rounded-[22px] border border-dashed border-[#c8bbae] bg-[linear-gradient(145deg,#fffdf8_0%,#f4eee6_100%)] p-5 shadow-inner sm:w-[230px]"
       initial={reducedMotion ? false : { opacity: 0, y: 28, scale: 0.96 }}
       animate={reducedMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.7, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}

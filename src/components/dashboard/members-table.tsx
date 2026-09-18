@@ -1,187 +1,168 @@
 "use client";
 
-/* eslint-disable react-hooks/incompatible-library */
-
 import * as React from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from "@tanstack/react-table";
-import { Download, Filter, QrCode, Search, Sparkles, UserPlus, Users, WalletCards } from "lucide-react";
+import { Download, Filter, MapPin, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/page-kit";
-import { WalletStatusBadges } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMembers, type Member } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
-const columnHelper = createColumnHelper<Member>();
-
-const columns = [
-  columnHelper.accessor("name", {
-    header: "Miembro",
-    cell: (info) => (
-      <div>
-        <Link className="font-semibold text-[#2b1a15] hover:text-primary" href={`/dashboard/members/${info.row.original.id}`}>{info.getValue()}</Link>
-        <p className="mt-1 text-xs text-muted-foreground">{info.row.original.identity}</p>
-      </div>
-    ),
-  }),
-  columnHelper.accessor("templateName", { header: "Plantilla" }),
-  columnHelper.accessor("points", { header: "Saldo", cell: (info) => <span className="font-serif text-2xl font-semibold">{info.getValue().toLocaleString()}</span> }),
-  columnHelper.accessor("tier", { header: "Nivel", cell: (info) => <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs font-bold text-[#7a5526]">{info.getValue()}</span> }),
-  columnHelper.display({ header: "Wallet", cell: (info) => <WalletStatusBadges statuses={info.row.original.walletStatus} /> }),
-  columnHelper.display({
-    header: "Acciones",
-    cell: (info) => (
-      <Button asChild variant="outline" size="sm" className="rounded-xl">
-        <Link href={`/dashboard/members/${info.row.original.id}`}>Abrir</Link>
-      </Button>
-    ),
-  }),
+const audienceRows = [
+  { name: "Mujeres · 25-40 · Madrid", criteria: "Sexo · Edad · Ubicación", count: 84, updated: "Hoy" },
+  { name: "Clientes Diamond", criteria: "Nivel", count: 32, updated: "Ayer" },
+  { name: "Sin visita · 90 días", criteria: "Actividad", count: 47, updated: "12 sep" },
 ];
 
-export function MembersTable() {
-  const [tierFilter, setTierFilter] = useReactState("all");
-  const [walletFilter, setWalletFilter] = useReactState("all");
-  const [filtersOpen, setFiltersOpen] = useReactState(false);
-  const members = useQuery({ queryKey: ["members"], queryFn: getMembers });
-  const filteredMembers = (members.data ?? []).filter((member) => {
-    const matchesTier = tierFilter === "all" || member.tier === tierFilter;
-    const hasGoogle = member.walletStatus.google === "added";
-    const hasApple = member.walletStatus.apple === "added";
-    const matchesWallet = walletFilter === "all" || (walletFilter === "wallet-ready" && (hasGoogle || hasApple)) || (walletFilter === "needs-wallet" && !hasGoogle && !hasApple);
-    return matchesTier && matchesWallet;
-  });
-  const table = useReactTable({
-    data: filteredMembers,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
+const profileByMember: Record<string, { sex: string; age: number; city: string }> = {
+  "MEM-1048": { sex: "Mujer", age: 29, city: "Madrid" },
+  "MEM-2033": { sex: "Hombre", age: 34, city: "Valencia" },
+  "MEM-3110": { sex: "Mujer", age: 41, city: "Barcelona" },
+};
 
-  const totalMembers = members.data?.length ?? 0;
-  const walletReady = members.data?.filter((member) => member.walletStatus.google === "added" || member.walletStatus.apple === "added").length ?? 0;
-  const totalPoints = members.data?.reduce((total, member) => total + member.points, 0) ?? 0;
-  const tiers = Array.from(new Set((members.data ?? []).map((member) => member.tier)));
+const tierColors: Record<string, string> = {
+  Gold: "bg-[#f2d09a] text-[#68451f]",
+  Diamond: "bg-[#c9d7e5] text-[#30465d]",
+  Silver: "bg-[#d8d8d4] text-[#4d4e4a]",
+  Nuevo: "bg-[#eadfd8] text-[#6f5c53]",
+};
+
+export function MembersTable() {
+  const [tab, setTab] = React.useState<"personas" | "audiencias">("personas");
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [tierFilter, setTierFilter] = React.useState("all");
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const members = useQuery({ queryKey: ["members"], queryFn: getMembers });
 
   if (members.isLoading) {
-    return <Skeleton className="h-72 w-full" />;
+    return <Skeleton className="h-72 w-full rounded-[28px]" />;
   }
 
   if (members.error) {
-    return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar los miembros. Revisa la conexión con la API e inténtalo de nuevo.</div>;
+    return <div className="rounded-[24px] border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar los miembros. Revisa la conexión con la API e inténtalo de nuevo.</div>;
   }
 
   if (!members.data?.length) {
-    return <EmptyState title="Aún no hay miembros" message="Añade el primer miembro y envíale un pase Wallet desde recepción." action={{ href: "/dashboard/members/new", label: "Añadir miembro" }} />;
+    return <EmptyState title="Aún no hay miembros" message="Añade el primer miembro y envíale un pase Wallet desde recepción." action={{ href: "/dashboard/members/new", label: "Añadir persona" }} />;
   }
 
+  const tiers = Array.from(new Set(members.data.map((member) => member.tier)));
+  const filteredMembers = members.data.filter((member) => {
+    const searchable = `${member.name} ${member.id} ${member.identity} ${member.templateName} ${member.tier}`.toLowerCase();
+    const matchesSearch = searchable.includes(searchTerm.toLowerCase());
+    const matchesTier = tierFilter === "all" || member.tier === tierFilter;
+
+    return matchesSearch && matchesTier;
+  });
+
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 md:grid-cols-3">
-        <MetricCard icon={Users} label="Miembros" value={totalMembers.toLocaleString()} detail={`${filteredMembers.length} en la vista actual`} />
-        <MetricCard icon={WalletCards} label="Wallet lista" value={walletReady.toLocaleString()} detail="Pase añadido en Google o Apple" />
-        <MetricCard icon={Sparkles} label="Saldo de puntos" value={totalPoints.toLocaleString()} detail="Entre miembros activos" />
+    <section className="space-y-6 text-[#2e2421]">
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#b7874a]">CRM de fidelización</p>
+          <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">Miembros</h1>
+        </div>
+        <Link href="/dashboard/members/new" className="inline-flex items-center gap-2 rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]">
+          <Plus size={17} /> Añadir persona
+        </Link>
       </div>
 
-      <div className="voone-panel p-4 md:p-5">
-        <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="relative max-w-xl flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre, ID, teléfono, email o plantilla"
-              className="pl-9"
-              value={(table.getState().globalFilter as string | undefined) ?? ""}
-              onChange={(event) => table.setGlobalFilter(event.target.value)}
-            />
-          </div>
-          <div className="relative">
-            <Button type="button" variant="outline" className="rounded-2xl" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
-              <Filter className="mr-2 h-4 w-4" /> Filtros
-            </Button>
-            {filtersOpen ? (
-              <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-border bg-[#fffaf3] p-4 text-sm shadow-[0_24px_70px_-40px_rgba(67,48,43,0.75)]">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-tier-filter">Nivel</label>
-                  <select id="member-tier-filter" className="mt-2 h-10 w-full rounded-xl border border-input bg-white px-3 text-sm shadow-sm" value={tierFilter} onChange={(event) => setTierFilter(event.target.value)}>
-                    {["all", ...tiers].map((tier) => (
-                      <option key={tier} value={tier}>{tier === "all" ? "Todos los niveles" : tier}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mt-4">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]" htmlFor="member-wallet-filter">Wallet</label>
-                  <select id="member-wallet-filter" className="mt-2 h-10 w-full rounded-xl border border-input bg-white px-3 text-sm shadow-sm" value={walletFilter} onChange={(event) => setWalletFilter(event.target.value)}>
-                    <option value="all">Todas las Wallet</option>
-                    <option value="wallet-ready">Wallet lista</option>
-                    <option value="needs-wallet">Sin Wallet</option>
-                  </select>
-                </div>
-              </div>
-            ) : null}
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline" className="rounded-2xl">
-              <Link href="/dashboard/scan"><QrCode className="mr-2 h-4 w-4" /> Escanear</Link>
-            </Button>
-            <Button type="button" variant="outline" className="rounded-2xl">
-              <Download className="mr-2 h-4 w-4" /> Exportar
-            </Button>
-            <Button asChild className="rounded-2xl">
-              <Link href="/dashboard/members/new"><UserPlus className="mr-2 h-4 w-4" /> Añadir</Link>
-            </Button>
-          </div>
-        </div>
+      <div className="flex gap-2 border-b border-[#ded1c8]">
+        <button onClick={() => setTab("personas")} className={cn("rounded-t-xl px-5 py-3 text-sm font-semibold", tab === "personas" ? "border-b-2 border-[#9e6740] text-[#75462f]" : "text-[#927e72]")}> 
+          <Users size={16} className="mr-2 inline" />Personas
+        </button>
+        <button onClick={() => setTab("audiencias")} className={cn("rounded-t-xl px-5 py-3 text-sm font-semibold", tab === "audiencias" ? "border-b-2 border-[#9e6740] text-[#75462f]" : "text-[#927e72]")}>Audiencias</button>
       </div>
 
-      <div className="overflow-hidden rounded-[24px] border border-[#d8c5b6] bg-[#fffaf3]/88 shadow-[0_22px_60px_-46px_rgba(67,48,43,0.72)] backdrop-blur-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="bg-[#241612] text-[#fff8ef]">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-4 py-3 font-semibold">
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y divide-[#eadfce]">
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="transition-colors hover:bg-white/70">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 align-middle">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      {tab === "audiencias" ? <AudiencesTable /> : (
+        <>
+          <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-[#e2d5cc] bg-white/75 p-4">
+            <label className="flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-[#ded1c8] bg-[#fffdfb] px-4 py-3 text-[#9a877c]">
+              <Search size={19} />
+              <span className="sr-only">Buscar miembros</span>
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="w-full bg-transparent text-sm outline-none" placeholder="Buscar por nombre, ID, teléfono o email" />
+            </label>
+            <div className="relative">
+              <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="rounded-2xl border border-[#ded1c8] px-4 py-3 text-sm font-semibold">
+                <SlidersHorizontal size={16} className="mr-2 inline" />Filtros
+              </button>
+              {filtersOpen ? (
+                <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-[#ded1c8] bg-[#fffaf6] p-4 shadow-xl">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#b7874a]" htmlFor="member-tier-filter">Nivel</label>
+                  <select id="member-tier-filter" value={tierFilter} onChange={(event) => setTierFilter(event.target.value)} className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
+                    <option value="all">Todos los niveles</option>
+                    {tiers.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
+                  </select>
+                </div>
+              ) : null}
+            </div>
+            <button className="rounded-2xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white"><Download size={16} className="mr-2 inline" />Exportar</button>
+          </div>
+
+          <div className="overflow-x-auto rounded-3xl border border-[#e2d5cc] bg-white/80">
+            <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+              <thead className="bg-[#2d211e] text-[#fff9f4]">
+                <tr>{["Persona", "Sexo", "Edad", "Móvil", "Nivel", "Gasto", "Ubicación", "Acciones"].map((heading) => <th key={heading} className="px-5 py-4 font-semibold">{heading}</th>)}</tr>
+              </thead>
+              <tbody>
+                {filteredMembers.map((member) => <MemberRow key={member.id} member={member} />)}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
-const useReactState = React.useState;
+function MemberRow({ member }: { member: Member }) {
+  const profile = profileByMember[member.id] ?? { sex: "-", age: "-", city: "Madrid" };
+  const identityIsPhone = member.identity.trim().startsWith("+");
+  const spent = `${Math.max(member.points, 0).toLocaleString("es-ES")} €`;
 
-function MetricCard({ icon: Icon, label, value, detail }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; detail: string }) {
   return (
-    <div className="voone-panel p-5">
-      <div className="relative flex items-start justify-between gap-4">
-        <div>
-          <p className="voone-kicker">{label}</p>
-          <p className="mt-3 font-serif text-4xl font-semibold tracking-tight">{value}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
-        </div>
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#241612] text-gold-light">
-          <Icon className="h-5 w-5" />
-        </span>
+    <tr className="border-t border-[#eadfd8]">
+      <td className="px-5 py-4">
+        <Link href={`/dashboard/members/${member.id}`} className="font-semibold hover:text-[#9b633e]">{member.name}</Link>
+        <p className="mt-1 text-xs text-[#927e72]">{identityIsPhone ? member.id : member.identity}</p>
+      </td>
+      <td className="px-5 py-4">{profile.sex}</td>
+      <td className="px-5 py-4">{profile.age}</td>
+      <td className="px-5 py-4">{identityIsPhone ? member.identity : "-"}</td>
+      <td className="px-5 py-4"><span className={cn("rounded-full px-3 py-1.5 text-xs font-bold", tierColors[member.tier] ?? "bg-[#eadfd8] text-[#6f5c53]")}>{member.tier}</span></td>
+      <td className="px-5 py-4 font-semibold">{spent}</td>
+      <td className="px-5 py-4"><MapPin size={14} className="mr-1 inline text-[#b8864b]" />{profile.city}</td>
+      <td className="px-5 py-4"><Link href={`/dashboard/members/${member.id}`} className="inline-flex items-center rounded-full border border-[#d9c9bf] px-4 py-2 text-xs font-semibold hover:bg-[#f6eee8]"><Pencil size={14} className="mr-1" />Editar</Link></td>
+    </tr>
+  );
+}
+
+function AudiencesTable() {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80">
+      <div className="flex flex-wrap gap-3 border-b border-[#eadfd8] p-4">
+        <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[#ded1c8] bg-white px-3 py-2 text-[#927e72]"><Search size={17} /><span className="text-sm">Buscar segmento</span></div>
+        <button className="rounded-xl border border-[#dedfd8] px-4 py-2 text-sm font-semibold"><Filter size={16} className="mr-2 inline" />Filtros</button>
+        <button className="rounded-xl bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-2 inline" />Añadir segmento</button>
       </div>
+      <table className="w-full min-w-[820px] border-separate border-spacing-0 text-left text-sm">
+        <thead className="bg-[#2d211e] text-white">
+          <tr>{["Segmento", "Criterios", "Personas", "Actualización", "Acciones"].map((heading) => <th key={heading} className="px-5 py-3 font-semibold">{heading}</th>)}</tr>
+        </thead>
+        <tbody>
+          {audienceRows.map((row) => (
+            <tr key={row.name} className="border-t border-[#eadfd8]">
+              <td className="px-5 py-4 font-semibold">{row.name}</td>
+              <td className="px-5 py-4 text-[#806d63]">{row.criteria}</td>
+              <td className="px-5 py-4">{row.count}</td>
+              <td className="px-5 py-4 text-[#806d63]">{row.updated}</td>
+              <td className="px-5 py-4"><button className="font-semibold text-[#9b633e]">Editar</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -1,37 +1,168 @@
+import { AlertTriangle, Bell, Building2, CreditCard, Download, KeyRound, LifeBuoy, MailCheck, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
+
+import { RolePermissionsManager } from "@/components/dashboard/role-permissions-manager";
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
-import { PageHeader } from "@/components/shared/page-kit";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClinicSignupUrl } from "@/lib/app-url";
 import { getCurrentSession } from "@/lib/auth";
+
+const accountFields = [
+  { label: "Nombre", value: "Usuario Voone" },
+  { label: "Email", value: "owner@voone.ai" },
+  { label: "Rol", value: "Propietario" },
+  { label: "Zona horaria", value: "Europe/Madrid" },
+];
+
+const clinicFields = [
+  { label: "Nombre del centro", value: "Clínica Aurea" },
+  { label: "Propietaria", value: "Ana López" },
+  { label: "Dirección", value: "Calle Serrano 42, 28001 Madrid" },
+  { label: "Teléfono", value: "+34 910 240 118" },
+  { label: "Email", value: "hola@clinicaaurea.com" },
+  { label: "Ubicación", value: "Madrid, España" },
+  { label: "Plan", value: "Aura" },
+  { label: "Facturación", value: "Tarjeta Visa terminada en 4242 · Renovación mensual" },
+  { label: "Cliente de Voone desde", value: "Marzo de 2024" },
+  { label: "Plantilla predeterminada", value: "Gold Beauty Club" },
+];
 
 export default async function SettingsPage() {
   const session = await getCurrentSession();
   const signupUrl = session?.clinicSlug ? await getClinicSignupUrl(session.clinicSlug) : null;
+
   return (
-    <div className="space-y-6">
-      <PageHeader eyebrow="Ajustes" title="Ajustes de la clínica" description="El perfil de la clínica y el acceso del equipo se conectarán más adelante con la API de cuentas." />
-      <div className="grid gap-4 lg:grid-cols-2">
-        {signupUrl ? <SignupQrPanel signupUrl={signupUrl} /> : null}
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Perfil de clínica</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Aurea Clinic</p>
-            <p>Madrid</p>
-            <p>Plantilla predeterminada: Gold Beauty Club</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Equipo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between rounded-md border border-border px-3 py-2"><span>Propietario</span><span className="text-muted-foreground">Acceso completo</span></div>
-            <div className="flex items-center justify-between rounded-md border border-border px-3 py-2"><span>Recepción</span><span className="text-muted-foreground">Escaneo y miembros</span></div>
-          </CardContent>
-        </Card>
+    <section className="text-[#2e2421]">
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#b7874a]">Ajustes</p>
+          <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">Cuenta y centro</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Gestiona acceso, seguridad, facturación, soporte y los datos operativos de tu clínica.</p>
+        </div>
+        <a href="mailto:support@voone.ai" className="inline-flex items-center gap-2 rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm"><LifeBuoy className="h-4 w-4" /> Contactar soporte</a>
       </div>
+
+      <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-5">
+          <SettingsSection eyebrow="Perfil" title="Cuenta de usuario" icon={UserRound}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {accountFields.map((field) => <InfoField key={field.label} label={field.label} value={field.value} />)}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar perfil</button>
+              <button className="inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><MailCheck className="h-4 w-4" /> Verificar email</button>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection eyebrow="Seguridad" title="Acceso y contraseña" icon={ShieldCheck}>
+            <div className="grid gap-3 md:grid-cols-3">
+              <ActionTile icon={KeyRound} title="Cambiar contraseña" text="Actualiza la clave de acceso del operador." action="Cambiar" />
+              <ActionTile icon={MailCheck} title="Email verificado" text="Confirma el correo para alertas críticas." action="Reenviar" />
+              <ActionTile icon={ShieldCheck} title="Sesiones" text="Revisa dispositivos y cierra sesiones antiguas." action="Revisar" />
+            </div>
+          </SettingsSection>
+
+          <SettingsSection eyebrow="Negocio" title="Perfil de clínica" icon={Building2}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {clinicFields.map((field) => <InfoField key={field.label} label={field.label} value={field.value} />)}
+            </div>
+            <button className="mt-5 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar información del centro</button>
+          </SettingsSection>
+
+          <SettingsSection eyebrow="Equipo" title="Roles y permisos" icon={UsersRound}>
+            <RolePermissionsManager />
+          </SettingsSection>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <SettingsSection eyebrow="Facturación" title="Plan y pagos" icon={CreditCard}>
+              <p className="text-sm leading-6 text-[#806d63]">Plan Aura activo. 24 mensajes manuales disponibles de 30 este mes.</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Gestionar plan</button>
+                <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Método de pago</button>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection eyebrow="Preferencias" title="Notificaciones" icon={Bell}>
+              <div className="space-y-3 text-sm">
+                <ToggleRow label="Alertas de envíos fallidos" enabled />
+                <ToggleRow label="Resumen semanal por email" enabled />
+                <ToggleRow label="Avisos de saldo bajo" />
+              </div>
+            </SettingsSection>
+          </div>
+
+          <SettingsSection eyebrow="Datos" title="Exportación y privacidad" icon={Download}>
+            <p className="text-sm leading-6 text-[#806d63]">Exporta miembros, actividad de puntos y consentimientos para auditoría interna.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button className="inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><Download className="h-4 w-4" /> Exportar datos</button>
+              <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Ver consentimientos</button>
+            </div>
+          </SettingsSection>
+
+          <section className="rounded-3xl border border-[#d86d5e]/35 bg-[#fff7f5] p-5">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#b94135] text-white"><AlertTriangle className="h-5 w-5" /></span>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b94135]">Zona de riesgo</p>
+                <h2 className="mt-2 font-serif text-2xl font-semibold">Eliminar cuenta</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#806d63]">Solicita la eliminación del centro, usuarios asociados y datos operativos. Esta acción debe confirmarse por soporte antes de ejecutarse.</p>
+                <button className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#b94135] px-4 py-2 text-sm font-semibold text-white"><Trash2 className="h-4 w-4" /> Solicitar eliminación</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
+          {signupUrl ? <SignupQrPanel signupUrl={signupUrl} /> : null}
+          <section className="rounded-3xl bg-[#2d211e] p-5 text-white">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Soporte</p>
+            <h2 className="mt-2 font-serif text-2xl font-semibold">Necesitas ayuda?</h2>
+            <p className="mt-3 text-sm leading-6 text-[#c9b7ad]">Escríbenos para facturación, problemas de acceso, plantillas Wallet o solicitudes legales.</p>
+            <a href="mailto:support@voone.ai" className="mt-5 inline-flex rounded-full bg-[#f5e8dd] px-4 py-2 text-sm font-semibold text-[#35241f]">Abrir email</a>
+          </section>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function SettingsSection({ eyebrow, title, icon: Icon, children }: { eyebrow: string; title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+  return (
+    <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{eyebrow}</p><h2 className="mt-2 font-serif text-2xl font-semibold">{title}</h2></div>
+        <Icon className="h-5 w-5 text-[#b8864b]" />
+      </div>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function InfoField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-[#927e72]">{label}</p>
+      <p className="mt-1 font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function ActionTile({ icon: Icon, title, text, action }: { icon: React.ComponentType<{ className?: string }>; title: string; text: string; action: string }) {
+  return (
+    <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
+      <Icon className="h-5 w-5 text-[#b8864b]" />
+      <p className="mt-3 font-semibold">{title}</p>
+      <p className="mt-2 min-h-10 text-sm leading-5 text-[#806d63]">{text}</p>
+      <button className="mt-3 rounded-full border border-[#cdb9aa] px-3 py-1.5 text-xs font-semibold text-[#754b36]">{action}</button>
+    </div>
+  );
+}
+
+function ToggleRow({ label, enabled = false }: { label: string; enabled?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3">
+      <span className="font-medium">{label}</span>
+      <span className={enabled ? "h-6 w-11 rounded-full bg-[#6b9a72] p-1" : "h-6 w-11 rounded-full bg-[#d8ccc4] p-1"}>
+        <span className={enabled ? "block h-4 w-4 translate-x-5 rounded-full bg-white" : "block h-4 w-4 rounded-full bg-white"} />
+      </span>
     </div>
   );
 }

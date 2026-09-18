@@ -112,15 +112,25 @@ const secretsMatch = (received: string, expected: string): boolean => {
  * need a schema change. This is two shared operator logins, and what it fixes is that the
  * browser no longer grants itself a role.
  */
+const normalizeLoginIdentifier = (value: string) => {
+  const trimmedValue = value.trim().toLowerCase();
+
+  return trimmedValue.includes("@") ? trimmedValue : trimmedValue.replace(/[\s()-]/g, "");
+};
+
 const configuredAccounts = () => {
-  const accounts: Array<{ email: string; password: string; user: User }> = [];
+  const accounts: Array<{ identifiers: string[]; password: string; user: User }> = [];
 
   const clinicEmail = process.env.VOONE_DEV_AUTH_EMAIL;
   const clinicPassword = process.env.VOONE_DEV_AUTH_PASSWORD;
 
   if (clinicEmail && clinicPassword) {
+    const clinicIdentifiers = [clinicEmail, process.env.VOONE_DEV_AUTH_PHONE]
+      .filter((value): value is string => Boolean(value))
+      .map(normalizeLoginIdentifier);
+
     accounts.push({
-      email: clinicEmail,
+      identifiers: clinicIdentifiers,
       password: clinicPassword,
       user: {
         id: "configured-user",
@@ -137,8 +147,12 @@ const configuredAccounts = () => {
   const adminPassword = process.env.VOONE_ADMIN_AUTH_PASSWORD;
 
   if (adminEmail && adminPassword) {
+    const adminIdentifiers = [adminEmail, process.env.VOONE_ADMIN_AUTH_PHONE]
+      .filter((value): value is string => Boolean(value))
+      .map(normalizeLoginIdentifier);
+
     accounts.push({
-      email: adminEmail,
+      identifiers: adminIdentifiers,
       password: adminPassword,
       user: {
         id: "configured-admin",
@@ -166,17 +180,19 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Voone credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Email o teléfono", type: "text" },
         password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
+        if (!credentials?.identifier || !credentials.password) {
           return null;
         }
 
+        const identifier = normalizeLoginIdentifier(credentials.identifier);
+
         const account = configuredAccounts().find(
           (candidate) =>
-            candidate.email.toLowerCase() === credentials.email.trim().toLowerCase() &&
+            candidate.identifiers.includes(identifier) &&
             secretsMatch(credentials.password, candidate.password)
         );
 

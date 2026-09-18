@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
-import { LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,8 +35,12 @@ export function LocalLoginForm({
   callbackUrl?: string;
 }) {
   const router = useRouter();
-  const [email, setEmail] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [recovering, setRecovering] = React.useState(false);
+  const [recoveryContact, setRecoveryContact] = React.useState("");
+  const [recoverySent, setRecoverySent] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
@@ -63,7 +67,7 @@ export function LocalLoginForm({
     setError(null);
 
     const result = await signIn("credentials", {
-      email: email.trim(),
+      identifier: identifier.trim(),
       password,
       // Handled here so a failure can be shown in place instead of bouncing through a
       // next-auth error page.
@@ -88,6 +92,11 @@ export function LocalLoginForm({
     router.refresh();
   }
 
+  function submitRecovery() {
+    if (!recoveryContact.trim()) return;
+    setRecoverySent(true);
+  }
+
   return (
     <form onSubmit={submitLogin} className="space-y-4">
       <div>
@@ -95,20 +104,20 @@ export function LocalLoginForm({
           className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]"
           htmlFor="voone-login-email"
         >
-          Email
+          Email o teléfono
         </Label>
         <Input
           id="voone-login-email"
-          type="email"
+          type="text"
           autoComplete="username"
           required
           className="h-12 rounded-2xl border-[#d9c9b6] bg-white/78 px-4 shadow-sm"
-          value={email}
+          value={identifier}
           onChange={(event) => {
-            setEmail(event.target.value);
+            setIdentifier(event.target.value);
             setError(null);
           }}
-          placeholder="nombre@voone.ai"
+          placeholder="nombre@voone.ai o +34 600 000 000"
         />
       </div>
       <div>
@@ -118,19 +127,80 @@ export function LocalLoginForm({
         >
           Contraseña
         </Label>
-        <Input
-          id="voone-login-password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="h-12 rounded-2xl border-[#d9c9b6] bg-white/78 px-4 shadow-sm"
-          value={password}
-          onChange={(event) => {
-            setPassword(event.target.value);
-            setError(null);
-          }}
-        />
+        <div className="relative">
+          <Input
+            id="voone-login-password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            className="h-12 rounded-2xl border-[#d9c9b6] bg-white/78 px-4 pr-12 shadow-sm"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setError(null);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((visible) => !visible)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#806d63] transition hover:bg-[#f1e3d6]"
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
+      <button
+        type="button"
+        onClick={() => {
+          setRecovering((open) => !open);
+          setRecoveryContact(identifier);
+          setRecoverySent(false);
+        }}
+        className="text-sm font-semibold text-[#8d5b39] hover:text-[#684126]"
+        aria-expanded={recovering}
+      >
+        Recuperar contraseña
+      </button>
+      {recovering ? (
+        <div className="rounded-2xl border border-[#d9c9b6] bg-white/70 p-4">
+          {recoverySent ? (
+            <p className="text-sm leading-6 text-[#705c52]">
+              Si la cuenta existe, soporte enviará las instrucciones de recuperación al contacto registrado.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm leading-6 text-[#705c52]">
+                Indica el email o teléfono de la cuenta para iniciar la recuperación.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  type="text"
+                  value={recoveryContact}
+                  onChange={(event) => setRecoveryContact(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      submitRecovery();
+                    }
+                  }}
+                  placeholder="Email o teléfono"
+                  className="h-11 rounded-xl border-[#d9c9b6] bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={submitRecovery}
+                  disabled={!recoveryContact.trim()}
+                  className="rounded-xl bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Enviar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
       {error ? (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
