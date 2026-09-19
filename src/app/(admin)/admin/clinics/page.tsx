@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-kit";
 export default function ClinicsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Clientes" title="Clínicas" description="Busca clínicas, revisa su estado de configuración y da de alta nuevos equipos." />
+      <PageHeader eyebrow="Clients" title="Clinics" description="Search centers, review onboarding status, and open clinic details from the operating list." />
       <ClinicsList />
     </div>
   );
