@@ -2,10 +2,12 @@ import { AccessPanel, AppShell, type ShellNavItem } from "@/components/shared/ap
 import { getCurrentSession, hasRole } from "@/lib/auth";
 
 const navItems: ShellNavItem[] = [
-  { href: "/admin", label: "Inicio", icon: "overview" },
-  { href: "/admin/clinics", label: "Clínicas", icon: "clinics" },
-  { href: "/admin/members", label: "Buscar miembros", icon: "search" },
-  { href: "/admin/wallet", label: "Estado Wallet", icon: "wallet" },
+  { href: "/admin", label: "Dashboard", icon: "overview" },
+  { href: "/admin/clinics", label: "Clinics", icon: "clinics" },
+  { href: "/admin/templates", label: "Template Designs", icon: "templates" },
+  { href: "/admin/onboarding", label: "Onboarding", icon: "onboarding" },
+  { href: "/admin/wallet", label: "Wallet Integration", icon: "wallet" },
+  { href: "/admin/customer-care", label: "Customer Care", icon: "care" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AppShell area="Administración Voone" homeHref="/admin" session={session} navItems={navItems}>
+    <AppShell homeHref="/admin" navItems={navItems}>
       {children}
     </AppShell>
   );

@@ -86,16 +86,16 @@ export function ClinicForm({ appOrigin }: { appOrigin: string }) {
   return (
     <form
       onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
-      className="mx-auto max-w-2xl"
+      className="max-w-3xl"
       noValidate
     >
-      <Card className="rounded-lg">
+      <Card className="rounded-[26px] border-[#ded2cb] bg-white/78 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
         <CardHeader>
-          <CardTitle>Datos de la clínica</CardTitle>
+          <CardTitle className="font-serif text-3xl tracking-tight">Clinic record</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Field label="Nombre de la clínica" error={form.formState.errors.name?.message}>
-            <Input {...form.register("name")} placeholder="Clínica Nova" />
+            <Input {...form.register("name")} placeholder="Clínica Nova" className="rounded-2xl bg-[#fffaf6]" />
           </Field>
 
           <Field
@@ -103,20 +103,20 @@ export function ClinicForm({ appOrigin }: { appOrigin: string }) {
             error={form.formState.errors.slug?.message}
             hint="Aparecerá en el código QR y no debería cambiar nunca."
           >
-            <Input {...form.register("slug")} placeholder="clinica-nova" autoCapitalize="none" />
+            <Input {...form.register("slug")} placeholder="clinica-nova" autoCapitalize="none" className="rounded-2xl bg-[#fffaf6]" />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
             <Field label="Dirección" error={form.formState.errors.addressLine?.message}>
-              <Input {...form.register("addressLine")} placeholder="Carrer de Balmes 12" />
+              <Input {...form.register("addressLine")} placeholder="Carrer de Balmes 12" className="rounded-2xl bg-[#fffaf6]" />
             </Field>
             <Field label="Código postal" error={form.formState.errors.pincode?.message}>
-              <Input {...form.register("pincode")} placeholder="08007" inputMode="numeric" />
+              <Input {...form.register("pincode")} placeholder="08007" inputMode="numeric" className="rounded-2xl bg-[#fffaf6]" />
             </Field>
           </div>
 
           <Field label="Nombre del programa" error={form.formState.errors.programName?.message}>
-            <Input {...form.register("programName")} placeholder="Nova Beauty Club" />
+            <Input {...form.register("programName")} placeholder="Nova Beauty Club" className="rounded-2xl bg-[#fffaf6]" />
           </Field>
 
           <Field
@@ -128,7 +128,7 @@ export function ClinicForm({ appOrigin }: { appOrigin: string }) {
               <Skeleton className="h-10 w-full" />
             ) : (
               <select
-                className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+                className="h-10 w-full rounded-2xl border border-input bg-[#fffaf6] px-3 text-sm shadow-sm"
                 {...form.register("presetId")}
               >
                 <option value="">Elige un preset</option>
@@ -147,7 +147,7 @@ export function ClinicForm({ appOrigin }: { appOrigin: string }) {
             </p>
           ) : null}
 
-          <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
+          <Button type="submit" className="w-full rounded-2xl sm:w-auto" disabled={mutation.isPending}>
             {mutation.isPending ? "Dando de alta..." : "Dar de alta clínica"}
           </Button>
         </CardContent>

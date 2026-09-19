@@ -1,88 +1,116 @@
 import Link from "next/link";
-import { Activity, ArrowUpRight, Building2, CreditCard, Users } from "lucide-react";
+import { CalendarDays, Ellipsis, Rocket } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getPlatformOverview } from "@/lib/api-client";
-
-function daysUntil(value: string) {
-  const remaining = new Date(value).getTime() - Date.now();
-  return Math.max(0, Math.ceil(remaining / 86_400_000));
-}
+import { getClinics, getPlatformOverview, getTemplates } from "@/lib/api-client";
 
 export default async function AdminOverviewPage() {
-  const overview = await getPlatformOverview();
-  const expiryDays = daysUntil(overview.wallet.appleCertificateExpiresAt);
+  const [overview, clinics, templates] = await Promise.all([getPlatformOverview(), getClinics(), getTemplates()]);
+  const activeClinics = clinics.filter((clinic) => clinic.status === "active");
+  const setupClinics = clinics.filter((clinic) => clinic.status === "setup");
+  const activeMembers = activeClinics.reduce((total, clinic) => total + clinic.members, 0);
+  const recentOnboards = clinics.slice(0, 4).map((clinic, index) => ({
+    ...clinic,
+    owner: ["Marta Silva", "Daniel Roca", "Irene Vidal", "Paula Martin"][index] ?? "Clinic owner",
+    progress: clinic.status === "active" ? 100 : 62,
+  }));
 
   return (
-    <div className="space-y-6">
-      <section className="voone-dark-panel p-6 md:p-8">
-        <div className="voone-grain pointer-events-none absolute inset-0 opacity-[0.08]" />
-        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
-          <div>
-            <p className="voone-kicker text-gold-light">Control de plataforma</p>
-            <h2 className="mt-3 font-serif text-4xl font-semibold tracking-tight text-white md:text-5xl">Resumen de administración</h2>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/64 md:text-base">Crecimiento de clínicas, estado de Wallet y puntos de soporte en una sola vista operativa.</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gold/18 text-gold-light">
-                <Activity className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light/70">Operativa Wallet</p>
-                <p className="mt-1 text-sm text-white/72">Google está en modo {overview.wallet.googlePublishingStatus === "live" ? "producción" : "demo"}</p>
+    <div className="mx-auto max-w-[1180px] space-y-2 text-[#2e2421]">
+      <header className="flex flex-col gap-5 px-2 py-2 lg:flex-row lg:items-start">
+        <div className="lg:flex-1">
+          <h1 className="text-4xl font-semibold tracking-tight text-[#2e2421] sm:text-5xl">Dashboard</h1>
+          <button type="button" className="mt-2 inline-flex items-center gap-1 text-sm text-[#806d63]">Sep 1 - Sep 30, 2026 <CalendarDays className="h-3.5 w-3.5" /></button>
+        </div>
+        <HeaderMetric label="Active clinics" value={activeClinics.length.toString()} detail="this month" />
+        <HeaderMetric label="Members" value={overview.totalMembers.toLocaleString()} detail={`${activeMembers.toLocaleString()} active`} />
+        <Button asChild className="mt-1 rounded-xl bg-[#201715] px-4 text-white hover:bg-[#3b2a25]">
+          <Link href="/admin/onboarding"><Rocket className="mr-2 h-4 w-4" /> Onboard clinic</Link>
+        </Button>
+      </header>
+
+      <section className="grid gap-1.5 lg:grid-cols-2">
+        <DashboardPanel title="Clinics by status" actionLabel="Open clinics" actionHref="/admin/clinics">
+          <div className="grid gap-6 p-5 sm:grid-cols-[210px_1fr] sm:items-center">
+            <div className="relative mx-auto grid h-44 w-44 place-items-center rounded-full" style={{ background: "conic-gradient(#201715 0deg 238deg, #b98a4f 238deg 312deg, #eadfd8 312deg 360deg)" }}>
+              <div className="grid h-36 w-36 place-items-center rounded-full bg-white text-center">
+                <div><p className="text-3xl font-semibold tracking-tight">{overview.totalClinics}</p><p className="mt-1 text-xs text-[#687476]">Total clinics</p></div>
               </div>
             </div>
+            <div className="space-y-4">
+              <StatusRow color="bg-[#201715]" label="Active" value={activeClinics.length.toString()} total={overview.totalClinics} />
+              <StatusRow color="bg-[#b98a4f]" label="Onboarding" value={setupClinics.length.toString()} total={overview.totalClinics} />
+              <StatusRow color="bg-[#eadfd8]" label="Draft programs" value={templates.filter((template) => template.status !== "ACTIVE").length.toString()} total={overview.totalClinics} />
+            </div>
           </div>
-        </div>
+        </DashboardPanel>
+
+        <DashboardPanel title="Clinic network" actionLabel="View map" actionHref="/admin/clinics">
+          <div className="relative h-64 overflow-hidden p-5">
+            <div className="absolute inset-5 rounded-[18px] bg-[#f5ede8] [background-image:linear-gradient(rgba(186,155,132,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(186,155,132,.18)_1px,transparent_1px)] [background-size:28px_28px]" />
+            <div className="absolute left-12 top-24 h-24 w-32 rounded-[45%_55%_55%_45%] bg-[#e3c9b7] opacity-70" />
+            <div className="absolute right-16 top-12 h-28 w-36 rounded-[55%_45%_40%_60%] bg-[#e9d7ca]" />
+            <div className="absolute bottom-10 left-1/3 h-16 w-28 rounded-[50%_50%_38%_62%] bg-[#efe3da]" />
+            <NetworkNode className="left-12 top-20" name="Madrid" value="355" tone="bg-[#201715]" />
+            <NetworkNode className="right-10 top-12" name="Barcelona" value="510" tone="bg-[#b98a4f]" />
+            <NetworkNode className="bottom-8 left-1/3" name="Valencia" value="82" tone="bg-[#b94f5a]" />
+            <div className="absolute bottom-5 right-5 rounded-xl bg-[#201715] px-4 py-3 text-white shadow-lg"><p className="text-2xl font-semibold">{overview.totalMembers.toLocaleString()}</p><p className="text-xs text-white/70">Members network</p></div>
+          </div>
+        </DashboardPanel>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <AdminStat icon={Building2} label="Clínicas" value={overview.totalClinics.toLocaleString()} detail="Activas y en configuración" />
-        <AdminStat icon={Users} label="Miembros" value={overview.totalMembers.toLocaleString()} detail="En todas las clínicas" />
-        <AdminStat icon={CreditCard} label="Certificado Apple" value={`${expiryDays} días`} detail="Renovar antes del vencimiento evita fallos al actualizar pases" />
-      </section>
+      <section className="grid gap-1.5 lg:grid-cols-[1.07fr_0.93fr]">
+        <DashboardPanel title="Recent onboards" actionLabel="Start onboarding" actionHref="/admin/onboarding">
+          <div className="divide-y divide-[#eadfd8] px-5 py-3">
+            {recentOnboards.map((clinic) => (
+              <Link key={clinic.id} href={`/admin/clinics/${clinic.id}`} className="grid gap-3 py-3 transition hover:bg-[#fffaf6] sm:grid-cols-[1fr_auto] sm:items-center">
+                <span>
+                  <span className="block font-semibold">{clinic.name}</span>
+                  <span className="mt-1 block text-xs text-[#806d63]">{clinic.owner} · {clinic.city}</span>
+                </span>
+                <span className="min-w-36">
+                  <span className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-[#806d63]"><span>{clinic.status === "active" ? "Launched" : "Setup"}</span><span>{clinic.progress}%</span></span>
+                  <span className="block h-2 overflow-hidden rounded-full bg-[#eadfd8]"><span className="block h-full rounded-full bg-[#b98a4f]" style={{ width: `${clinic.progress}%` }} /></span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </DashboardPanel>
 
-      <Card className="overflow-hidden rounded-[24px] border-[#d9b477]/35 bg-[#fffaf3]/88 shadow-[0_28px_80px_-54px_rgba(67,48,43,0.75)]">
-        <CardHeader>
-          <CardTitle className="font-serif text-2xl tracking-tight">Infraestructura Wallet</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-border/70 bg-white/58 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]">Apple Wallet</p>
-            <p className="mt-1 text-sm text-muted-foreground">{overview.wallet.appleEnabled ? "Activo" : "Próximamente"}</p>
+        <DashboardPanel title="Member activation" actionLabel="Open analytics" actionHref="/admin/clinics">
+          <div className="p-5">
+            <div className="flex items-end justify-between border-b border-[#eadfd8] pb-3 text-xs text-[#927e72]"><span>New members this month</span><span className="font-semibold text-[#a47845]">+18.4%</span></div>
+            <div className="relative mt-4 h-36 border-b border-[#eadfd8]">
+              {[20, 42, 27, 58, 67, 80, 93].map((height, index) => <span key={height} className="absolute bottom-0 w-[10%] rounded-t-md bg-[#e3c9b7]" style={{ height: `${height}%`, left: `${index * 14 + 4}%` }} />)}
+              <div className="absolute inset-x-[6%] top-[20%] border-t-2 border-[#201715]" />
+              <div className="absolute left-[58%] top-[11%] rounded-full bg-[#201715] px-2.5 py-1 text-xs font-semibold text-white">+18%</div>
+            </div>
+            <div className="mt-3 flex justify-between text-[11px] text-[#748082]"><span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span></div>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-white/58 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#a47845]">Google Wallet</p>
-            <p className="mt-1 text-sm text-muted-foreground capitalize">{overview.wallet.googlePublishingStatus === "live" ? "Producción" : "Demo"}</p>
-          </div>
-          <div className="flex items-end md:justify-end">
-            <Button asChild className="rounded-2xl">
-              <Link href="/admin/wallet">Ver estado Wallet <ArrowUpRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </DashboardPanel>
+      </section>
     </div>
   );
 }
 
-function AdminStat({ icon: Icon, label, value, detail }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; detail: string }) {
+function DashboardPanel({ title, children, actionLabel, actionHref }: { title: string; children: React.ReactNode; actionLabel: string; actionHref: string }) {
   return (
-    <Card className="group overflow-hidden rounded-[24px] border-[#d9c9b6] bg-[#fffaf3]/88 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.74)] transition-transform duration-300 hover:-translate-y-1">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a47845]">{label}</CardTitle>
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2a1b16] text-gold-light transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105">
-            <Icon className="h-4 w-4" />
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="font-serif text-4xl font-semibold tracking-wide">{value}</div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail}</p>
-      </CardContent>
-    </Card>
+    <section className="overflow-hidden rounded-[22px] bg-white shadow-[0_8px_26px_rgba(67,48,43,0.08)]">
+      <div className="flex items-center justify-between px-5 pt-5"><h2 className="text-sm font-semibold">{title}</h2><div className="flex items-center gap-2"><Link href={actionHref} className="hidden text-xs font-medium text-[#a47845] sm:block">{actionLabel}</Link><button type="button" aria-label={`More options for ${title}`} className="grid h-8 w-8 place-items-center rounded-full bg-[#f5ede8] text-[#704f40]"><Ellipsis className="h-4 w-4" /></button></div></div>
+      {children}
+    </section>
   );
 }
+
+function HeaderMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="min-w-[110px] pt-1"><p className="text-4xl font-semibold tracking-tight text-[#2e2421]">{value}</p><p className="mt-1 text-sm text-[#806d63]">{label}</p><p className="mt-1 text-[11px] text-[#a47845]">{detail}</p></div>;
+}
+
+function StatusRow({ color, label, value, total }: { color: string; label: string; value: string; total: number }) {
+  return <div className="grid grid-cols-[10px_1fr_auto] items-center gap-2 text-sm"><span className={`h-2.5 w-2.5 rounded-full ${color}`} /><span className="border-b border-dashed border-[#ded2cb] pb-1">{label}</span><span className="font-semibold">{value}/{total}</span></div>;
+}
+
+function NetworkNode({ className, name, value, tone }: { className: string; name: string; value: string; tone: string }) {
+  return <div className={`absolute z-10 flex items-center gap-2 ${className}`}><span className={`h-3 w-3 rounded-full ring-4 ring-white/70 ${tone}`} /><span className="rounded-lg bg-white/90 px-2 py-1 text-xs font-semibold shadow-sm">{name} · {value}</span></div>;
+}
+
