@@ -10,3 +10,6 @@ tsconfig.tsbuildinfo
 node_modules/
 .env*
 !.env.example
+
+# Local editor/agent config, not shared.
+.claude/
