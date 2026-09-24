@@ -25,21 +25,16 @@ jobs:
           node-version: 22
           cache: npm
 
-      # `npm install`, not `npm ci`, and that is a known compromise rather than an
-      # oversight.
-      #
-      # npm writes a lockfile for the platform it runs on, and this one is generated on
-      # darwin-arm64. Tailwind 4's oxide and eslint's unrs-resolver both carry
-      # wasm32-wasi fallbacks whose @emnapi/core and @emnapi/runtime dependencies npm
-      # hoists on linux-x64 but not on macOS — so `npm ci` refuses on every Linux
-      # machine, including every developer's container. Regenerating on macOS does not
-      # fix it; the entries simply are not produced there.
-      #
-      # The cost is that CI no longer enforces the lockfile exactly. The fix is to
-      # regenerate it once on Linux and switch back, tracked as its own task rather than
-      # smuggled into a commit about CI.
+      # `npm ci`, so CI installs exactly what the lockfile pins and a dependency cannot
+      # drift in without a diff. This needed the lockfile to be regenerated on Linux
+      # first: npm writes one for the platform it runs on, and the previous file was
+      # generated on darwin-arm64, which omits the top-level @emnapi/core and
+      # @emnapi/runtime entries that linux-x64 hoists for Tailwind's oxide and eslint's
+      # unrs-resolver wasm fallbacks. `npm ci` refused on every Linux machine as a
+      # result, and regenerating on macOS could not fix it — those entries are simply
+      # not produced there, `--os=linux --cpu=x64` included.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
