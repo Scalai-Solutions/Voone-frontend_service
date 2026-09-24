@@ -1,0 +1,31 @@
+# Temporary: regenerates package-lock.json on Linux and uploads it as an artifact.
+# npm writes a lockfile for the platform it runs on, and this repo's was generated on
+# darwin-arm64, which omits the @emnapi/core and @emnapi/runtime entries that linux-x64
+# hoists — so `npm ci` refuses on every Linux machine. It cannot be fixed on macOS:
+# the entries simply are not produced there, and `--os=linux --cpu=x64` does not add them.
+#
+# This workflow is deleted in the same PR that lands the regenerated lockfile.
+name: Relock
+
+on:
+  push:
+    branches: [fix/linux-lockfile]
+
+jobs:
+  relock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regenerate the lockfile from scratch
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --package-lock-only --no-audit --no-fund
+      - name: Show what linux resolved that macOS did not
+        run: node -e "const p=require('./package-lock.json').packages;console.log(Object.keys(p).filter(k=>k.includes('emnapi')||k.includes('wasm-runtime')).join('\n'))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
