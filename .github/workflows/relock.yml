@@ -19,12 +19,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # A real install, not --package-lock-only. The latter resolves a partial tree and
-      # produced a lockfile still missing ajv@6 and its nested deps, which is a defect
-      # independent of platform.
-      - name: Regenerate the lockfile from scratch
+      # Incremental, NOT from scratch. Deleting package-lock.json first makes npm
+      # re-resolve everything, and that regeneration drops ajv@6 and its nested deps —
+      # a separate npm bug around @hookform/resolvers' optional ajv peer, reproducible
+      # on macOS and Linux alike. Keeping the lockfile means npm only ADDS what this
+      # platform needs, which is the whole point.
+      - name: Update the lockfile for linux-x64
         run: |
-          rm -rf node_modules package-lock.json
+          rm -rf node_modules
           npm install --no-audit --no-fund
 
       # Prove it before anyone trusts it: npm ci is the thing that has never worked here.
