@@ -781,6 +781,14 @@ export interface MembershipSignupInput {
   phone: string;
   /** Optional additional contact. The phone is the identity. */
   email?: string;
+  /**
+   * Year of birth, not an age: an age is wrong within a year of being stored and nothing
+   * would ever correct it. Optional — refusing a sign-up over a demographic costs a
+   * member to gain a data point.
+   */
+  birthYear?: number;
+  /** Self-declared. "prefiero_no_decirlo" is a real answer, not an absent field. */
+  sex?: "mujer" | "hombre" | "otro" | "prefiero_no_decirlo";
   consentMarketing: boolean;
   /** Omitted for the public form, which the backend reads as a QR sign-up. */
   consentSource?: "qr_signup" | "staff_entry";
