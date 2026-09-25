@@ -4,14 +4,16 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Check } from "lucide-react";
+import { Check, Copy, Mail, QrCode, WalletCards } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useAddMember } from "@/features/members/api/useAddMember";
-import { ApiError } from "@/lib/api-client";
+import { useSendMemberPassEmail } from "@/features/members/api/useSendMemberPassEmail";
+import { ApiError, type StaffMemberPassResult } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
 
 const memberSchema = z.object({
@@ -21,33 +23,43 @@ const memberSchema = z.object({
     .min(2, "Añade el nombre del miembro")
     // Matches the backend, which caps at the pass field's width.
     .max(64, "El nombre es demasiado largo"),
-  // Was a single loose `identity` accepting a phone or an email with no format check. A
-  // phone is now required and validated: it is the member's identity, it is what the
-  // unique index deduplicates on, and an unnormalized value would violate the database's
-  // E.164 constraint and surface as a 500.
   phone: z
     .string()
     .trim()
-    .min(1, "Añade el móvil del miembro")
-    .refine((value) => normalizeSpanishMobile(value) !== null, "Introduce un móvil español válido"),
-  email: z
-    .union([z.literal(""), z.string().trim().email("Introduce un email válido")])
+    .refine((value) => !value || normalizeSpanishMobile(value) !== null, "Introduce un móvil español válido")
     .optional(),
+  email: z.string().trim().email("Introduce un email válido"),
 });
 
 type MemberFormValues = z.infer<typeof memberSchema>;
 
 export function MemberForm() {
   const [added, setAdded] = React.useState<string | null>(null);
+  const [copied, setCopied] = React.useState(false);
+  const [emailNotice, setEmailNotice] = React.useState<string | null>(null);
+  const [issuedPass, setIssuedPass] = React.useState<StaffMemberPassResult | null>(null);
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberSchema),
     defaultValues: { name: "", phone: "", email: "" },
   });
 
   const mutation = useAddMember({
-    onSuccess: (_result, values) => {
-      setAdded(values.name);
+    onSuccess: (result) => {
+      setAdded(result.member.name);
+      setIssuedPass(result);
+      setCopied(false);
+      setEmailNotice(null);
       form.reset();
+    },
+  });
+
+  const emailMutation = useSendMemberPassEmail({
+    onError: (error) => {
+      const detail = error instanceof ApiError && error.detail ? error.detail : null;
+      setEmailNotice(detail ?? "El envío por email todavía no está configurado. Usa el QR o copia el enlace para compartir el pase.");
+    },
+    onSuccess: (result) => {
+      setEmailNotice(`Email enviado a ${result.email}.`);
     },
   });
 
@@ -61,13 +73,27 @@ export function MemberForm() {
       : "No se ha podido añadir este miembro. Inténtalo de nuevo."
     : null;
 
+  const passLink = issuedPass?.wallet.addToWalletUrl ?? null;
+  async function copyPassLink() {
+    if (!passLink) return;
+
+    await navigator.clipboard.writeText(passLink);
+    setCopied(true);
+  }
+
+  function sendPassEmail() {
+    if (!issuedPass) return;
+
+    setEmailNotice(null);
+    emailMutation.mutate(issuedPass.member.id);
+  }
+
   return (
     <form
       onSubmit={form.handleSubmit((values) => mutation.mutate({
         name: values.name,
-        // As typed — see the note on MembershipSignupInput.phone.
-        phone: values.phone,
-        email: values.email ? values.email : undefined,
+        email: values.email,
+        phone: values.phone ? values.phone : undefined,
       }))}
       className="mx-auto max-w-2xl space-y-4"
       noValidate
@@ -80,7 +106,7 @@ export function MemberForm() {
           {added ? (
             <p className="flex items-center gap-2 rounded-md bg-success/10 p-3 text-sm text-success">
               <Check className="h-4 w-4 shrink-0" aria-hidden />
-              {added} ya es miembro del club.
+              Pase creado para {added}.
             </p>
           ) : null}
 
@@ -88,10 +114,19 @@ export function MemberForm() {
             <Input {...form.register("name")} autoComplete="off" placeholder="Verónica Navarro" />
           </Field>
 
+          <Field label="Email" error={form.formState.errors.email?.message}>
+            <Input
+              {...form.register("email")}
+              type="email"
+              autoComplete="off"
+              placeholder="nombre@example.com"
+            />
+          </Field>
+
           <Field
-            label="Móvil"
+            label="Móvil (opcional)"
             error={form.formState.errors.phone?.message}
-            hint="Sólo móviles españoles: 6xx o 7xx."
+            hint="Opcional. Si se añade, sólo móviles españoles: 6xx o 7xx."
           >
             <Input
               {...form.register("phone")}
@@ -99,15 +134,6 @@ export function MemberForm() {
               inputMode="tel"
               autoComplete="off"
               placeholder="612 34 56 78"
-            />
-          </Field>
-
-          <Field label="Email (opcional)" error={form.formState.errors.email?.message}>
-            <Input
-              {...form.register("email")}
-              type="email"
-              autoComplete="off"
-              placeholder="nombre@example.com"
             />
           </Field>
 
@@ -126,10 +152,50 @@ export function MemberForm() {
           ) : null}
 
           <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
-            {mutation.isPending ? "Añadiendo..." : "Añadir miembro"}
+            {mutation.isPending ? "Creando pase..." : "Crear pase"}
           </Button>
         </CardContent>
       </Card>
+
+      {issuedPass ? (
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><WalletCards className="h-5 w-5" /> Compartir pase</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {passLink ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
+                  <div className="mx-auto rounded-2xl border border-border bg-white p-3 sm:mx-0">
+                    <QRCodeSVG value={passLink} size={156} level="M" includeMargin />
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Escanea este QR desde el móvil del cliente, copia la URL segura o envíale el pase por email cuando SendGrid esté configurado.
+                    </p>
+                    <div className="break-all rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                      {passLink}
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button type="button" onClick={copyPassLink} variant="outline" className="w-full sm:w-auto">
+                        <Copy className="mr-2 h-4 w-4" /> {copied ? "URL copiada" : "Copiar URL"}
+                      </Button>
+                      <Button type="button" onClick={sendPassEmail} className="w-full sm:w-auto" disabled={emailMutation.isPending}>
+                        <Mail className="mr-2 h-4 w-4" /> {emailMutation.isPending ? "Enviando..." : "Enviar email"}
+                      </Button>
+                    </div>
+                    {emailNotice ? <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">{emailNotice}</p> : null}
+                  </div>
+                </div>
+                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                  <div className="rounded-md bg-muted/50 p-3"><QrCode className="mr-2 inline h-4 w-4" />Google Wallet: {issuedPass.wallet.passes.google.available ? "listo" : "no disponible"}</div>
+                  <div className="rounded-md bg-muted/50 p-3"><QrCode className="mr-2 inline h-4 w-4" />Apple Wallet: {issuedPass.wallet.passes.apple.available ? "listo" : "no disponible"}</div>
+                </div>
+              </>
+            ) : <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">No se ha podido generar el enlace seguro del pase. Revisa CARD_REDEMPTION_SECRET en el backend.</p>}
+          </CardContent>
+        </Card>
+      ) : null}
     </form>
   );
 }

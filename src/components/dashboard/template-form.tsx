@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
-import { ApiError, type Template, type TemplatePreset } from "@/lib/api-client";
+import { ApiError, type Clinic, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
@@ -60,17 +61,29 @@ const emptyValues: TemplateFormValues = {
   treatments: [{ name: "Consulta", pointsAllotted: 60 }],
 };
 
-const clinicDetails = [
-  { label: "Nombre comercial", value: "Clínica Aurea" },
-  { label: "Razón social", value: "Aurea Beauty S.L." },
-  { label: "CIF", value: "B-72938410" },
-  { label: "Dirección", value: "Calle Serrano 42, 28001 Madrid" },
-  { label: "Teléfono", value: "+34 910 240 118" },
-  { label: "Persona de contacto", value: "Ana López · Directora" },
-  { label: "Tiempo como miembro", value: "2 años y 6 meses" },
-  { label: "Número de cuenta", value: "ES12 3456 7890 1234 5678" },
-  { label: "Email", value: "hola@clinicaaurea.com" },
-];
+const ownerEmailFor = (clinic: Clinic) =>
+  clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
+  clinic.users[0]?.email;
+
+const formatNumber = (value: number) => value.toLocaleString("es-ES");
+
+function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; value: string }> {
+  if (!clinic) return [];
+
+  const ownerEmail = ownerEmailFor(clinic);
+
+  return [
+    { label: "Nombre comercial", value: clinic.name },
+    { label: "Identificador público", value: clinic.slug },
+    { label: "Dirección", value: clinic.addressLine },
+    { label: "Código postal", value: clinic.pincode },
+    ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
+    { label: "Plan", value: clinic.voonePlan },
+    { label: "Miembros activos", value: formatNumber(clinic.members) },
+    { label: "Plantilla predeterminada", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
+  ];
+}
 
 function toFormValues(template: Template | undefined, selectedPreset: TemplatePreset | undefined): TemplateFormValues {
   if (!template) {
@@ -110,8 +123,10 @@ function textColorFor(backgroundColor: string) {
 export function TemplateForm({ clinicId, initialTemplate, presets, selectedPresetId }: { clinicId: string; initialTemplate?: Template; presets: TemplatePreset[]; selectedPresetId?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const currentClinic = useCurrentClinic();
   const presetsQuery = useTemplatePresets({ initialData: presets });
   const availablePresets = presetsQuery.data ?? presets;
+  const clinicDetails = React.useMemo(() => toClinicDetails(currentClinic.data), [currentClinic.data]);
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
   const [selectedPreset, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
@@ -209,7 +224,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field label="Nombre del programa" error={form.formState.errors.programName?.message}>
-                <Input {...form.register("programName")} placeholder="Gold Beauty Club" />
+                <Input {...form.register("programName")} placeholder="Nombre del programa" />
               </Field>
               <Field label="Color de fondo" error={form.formState.errors.hexBackgroundColor?.message} htmlFor="template-background-color">
                 <div className="flex h-10 items-center gap-3 rounded-xl border border-[#ded1c8] bg-white px-3 shadow-sm">
@@ -307,19 +322,21 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Información del centro</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Datos de Clínica Aurea</h2>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Datos de {currentClinic.data?.name ?? "tu centro"}</h2>
               <p className="mt-2 text-sm leading-6 text-[#927e72]">Esta pestaña muestra la información del negocio que acompaña a las plantillas y enlaces del centro.</p>
             </div>
             <Info className="h-6 w-6 text-[#b8864b]" />
           </div>
-          <div className="mt-5 grid gap-x-16 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-            {clinicDetails.map((detail) => (
-              <div key={detail.label}>
-                <p className="text-xs text-[#927e72]">{detail.label}</p>
-                <p className="mt-1 font-semibold">{detail.value}</p>
-              </div>
-            ))}
-          </div>
+          {clinicDetails.length > 0 ? (
+            <div className="mt-5 grid gap-x-16 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              {clinicDetails.map((detail) => (
+                <div key={detail.label}>
+                  <p className="text-xs text-[#927e72]">{detail.label}</p>
+                  <p className="mt-1 font-semibold">{detail.value}</p>
+                </div>
+              ))}
+            </div>
+          ) : <p className="mt-5 text-sm text-[#927e72]">Cargando la información guardada durante el onboarding...</p>}
           <Link href="/dashboard/settings" className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><FileText className="h-4 w-4" /> Editar información completa</Link>
         </section>
       ) : null}

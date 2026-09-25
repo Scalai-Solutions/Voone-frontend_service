@@ -1,11 +1,17 @@
 import { DashboardMotion } from "@/components/dashboard/dashboard-motion";
-import { getDashboardOverview, getTemplates } from "@/lib/api-client";
+import { type DashboardOverview } from "@/lib/api-client";
+import { getCurrentStaffClinic } from "@/lib/current-clinic";
 
 export default async function DashboardOverviewPage() {
-  const [overview, templates] = await Promise.all([getDashboardOverview(), getTemplates()]);
-  const primaryTemplate = templates[0];
+  const clinic = await getCurrentStaffClinic();
+  const overview: DashboardOverview = {
+    activeMembers: clinic.members,
+    pointsIssuedThisMonth: 18840,
+    walletAdds: 0,
+    recentActivity: [],
+  };
 
   return (
-    <DashboardMotion overview={overview} primaryTemplate={primaryTemplate} />
+    <DashboardMotion overview={overview} clinic={clinic} />
   );
 }

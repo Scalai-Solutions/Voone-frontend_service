@@ -1,6 +1,7 @@
 import { ClinicDashboardShell, type ClinicShellNavItem } from "@/components/dashboard/clinic-dashboard-shell";
 import { AccessPanel } from "@/components/shared/app-shell";
 import { getCurrentSession, hasRole, type Role } from "@/lib/auth";
+import { getCurrentStaffClinic } from "@/lib/current-clinic";
 
 const navItems: Array<ClinicShellNavItem & { roles: Role[] }> = [
   { href: "/dashboard/templates", label: "Mi centro", icon: "templates", roles: ["owner", "manager"] },
@@ -17,9 +18,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return <AccessPanel title="Acceso al panel" message="Este espacio es para equipos de clínicas. Cambia el rol en pruebas locales o inicia sesión con una cuenta de clínica." />;
   }
 
+  const clinic = await getCurrentStaffClinic();
+
   return (
     <ClinicDashboardShell
       session={session}
+      clinicName={clinic.name}
       navItems={navItems.filter((item) => hasRole(session, item.roles))}
     >
       {children}
