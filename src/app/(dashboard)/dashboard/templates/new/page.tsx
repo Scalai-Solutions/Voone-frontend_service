@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 
 import { TemplateForm } from "@/components/dashboard/template-form";
 import { getCurrentClinicTemplate, getTemplatePresets } from "@/lib/api-client";
 import { getCurrentSession } from "@/lib/auth";
+import { queryKeys } from "@/lib/query-keys";
 
 export default async function NewTemplatePage({ searchParams }: { searchParams: Promise<{ presetId?: string | string[] }> }) {
   const [session, query] = await Promise.all([getCurrentSession(), searchParams]);
@@ -11,7 +13,12 @@ export default async function NewTemplatePage({ searchParams }: { searchParams: 
     redirect("/login");
   }
 
-  const [currentTemplate, presets] = await Promise.all([getCurrentClinicTemplate(session.clinicId), getTemplatePresets()]);
+  const queryClient = new QueryClient();
+  const [currentTemplate] = await Promise.all([
+    getCurrentClinicTemplate(session.clinicId),
+    queryClient.prefetchQuery({ queryKey: queryKeys.templatePresets(), queryFn: getTemplatePresets }),
+  ]);
+  const presets = queryClient.getQueryData<Awaited<ReturnType<typeof getTemplatePresets>>>(queryKeys.templatePresets()) ?? await getTemplatePresets();
 
   if (currentTemplate) {
     redirect(`/dashboard/templates/${currentTemplate.id}`);
@@ -25,7 +32,9 @@ export default async function NewTemplatePage({ searchParams }: { searchParams: 
           <h1 className="mt-1 font-serif text-3xl font-semibold tracking-[-0.02em] text-[#2e2421]">Crear pase Wallet</h1>
         </div>
       </div>
-      <TemplateForm clinicId={session.clinicId} presets={presets} selectedPresetId={typeof query.presetId === "string" ? query.presetId : undefined} />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <TemplateForm clinicId={session.clinicId} presets={presets} selectedPresetId={typeof query.presetId === "string" ? query.presetId : undefined} />
+      </HydrationBoundary>
     </div>
   );
 }

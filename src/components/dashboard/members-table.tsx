@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
 import { Download, Filter, MapPin, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/page-kit";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMembers, type Member } from "@/lib/api-client";
+import { useMembers } from "@/features/members/api/useMembers";
+import { type Member } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 const audienceRows = [
@@ -34,7 +34,7 @@ export function MembersTable() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [tierFilter, setTierFilter] = React.useState("all");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const members = useQuery({ queryKey: ["members"], queryFn: getMembers });
+  const members = useMembers();
 
   if (members.isLoading) {
     return <Skeleton className="h-72 w-full rounded-[28px]" />;

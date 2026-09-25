@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 
 import { AdminTemplateEditor } from "@/components/admin/template-studio";
-import { getTemplate, getTemplatePresets } from "@/lib/api-client";
+import { getTemplatePresets, getVooneTemplate } from "@/lib/api-client";
 
-export default async function AdminTemplateEditorPage({ params, searchParams }: PageProps<"/admin/templates/[templateId]">) {
+export default async function AdminTemplateEditorPage({
+  params,
+  searchParams,
+}: PageProps<"/admin/templates/[templateId]">) {
   const [{ templateId }, query] = await Promise.all([params, searchParams]);
   const presets = await getTemplatePresets();
 
@@ -12,7 +15,7 @@ export default async function AdminTemplateEditorPage({ params, searchParams }: 
     return <AdminTemplateEditor presets={presets} selectedPresetId={preset} />;
   }
 
-  const template = await getTemplate(templateId);
+  const template = await getVooneTemplate(templateId);
   if (!template) notFound();
 
   return <AdminTemplateEditor template={template} presets={presets} />;

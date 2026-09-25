@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -13,10 +12,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useProvisionClinic } from "@/features/clinics/api/useProvisionClinic";
+import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
 import {
   ApiError,
-  getTemplatePresets,
-  provisionClinic,
   type ProvisionedClinic
 } from "@/lib/api-client";
 
@@ -52,7 +51,7 @@ type ClinicFormValues = z.infer<typeof clinicSchema>;
 
 export function ClinicForm({ appOrigin }: { appOrigin: string }) {
   const [provisioned, setProvisioned] = React.useState<ProvisionedClinic | null>(null);
-  const presets = useQuery({ queryKey: ["template-presets"], queryFn: getTemplatePresets });
+  const presets = useTemplatePresets();
 
   const form = useForm<ClinicFormValues>({
     resolver: zodResolver(clinicSchema),
@@ -66,9 +65,8 @@ export function ClinicForm({ appOrigin }: { appOrigin: string }) {
     }
   });
 
-  const mutation = useMutation({
-    mutationFn: provisionClinic,
-    onSuccess: setProvisioned
+  const mutation = useProvisionClinic({
+    onSuccess: (clinic) => setProvisioned(clinic)
   });
 
   if (provisioned) {

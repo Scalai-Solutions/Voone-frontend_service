@@ -1,14 +1,35 @@
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
+
 import { AdminTemplateGallery } from "@/components/admin/template-studio";
 import { PageHeader } from "@/components/shared/page-kit";
-import { getTemplatePresets, getTemplates } from "@/lib/api-client";
+import { getVooneTemplates } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 
 export default async function AdminTemplateDesignsPage() {
-  const [templates, presets] = await Promise.all([getTemplates(), getTemplatePresets()]);
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery({
+    queryKey: queryKeys.vooneTemplates(),
+    queryFn: getVooneTemplates,
+  });
+  const templates =
+    queryClient.getQueryData<Awaited<ReturnType<typeof getVooneTemplates>>>(
+      queryKeys.vooneTemplates(),
+    ) ?? (await getVooneTemplates());
 
   return (
     <div className="mx-auto max-w-[1180px]">
-      <PageHeader eyebrow="Template library" title="Template Designs" description="Three editable Wallet pass directions for clinic onboarding and program launches." />
-      <AdminTemplateGallery templates={templates} presets={presets} />
+      <PageHeader
+        eyebrow="Voone template library"
+        title="Template Designs"
+        description="Create reusable Wallet designs with their own buttons, labels, images, and text modules. Clinics can use these designs when their Wallet class is provisioned."
+      />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <AdminTemplateGallery templates={templates} />
+      </HydrationBoundary>
     </div>
   );
 }

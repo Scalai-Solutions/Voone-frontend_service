@@ -1,8 +1,11 @@
 import { OnboardingWizard } from "@/components/admin/onboarding-wizard";
-import { getTemplatePresets } from "@/lib/api-client";
+import { getTemplatePresets, getVooneTemplates } from "@/lib/api-client";
 
 export default async function NewOnboardingPage() {
-  const presets = await getTemplatePresets();
+  const [presets, templates] = await Promise.all([
+    getTemplatePresets(),
+    getVooneTemplates(),
+  ]);
 
-  return <OnboardingWizard presets={presets} />;
+  return <OnboardingWizard presets={presets} templates={templates} />;
 }

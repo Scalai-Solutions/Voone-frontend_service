@@ -4,12 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, LockKeyhole, Paintbrush, Sparkles } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
 
 import { templateStarters } from "@/components/dashboard/template-starters";
 import { Button } from "@/components/ui/button";
 import { WalletCard, WALLET_THEMES, type WalletCardTheme } from "@/components/ui/wallet-card";
-import { getCurrentClinicTemplate, getTemplatePresets, type Template } from "@/lib/api-client";
+import { useClinicTemplate } from "@/features/templates/api/useClinicTemplate";
+import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
+import { type Template } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface TemplateLandingGateProps {
@@ -20,12 +21,8 @@ interface TemplateLandingGateProps {
 
 export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: TemplateLandingGateProps) {
   const reducedMotion = useReducedMotion();
-  const currentTemplate = useQuery({
-    queryKey: ["clinic-template", clinicId],
-    queryFn: () => getCurrentClinicTemplate(clinicId),
-    initialData: initialTemplate,
-  });
-  const presets = useQuery({ queryKey: ["template-presets"], queryFn: getTemplatePresets });
+  const currentTemplate = useClinicTemplate(clinicId, { initialData: initialTemplate });
+  const presets = useTemplatePresets();
 
   if (!canEdit) {
     return (

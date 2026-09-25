@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { creditMember, getMember, type Member } from "@/lib/api-client";
+import { useCreditMember } from "@/features/members/api/useCreditMember";
+import { useMember } from "@/features/members/api/useMember";
+import { type Member } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 
 export function MemberDetail({ memberId }: { memberId: string }) {
   const queryClient = useQueryClient();
@@ -16,15 +19,13 @@ export function MemberDetail({ memberId }: { memberId: string }) {
   const [manualPoints, setManualPoints] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [notice, setNotice] = useState("");
-  const member = useQuery({ queryKey: ["member", memberId], queryFn: () => getMember(memberId) });
-  const manualPointsMutation = useMutation({
-    mutationFn: ({ points, reason }: { points: number; reason: string }) => creditMember(memberId, points, reason),
+  const member = useMember(memberId);
+  const manualPointsMutation = useCreditMember({
     onError: () => {
       setNotice("No se pudieron añadir los puntos. Inténtalo de nuevo.");
     },
     onSuccess: (updatedMember) => {
-      queryClient.setQueryData<Member>(["member", memberId], updatedMember);
-      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.setQueryData<Member>(queryKeys.member(memberId), updatedMember);
       setManualPoints("");
       setManualReason("");
       setNotice(`Cambio manual registrado. Nuevo saldo: ${updatedMember.points.toLocaleString("es-ES")} puntos.`);
@@ -45,7 +46,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
       return;
     }
 
-    manualPointsMutation.mutate({ points, reason: `Ajuste manual: ${reason}` });
+    manualPointsMutation.mutate({ memberId, points, label: `Ajuste manual: ${reason}` });
   }
 
   return (

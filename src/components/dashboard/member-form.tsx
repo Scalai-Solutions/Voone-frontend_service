@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ApiError, addMemberAsStaff } from "@/lib/api-client";
+import { useAddMember } from "@/features/members/api/useAddMember";
+import { ApiError } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
 
 const memberSchema = z.object({
@@ -44,14 +44,7 @@ export function MemberForm() {
     defaultValues: { name: "", phone: "", email: "" },
   });
 
-  const mutation = useMutation({
-    mutationFn: (values: MemberFormValues) =>
-      addMemberAsStaff({
-        name: values.name,
-        // As typed — see the note on MembershipSignupInput.phone.
-        phone: values.phone,
-        email: values.email ? values.email : undefined,
-      }),
+  const mutation = useAddMember({
     onSuccess: (_result, values) => {
       setAdded(values.name);
       form.reset();
@@ -70,7 +63,12 @@ export function MemberForm() {
 
   return (
     <form
-      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+      onSubmit={form.handleSubmit((values) => mutation.mutate({
+        name: values.name,
+        // As typed — see the note on MembershipSignupInput.phone.
+        phone: values.phone,
+        email: values.email ? values.email : undefined,
+      }))}
       className="mx-auto max-w-2xl space-y-4"
       noValidate
     >

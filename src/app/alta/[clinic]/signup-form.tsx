@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -10,7 +9,8 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ApiError, signUpMember, type PublicClinic } from "@/lib/api-client";
+import { useSignUpMember } from "@/features/members/api/useSignUpMember";
+import { ApiError, type PublicClinic } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
 
 const signupSchema = z.object({
@@ -40,18 +40,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
     defaultValues: { name: "", phone: "", consentMarketing: false },
   });
 
-  const mutation = useMutation({
-    mutationFn: (values: SignupFormValues) =>
-      signUpMember(clinic.slug, {
-        name: values.name,
-        // Sent exactly as typed, NOT normalized. Member.phoneRaw exists to preserve the
-        // original input so a future change to the normalization rules is a backfill
-        // rather than data loss — normalizing here would store the canonical form twice
-        // and throw away the only copy of what the member actually wrote. The normalizer
-        // above is for inline validation only; the backend is what canonicalizes.
-        phone: values.phone,
-        consentMarketing: values.consentMarketing,
-      }),
+  const mutation = useSignUpMember(clinic.slug, {
     onSuccess: () => setDone(true),
   });
 

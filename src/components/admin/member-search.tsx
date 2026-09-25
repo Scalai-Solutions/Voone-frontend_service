@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
 
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMembers } from "@/lib/api-client";
+import { useAdminMembers } from "@/features/members/api/useAdminMembers";
 
 export function AdminMemberSearch() {
   const [search, setSearch] = React.useState("");
-  const members = useQuery({ queryKey: ["admin-members"], queryFn: getMembers });
+  const members = useAdminMembers();
   const filtered = members.data?.filter((member) => `${member.name} ${member.id} ${member.identity}`.toLowerCase().includes(search.toLowerCase())) ?? [];
 
   if (members.isLoading) return <Skeleton className="h-72 w-full" />;
