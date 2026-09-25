@@ -1,16 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, QrCode, ScanLine, Search } from "lucide-react";
 
-import { creditMember, getMembers, getTreatments, type Member, type Treatment } from "@/lib/api-client";
+import { useCreditMember } from "@/features/members/api/useCreditMember";
+import { useMembers } from "@/features/members/api/useMembers";
+import { useTreatments } from "@/features/treatments/api/useTreatments";
+import { type Member } from "@/lib/api-client";
 
 export function ScanToCredit() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const queryClient = useQueryClient();
-  const members = useQuery({ queryKey: ["members"], queryFn: getMembers });
-  const treatments = useQuery({ queryKey: ["treatments"], queryFn: getTreatments });
+  const members = useMembers();
+  const treatments = useTreatments();
   const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
   const [selectedTreatmentId, setSelectedTreatmentId] = React.useState("");
   const [treatmentSearch, setTreatmentSearch] = React.useState("");
@@ -30,16 +31,13 @@ export function ScanToCredit() {
     );
   }, [treatmentSearch, treatments.data]);
 
-  const confirmMutation = useMutation({
-    mutationFn: ({ member, treatment }: { member: Member; treatment: Treatment }) => creditMember(member.id, treatment.points, treatment.name, referralCode || undefined),
+  const confirmMutation = useCreditMember({
     onError: () => {
       setNotice("No se guardaron los puntos. Inténtalo una vez más antes de que el miembro se vaya.");
     },
     onSuccess: (member) => {
       setSelectedMember(member);
       setNotice(`Premio canjeado. Nuevo saldo: ${member.points.toLocaleString("es-ES")} puntos`);
-      queryClient.invalidateQueries({ queryKey: ["members"] });
-      queryClient.invalidateQueries({ queryKey: ["member", member.id] });
     },
   });
 
@@ -109,7 +107,12 @@ export function ScanToCredit() {
       return;
     }
 
-    confirmMutation.mutate({ member: selectedMember, treatment: selectedTreatment });
+    confirmMutation.mutate({
+      memberId: selectedMember.id,
+      points: selectedTreatment.points,
+      label: selectedTreatment.name,
+      referralCode: referralCode || undefined,
+    });
   }
 
   function handleReferralCode() {

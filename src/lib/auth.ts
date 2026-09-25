@@ -171,6 +171,29 @@ const configuredAccounts = () => {
   return accounts;
 };
 
+async function authorizeBackendAccount(identifier: string, password: string): Promise<User | null> {
+  const base = process.env.VOONE_API_URL ?? process.env.NEXT_PUBLIC_VOONE_API_URL;
+  const key = process.env.STAFF_API_KEY;
+
+  if (!base || !key) return null;
+
+  const response = await fetch(`${base.replace(/\/$/, "")}/v1/auth/credentials`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-voone-staff-key": key,
+    },
+    body: JSON.stringify({ identifier, password }),
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!response?.ok) return null;
+
+  const user = (await response.json()) as User;
+
+  return user;
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: {
@@ -189,6 +212,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         const identifier = normalizeLoginIdentifier(credentials.identifier);
+
+        const backendUser = await authorizeBackendAccount(identifier, credentials.password);
+
+        if (backendUser) {
+          return backendUser;
+        }
 
         const account = configuredAccounts().find(
           (candidate) =>

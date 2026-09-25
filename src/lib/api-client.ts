@@ -14,7 +14,7 @@ export class ApiError extends Error {
      * form should show the member, so this is display text rather than debug detail.
      * Absent when the backend marked the error unsafe to expose.
      */
-    readonly detail?: string
+    readonly detail?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -30,7 +30,20 @@ export interface TemplatePreset {
 
 export interface TemplateTreatmentInput {
   name: string;
+  priceEuro?: number;
   pointsAllotted: number;
+}
+
+export interface TierRewardInput {
+  name: string;
+  rewardText?: string;
+}
+
+export interface MilestoneRewardsInput {
+  milestoneCount: number;
+  pointsToNextMilestone: number;
+  priceAmount: number;
+  pointsAwarded: number;
 }
 
 export interface SaveTemplateInput {
@@ -39,11 +52,50 @@ export interface SaveTemplateInput {
   hexBackgroundColor: string;
   logoUrl?: string;
   heroImageUrl?: string;
+  websiteUrl?: string;
+  appointmentUrl?: string;
+  appLinkText?: string;
+  appLinkDescription?: string;
   pointsLabel: string;
   tierLabel: string;
   benefitsText: string;
   infoText: string;
   treatments: TemplateTreatmentInput[];
+}
+
+export interface VooneTemplateButton {
+  label: string;
+  url: string;
+  description?: string;
+  primary: boolean;
+}
+
+export interface VooneTemplateTextModule {
+  label: string;
+  value: string;
+}
+
+export interface SaveVooneTemplateInput {
+  presetId?: string;
+  name: string;
+  description?: string;
+  programName: string;
+  hexBackgroundColor: string;
+  logoUrl?: string;
+  heroImageUrl?: string;
+  pointsLabel: string;
+  tierLabel: string;
+  benefitsText?: string;
+  infoText?: string;
+  buttons: VooneTemplateButton[];
+  textModules: VooneTemplateTextModule[];
+}
+
+export interface VooneTemplate extends SaveVooneTemplateInput {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  preset?: TemplatePreset | null;
 }
 
 export interface Template {
@@ -54,6 +106,10 @@ export interface Template {
   hexBackgroundColor: string;
   logoUrl?: string | null;
   heroImageUrl?: string | null;
+  websiteUrl?: string | null;
+  appointmentUrl?: string | null;
+  appLinkText?: string | null;
+  appLinkDescription?: string | null;
   pointsLabel: string;
   tierLabel: string;
   benefitsText: string;
@@ -70,6 +126,80 @@ export interface Template {
   walletStatus: Record<WalletProvider, ProviderStatus>;
 }
 
+export type VoonePlan = "starter" | "medium" | "pro";
+
+export interface AdminClinicTemplate {
+  id: string;
+  presetId?: string;
+  programName: string;
+  hexBackgroundColor: string;
+  logoUrl?: string | null;
+  heroImageUrl?: string | null;
+  websiteUrl?: string | null;
+  appointmentUrl?: string | null;
+  appLinkText?: string | null;
+  appLinkDescription?: string | null;
+  pointsLabel: string;
+  tierLabel: string;
+  benefitsText: string;
+  infoText: string;
+  tierRewards: TierRewardInput[];
+  milestoneRewards: MilestoneRewardsInput;
+  status: "PENDING" | "ACTIVE" | "FAILED";
+  walletStatus: Record<WalletProvider, ProviderStatus>;
+}
+
+type TemplateApiResponse = Omit<Partial<Template>, "walletStatus"> & {
+  id: string;
+  programName: string;
+  hexBackgroundColor: string;
+  pointsLabel: string;
+  tierLabel: string;
+  benefitsText: string;
+  infoText: string;
+  walletClasses?: Array<{ provider: string; status: string }>;
+  clinic?: { id: string; name: string; members?: unknown };
+};
+
+const emptyWalletStatus = (): Record<WalletProvider, ProviderStatus> => ({
+  google: "not_added",
+  apple: "not_added",
+});
+
+const providerKey = (provider: string): WalletProvider | null => {
+  const normalized = provider.toLowerCase();
+
+  return normalized === "google" || normalized === "apple" ? normalized : null;
+};
+
+const syncStatusToProviderStatus = (status: string): ProviderStatus => {
+  if (status === "SYNCED") return "added";
+  if (status === "FAILED") return "failed";
+  return "not_added";
+};
+
+const normalizeTemplate = (template: TemplateApiResponse): Template => {
+  const walletStatus = emptyWalletStatus();
+
+  for (const walletClass of template.walletClasses ?? []) {
+    const provider = providerKey(walletClass.provider);
+
+    if (provider) {
+      walletStatus[provider] = syncStatusToProviderStatus(walletClass.status);
+    }
+  }
+
+  return {
+    ...template,
+    name: template.name ?? template.programName,
+    clinicBranding: template.clinicBranding ?? template.clinic?.name,
+    backgroundColor: template.backgroundColor ?? template.hexBackgroundColor,
+    benefits: template.benefits ?? template.benefitsText,
+    memberCount: template.memberCount ?? 0,
+    walletStatus,
+  };
+};
+
 export interface Member {
   id: string;
   name: string;
@@ -85,24 +215,45 @@ export interface Member {
 export interface Treatment {
   id: string;
   name: string;
+  priceEuro?: number | null;
   points: number;
 }
 
 export interface Clinic {
   id: string;
+  slug: string;
   name: string;
-  city: string;
-  plan: string;
+  addressLine: string;
+  pincode: string;
+  isActive: boolean;
+  privacyPolicyVersion: string;
+  voonePlan: VoonePlan;
+  notificationsMonthlyQuota: number;
+  notificationsUsedThisMonth: number;
+  notificationsRemainingThisMonth: number;
   members: number;
   templates: number;
   status: "active" | "setup";
+  users: Array<{ id: string; email: string; role: string }>;
+  onboardingCredentials?: {
+    email: string;
+    generatedAt?: string | null;
+    sentAt?: string | null;
+    hasPassword: boolean;
+  } | null;
+  treatments?: Treatment[];
+  template?: AdminClinicTemplate | null;
 }
 
 export interface WalletInfrastructure {
   appleCertificateExpiresAt: string;
   appleEnabled: boolean;
   googlePublishingStatus: "demo" | "live";
-  recentErrors: Array<{ provider: WalletProvider; count: number; label: string }>;
+  recentErrors: Array<{
+    provider: WalletProvider;
+    count: number;
+    label: string;
+  }>;
 }
 
 export interface PlatformOverview {
@@ -135,16 +286,21 @@ const mockTemplates: Template[] = [
     hexBackgroundColor: "#ead0bd",
     pointsLabel: "Saldo Beauty",
     tierLabel: "Miembro Gold",
-    benefitsText: "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
+    benefitsText:
+      "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
     infoText: "Muestra este pase en recepción antes de pagar.",
     status: "ACTIVE",
     treatments: [{ name: "Hydrafacial", pointsAllotted: 120 }],
     name: "Gold Beauty Club",
     clinicBranding: "Club Clínica Aurea",
     backgroundColor: "#ead0bd",
-    benefits: "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
+    benefits:
+      "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
     memberCount: 284,
-    walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
+    walletStatus: {
+      google: "added",
+      apple: appleEnabled ? "not_added" : "unavailable",
+    },
   },
   {
     id: "diamond-skin",
@@ -155,7 +311,8 @@ const mockTemplates: Template[] = [
     pointsLabel: "Crédito Skin",
     tierLabel: "Miembro Diamond",
     benefitsText: "Revisión avanzada, horarios VIP y lanzamientos exclusivos.",
-    infoText: "Los puntos se actualizan después de cada tratamiento completado.",
+    infoText:
+      "Los puntos se actualizan después de cada tratamiento completado.",
     status: "ACTIVE",
     treatments: [{ name: "Sesión láser", pointsAllotted: 220 }],
     name: "Diamond Skin Plan",
@@ -163,7 +320,10 @@ const mockTemplates: Template[] = [
     backgroundColor: "#2f343a",
     benefits: "Revisión avanzada, horarios VIP y lanzamientos exclusivos.",
     memberCount: 71,
-    walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
+    walletStatus: {
+      google: "added",
+      apple: appleEnabled ? "not_added" : "unavailable",
+    },
   },
 ];
 
@@ -182,7 +342,10 @@ const mockMembers: Member[] = [
     templateName: "Gold Beauty Club",
     points: 1250,
     tier: "Gold",
-    walletStatus: { google: "added", apple: appleEnabled ? "not_added" : "unavailable" },
+    walletStatus: {
+      google: "added",
+      apple: appleEnabled ? "not_added" : "unavailable",
+    },
     history: [
       { id: "h1", label: "Hydrafacial", points: 120, date: "2026-09-04" },
       { id: "h2", label: "Bono por referido", points: 80, date: "2026-08-22" },
@@ -196,8 +359,13 @@ const mockMembers: Member[] = [
     templateName: "Diamond Skin Plan",
     points: 2480,
     tier: "Diamond",
-    walletStatus: { google: "not_added", apple: appleEnabled ? "not_added" : "unavailable" },
-    history: [{ id: "h3", label: "Sesión láser", points: 220, date: "2026-09-02" }],
+    walletStatus: {
+      google: "not_added",
+      apple: appleEnabled ? "not_added" : "unavailable",
+    },
+    history: [
+      { id: "h3", label: "Sesión láser", points: 220, date: "2026-09-02" },
+    ],
   },
   {
     id: "MEM-3110",
@@ -207,8 +375,18 @@ const mockMembers: Member[] = [
     templateName: "Gold Beauty Club",
     points: 540,
     tier: "Silver",
-    walletStatus: { google: "added", apple: appleEnabled ? "failed" : "unavailable" },
-    history: [{ id: "h4", label: "Crédito de bienvenida", points: 100, date: "2026-08-18" }],
+    walletStatus: {
+      google: "added",
+      apple: appleEnabled ? "failed" : "unavailable",
+    },
+    history: [
+      {
+        id: "h4",
+        label: "Crédito de bienvenida",
+        points: 100,
+        date: "2026-08-18",
+      },
+    ],
   },
 ];
 
@@ -219,11 +397,7 @@ const mockTreatments: Treatment[] = [
   { id: "peel", name: "Peeling", points: 90 },
 ];
 
-const mockClinics: Clinic[] = [
-  { id: "clinic-aurea", name: "Clínica Aurea", city: "Madrid", plan: "Growth", members: 355, templates: 2, status: "active" },
-  { id: "clinic-luma", name: "Luma Skin Studio", city: "Valencia", plan: "Launch", members: 82, templates: 1, status: "setup" },
-  { id: "clinic-nova", name: "Nova Esthetics", city: "Barcelona", plan: "Growth", members: 510, templates: 3, status: "active" },
-];
+const mockClinics: Clinic[] = [];
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_VOONE_API_URL;
@@ -241,13 +415,16 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null;
+    const body = (await response.json().catch(() => null)) as {
+      code?: string;
+      message?: string;
+    } | null;
 
     throw new ApiError(
       `Voone API request failed: ${response.status}`,
       response.status,
       body?.code,
-      body?.message
+      body?.message,
     );
   }
 
@@ -267,17 +444,23 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 async function proxyFetch<T>(path: string, init: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
   });
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null;
+    const body = (await response.json().catch(() => null)) as {
+      code?: string;
+      message?: string;
+    } | null;
 
     throw new ApiError(
       `Voone staff request failed: ${response.status}`,
       response.status,
       body?.code,
-      body?.message
+      body?.message,
     );
   }
 
@@ -289,10 +472,13 @@ const staffProxyFetch = <T>(path: string, init: RequestInit) =>
   proxyFetch<T>(`/staff${path}`, init);
 
 /** Voone-admin calls: /api/admin/<path>. A different surface with a different guard. */
-const adminProxyFetch = <T>(path: string, init: RequestInit) =>
+const adminProxyFetch = <T>(path: string, init: RequestInit = {}) =>
   proxyFetch<T>(`/admin${path}`, init);
 
-async function withMockFallback<T>(request: () => Promise<T>, fallback: T): Promise<T> {
+async function withMockFallback<T>(
+  request: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
   try {
     return await request();
   } catch (error) {
@@ -314,21 +500,41 @@ async function withMockFallback<T>(request: () => Promise<T>, fallback: T): Prom
 }
 
 export function getTemplates() {
-  return withMockFallback(() => apiFetch<Template[]>("/v1/wallet/templates"), mockTemplates);
+  return apiFetch<TemplateApiResponse[]>("/v1/templates").then((templates) =>
+    templates.map(normalizeTemplate),
+  );
 }
 
 export function getTemplatePresets() {
-  return withMockFallback(() => apiFetch<TemplatePreset[]>("/v1/templates/presets"), mockTemplatePresets);
+  return withMockFallback(
+    () => apiFetch<TemplatePreset[]>("/v1/templates/presets"),
+    mockTemplatePresets,
+  );
+}
+
+export function getVooneTemplates() {
+  return apiFetch<VooneTemplate[]>("/v1/voone-templates");
+}
+
+export function getVooneTemplate(templateId: string) {
+  return apiFetch<VooneTemplate>(
+    `/v1/voone-templates/${encodeURIComponent(templateId)}`,
+  );
 }
 
 export function getCurrentClinicTemplate(clinicId: string) {
-  return withMockFallback(() => apiFetch<Template | null>(`/v1/templates/current?clinicId=${encodeURIComponent(clinicId)}`), null);
+  return withMockFallback(
+    () =>
+      apiFetch<TemplateApiResponse | null>(
+        `/v1/templates/current?clinicId=${encodeURIComponent(clinicId)}`,
+      ).then((template) => (template ? normalizeTemplate(template) : null)),
+    null,
+  );
 }
 
 export function getTemplate(templateId: string) {
-  return withMockFallback(
-    () => apiFetch<Template>(`/v1/templates/${templateId}`),
-    mockTemplates.find((template) => template.id === templateId) ?? mockTemplates[0]
+  return apiFetch<TemplateApiResponse>(`/v1/templates/${templateId}`).then(
+    normalizeTemplate,
   );
 }
 
@@ -344,28 +550,70 @@ export function getTemplate(templateId: string) {
  * failed for any reason other than an HTTP status, which meant a clinic could redesign its
  * pass, see the change confirmed, and have nothing saved.
  */
-export function saveTemplate(input: SaveTemplateInput, templateId: string | undefined, clinicId: string) {
+export function saveTemplate(
+  input: SaveTemplateInput,
+  templateId: string | undefined,
+  clinicId: string,
+) {
   void clinicId;
 
-  return staffProxyFetch<Template>(templateId ? `/templates/${templateId}` : "/templates", {
-    method: templateId ? "PATCH" : "POST",
-    body: JSON.stringify(input),
-  });
+  return staffProxyFetch<Template>(
+    templateId ? `/templates/${templateId}` : "/templates",
+    {
+      method: templateId ? "PATCH" : "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function saveAdminTemplate(
+  input: SaveTemplateInput,
+  templateId: string | undefined,
+  clinicId: string,
+) {
+  return adminProxyFetch<Template>(
+    templateId ? `/templates/${templateId}` : "/templates",
+    {
+      method: templateId ? "PATCH" : "POST",
+      body: JSON.stringify({ ...input, clinicId }),
+    },
+  );
+}
+
+export function saveAdminVooneTemplate(
+  input: SaveVooneTemplateInput,
+  templateId?: string,
+) {
+  return adminProxyFetch<VooneTemplate>(
+    templateId
+      ? `/voone-templates/${encodeURIComponent(templateId)}`
+      : "/voone-templates",
+    {
+      method: templateId ? "PATCH" : "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function getMembers() {
   return withMockFallback(() => apiFetch<Member[]>("/v1/members"), mockMembers);
 }
 
+export function getAdminMembers() {
+  return adminProxyFetch<Member[]>("/members");
+}
+
 export function getMember(memberId: string) {
   return withMockFallback(
     () => apiFetch<Member>(`/v1/members/${memberId}`),
-    mockMembers.find((member) => member.id === memberId) ?? mockMembers[0]
+    mockMembers.find((member) => member.id === memberId) ?? mockMembers[0],
   );
 }
 
 export function createMember(input: CreateMemberInput) {
-  const template = mockTemplates.find((item) => item.id === input.templateId) ?? mockTemplates[0];
+  const template =
+    mockTemplates.find((item) => item.id === input.templateId) ??
+    mockTemplates[0];
   const fallback: Member & { walletLink: string } = {
     id: `MEM-${Math.floor(4000 + Math.random() * 5000)}`,
     name: input.name,
@@ -374,7 +622,10 @@ export function createMember(input: CreateMemberInput) {
     templateName: template.name ?? template.programName,
     points: 0,
     tier: "Nuevo",
-    walletStatus: { google: "not_added", apple: appleEnabled ? "not_added" : "unavailable" },
+    walletStatus: {
+      google: "not_added",
+      apple: appleEnabled ? "not_added" : "unavailable",
+    },
     history: [],
     walletLink: "https://voone.example/wallet/add/demo",
   };
@@ -385,20 +636,37 @@ export function createMember(input: CreateMemberInput) {
         method: "POST",
         body: JSON.stringify(input),
       }),
-    fallback
+    fallback,
   );
 }
 
 export function getTreatments() {
-  return withMockFallback(() => apiFetch<Treatment[]>("/v1/points/treatments"), mockTreatments);
+  return withMockFallback(
+    () => apiFetch<Treatment[]>("/v1/points/treatments"),
+    mockTreatments,
+  );
 }
 
-export function creditMember(memberId: string, points: number, label: string, referralCode?: string) {
-  const member = mockMembers.find((item) => item.id === memberId) ?? mockMembers[0];
+export function creditMember(
+  memberId: string,
+  points: number,
+  label: string,
+  referralCode?: string,
+) {
+  const member =
+    mockMembers.find((item) => item.id === memberId) ?? mockMembers[0];
   const fallback: Member = {
     ...member,
     points: member.points + points,
-    history: [{ id: "optimistic", label, points, date: new Date().toISOString().slice(0, 10) }, ...member.history],
+    history: [
+      {
+        id: "optimistic",
+        label,
+        points,
+        date: new Date().toISOString().slice(0, 10),
+      },
+      ...member.history,
+    ],
   };
 
   return withMockFallback(
@@ -407,7 +675,7 @@ export function creditMember(memberId: string, points: number, label: string, re
         method: "POST",
         body: JSON.stringify({ points, label, referralCode }),
       }),
-    fallback
+    fallback,
   );
 }
 
@@ -419,41 +687,26 @@ export function getDashboardOverview() {
     recentActivity: [
       { id: "a1", label: "Verónica ganó 120 puntos", date: "Hoy" },
       { id: "a2", label: "Mateo se unió a Diamond Skin Plan", date: "Ayer" },
-      { id: "a3", label: "Plantilla Gold Beauty Club actualizada", date: "2 sep" },
+      {
+        id: "a3",
+        label: "Plantilla Gold Beauty Club actualizada",
+        date: "2 sep",
+      },
     ],
   };
 
-  return withMockFallback(() => apiFetch<DashboardOverview>("/v1/dashboard/overview"), fallback);
+  return withMockFallback(
+    () => apiFetch<DashboardOverview>("/v1/dashboard/overview"),
+    fallback,
+  );
 }
 
 export function getClinics() {
-  return withMockFallback(() => apiFetch<Clinic[]>("/v1/admin/clinics"), mockClinics);
+  return adminProxyFetch<Clinic[]>("/clinics");
 }
 
 export function getClinic(clinicId: string) {
-  return withMockFallback(
-    () => apiFetch<Clinic>(`/v1/admin/clinics/${clinicId}`),
-    mockClinics.find((clinic) => clinic.id === clinicId) ?? mockClinics[0]
-  );
-}
-
-export function createClinic(input: Pick<Clinic, "name" | "city" | "plan">) {
-  const fallback: Clinic = {
-    id: input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
-    ...input,
-    members: 0,
-    templates: 0,
-    status: "setup",
-  };
-
-  return withMockFallback(
-    () =>
-      apiFetch<Clinic>("/v1/admin/clinics", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-    fallback
-  );
+  return adminProxyFetch<Clinic>(`/clinics/${encodeURIComponent(clinicId)}`);
 }
 
 export function getWalletInfrastructure() {
@@ -467,17 +720,26 @@ export function getWalletInfrastructure() {
     ],
   };
 
-  return withMockFallback(() => apiFetch<WalletInfrastructure>("/v1/admin/wallet"), fallback);
+  return withMockFallback(
+    () => apiFetch<WalletInfrastructure>("/v1/admin/wallet"),
+    fallback,
+  );
 }
 
 export async function getPlatformOverview(): Promise<PlatformOverview> {
   const wallet = await getWalletInfrastructure();
 
-  return withMockFallback(() => apiFetch<PlatformOverview>("/v1/admin/overview"), {
-    totalClinics: mockClinics.length,
-    totalMembers: mockClinics.reduce((total, clinic) => total + clinic.members, 0),
-    wallet,
-  });
+  return withMockFallback(
+    () => apiFetch<PlatformOverview>("/v1/admin/overview"),
+    {
+      totalClinics: mockClinics.length,
+      totalMembers: mockClinics.reduce(
+        (total, clinic) => total + clinic.members,
+        0,
+      ),
+      wallet,
+    },
+  );
 }
 
 export function canShowAction(role: Role, allowed: Role[]) {
@@ -534,7 +796,9 @@ export interface MembershipSignupInput {
 
 /** Branding for a clinic's public sign-up page. Throws ApiError(404) for an unknown slug. */
 export async function getPublicClinic(slug: string) {
-  const { clinic } = await apiFetch<{ clinic: PublicClinic }>(`/v1/clinics/${encodeURIComponent(slug)}`);
+  const { clinic } = await apiFetch<{ clinic: PublicClinic }>(
+    `/v1/clinics/${encodeURIComponent(slug)}`,
+  );
 
   return clinic;
 }
@@ -547,10 +811,13 @@ export async function getPublicClinic(slug: string) {
  * is nothing here to branch on and nothing to report back beyond success.
  */
 export async function signUpMember(slug: string, input: MembershipSignupInput) {
-  return apiFetch<{ status: "ok" }>(`/v1/clinics/${encodeURIComponent(slug)}/members`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return apiFetch<{ status: "ok" }>(
+    `/v1/clinics/${encodeURIComponent(slug)}/members`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 /**
@@ -561,7 +828,11 @@ export async function signUpMember(slug: string, input: MembershipSignupInput) {
  * to marketing on a client's behalf, so the only honest value is "no". A client who wants it
  * opts in through the public form, which is the one place the choice is actually theirs.
  */
-export async function addMemberAsStaff(input: { name: string; phone: string; email?: string }) {
+export async function addMemberAsStaff(input: {
+  name: string;
+  phone: string;
+  email?: string;
+}) {
   // No clinic argument: the route handler takes it from the session, so a signed-in member
   // of one clinic cannot enrol someone into another. consentMarketing and consentSource are
   // set there too, for the same reason — a caller must not describe its own provenance.
@@ -578,17 +849,40 @@ export interface ProvisionClinicInput {
   name: string;
   addressLine: string;
   pincode: string;
+  ownerName?: string;
+  ownerEmail?: string;
   presetId: string;
   programName: string;
+  hexBackgroundColor?: string;
+  logoUrl?: string;
+  heroImageUrl?: string;
+  websiteUrl?: string;
+  appointmentUrl?: string;
+  appLinkText?: string;
+  appLinkDescription?: string;
   pointsLabel?: string;
   tierLabel?: string;
   benefitsText?: string;
   infoText?: string;
+  treatments?: TemplateTreatmentInput[];
+  tierRewards?: TierRewardInput[];
+  milestoneRewards?: MilestoneRewardsInput;
 }
 
 export interface ProvisionedClinic {
-  clinic: { id: string; slug: string; name: string; isActive: boolean; privacyPolicyVersion: string };
-  template: { id: string; programName: string; hexBackgroundColor: string; status: string };
+  clinic: {
+    id: string;
+    slug: string;
+    name: string;
+    isActive: boolean;
+    privacyPolicyVersion: string;
+  };
+  template: {
+    id: string;
+    programName: string;
+    hexBackgroundColor: string;
+    status: string;
+  };
 }
 
 /**

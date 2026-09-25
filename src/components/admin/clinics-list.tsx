@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Building2, ListFilter, MapPin, MoreHorizontal, Search, Users } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
@@ -12,20 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getClinics } from "@/lib/api-client";
+import { useClinics } from "@/features/clinics/api/useClinics";
 
-function formatPlan(plan: string) {
-  if (plan === "Launch") return "Lanzamiento";
-  if (plan === "Growth") return "Crecimiento";
-  if (plan === "Enterprise") return "Empresa";
-  return plan;
-}
+const ownerLabel = (clinic: { users: Array<{ email: string; role: string }> }) =>
+  clinic.users.find((user) => user.role === "OWNER")?.email ?? clinic.users[0]?.email ?? "Sin usuario";
 
 export function ClinicsList() {
   const [search, setSearch] = React.useState("");
   const reducedMotion = useReducedMotion();
-  const clinics = useQuery({ queryKey: ["clinics"], queryFn: getClinics });
-  const filtered = clinics.data?.filter((clinic) => `${clinic.name} ${clinic.city} ${clinic.plan} ${formatPlan(clinic.plan)}`.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const clinics = useClinics();
+  const filtered = clinics.data?.filter((clinic) => `${clinic.name} ${clinic.addressLine} ${clinic.pincode} ${clinic.voonePlan} ${ownerLabel(clinic)}`.toLowerCase().includes(search.toLowerCase())) ?? [];
 
   if (clinics.isLoading) return <Skeleton className="h-72 w-full" />;
   if (clinics.error) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar las clínicas.</div>;
@@ -33,7 +28,7 @@ export function ClinicsList() {
   return (
     <div className="space-y-5">
       <section className="grid gap-4 lg:grid-cols-3">
-        <ClinicSummary label="Total estimate" value="$32.1k" details={["Accepted", "Pending", "Canceled"]} />
+        <ClinicSummary label="Active clinics" value={(clinics.data?.filter((clinic) => clinic.status === "active").length ?? 0).toLocaleString()} details={["With template"]} />
         <ClinicSummary label="Total clinics" value={(clinics.data?.length ?? 0).toLocaleString()} details={["Active + setup"]} />
         <ClinicSummary label="Total members" value={(clinics.data?.reduce((total, clinic) => total + clinic.members, 0) ?? 0).toLocaleString()} details={["Across programs"]} />
       </section>
@@ -57,28 +52,30 @@ export function ClinicsList() {
           animate={reducedMotion ? undefined : "visible"}
           variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
         >
-          <div className="hidden grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_140px_150px_120px] items-center gap-4 border-b border-[#e7ddd7] bg-[#fffaf6]/82 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8c7870] lg:grid">
+          <div className="hidden grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_110px_120px_150px_120px] items-center gap-4 border-b border-[#e7ddd7] bg-[#fffaf6]/82 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8c7870] lg:grid">
             <span />
             <span>Profile</span>
             <span>Contact</span>
+            <span>Plan</span>
             <span>Status</span>
             <span>Estimate value</span>
             <span />
           </div>
           {filtered.map((clinic) => (
             <motion.div key={clinic.id} variants={{ hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0, transition: { duration: 0.52, ease: [0.16, 1, 0.3, 1] } } }}>
-              <Link href={`/admin/clinics/${clinic.id}`} className="grid gap-4 border-b border-[#ede4de] px-5 py-4 text-sm transition last:border-b-0 hover:bg-[#f5efeb] lg:grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_140px_150px_120px] lg:items-center">
+              <Link href={`/admin/clinics/${clinic.id}`} className="grid gap-4 border-b border-[#ede4de] px-5 py-4 text-sm transition last:border-b-0 hover:bg-[#f5efeb] lg:grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_110px_120px_150px_120px] lg:items-center">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#201715] text-[#f1d6bd]"><Building2 className="h-4 w-4" /></span>
                 <span>
                   <span className="block font-semibold text-[#2e2421]">{clinic.name}</span>
-                  <span className="mt-1 flex items-center gap-1 text-xs text-[#8c7870]"><MapPin className="h-3 w-3" /> {clinic.city} · {formatPlan(clinic.plan)}</span>
+                  <span className="mt-1 flex items-center gap-1 text-xs text-[#8c7870]"><MapPin className="h-3 w-3" /> {clinic.addressLine} · {clinic.pincode}</span>
                 </span>
                 <span className="text-xs text-[#6f625d]">
-                  <span className="block">owner@{clinic.id.replace("clinic-", "")}.voone.test</span>
-                  <span className="mt-1 block">+34 600 12 {clinic.members.toString().padStart(3, "0")}</span>
+                  <span className="block">{ownerLabel(clinic)}</span>
+                  <span className="mt-1 block">{clinic.slug}</span>
                 </span>
+                <Badge variant="secondary" className="w-fit capitalize">{clinic.voonePlan}</Badge>
                 <Badge variant={clinic.status === "active" ? "default" : "secondary"} className="w-fit capitalize">{clinic.status === "active" ? "Accepted" : "Pending"}</Badge>
-                <span className="font-semibold">$ {(clinic.members * 86).toLocaleString("en-US")}.00</span>
+                <span className="font-semibold">{clinic.templates.toLocaleString()} designs</span>
                 <span className="flex items-center gap-3 text-[#8c7870]"><Users className="h-4 w-4" /> {clinic.members}<MoreHorizontal className="ml-auto h-4 w-4" /><ArrowUpRight className="h-4 w-4" /></span>
               </Link>
             </motion.div>

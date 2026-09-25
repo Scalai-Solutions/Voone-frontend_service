@@ -1,0 +1,21 @@
+export const queryKeys = {
+  clinics: () => ["clinics"] as const,
+  adminMembers: () => ["admin-members"] as const,
+  members: () => ["members"] as const,
+  member: (memberId: string) => ["member", memberId] as const,
+  templatePresets: () => ["template-presets"] as const,
+  clinicTemplate: (clinicId: string) => ["clinic-template", clinicId] as const,
+  template: (templateId: string) => ["template", templateId] as const,
+  treatments: () => ["treatments"] as const,
+  templates: () => ["templates"] as const,
+  vooneTemplates: () => ["voone-templates"] as const,
+  mutations: {
+    addMember: () => ["add-member"] as const,
+    creditMember: () => ["credit-member"] as const,
+    provisionClinic: () => ["provision-clinic"] as const,
+    saveAdminTemplate: () => ["save-admin-template"] as const,
+    saveAdminVooneTemplate: () => ["save-admin-voone-template"] as const,
+    saveTemplate: () => ["save-template"] as const,
+    signUpMember: () => ["sign-up-member"] as const,
+  },
+} as const;

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Building2, CheckCircle2, CreditCard, Eye, FileText, Info, ListChecks, Paintbrush, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, getTemplatePresets, saveTemplate, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
+import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
+import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
+import { ApiError, type Template, type TemplatePreset } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const optionalUrlSchema = z.string().url("Usa una URL válida").max(2048).optional().or(z.literal(""));
@@ -107,8 +110,8 @@ function textColorFor(backgroundColor: string) {
 export function TemplateForm({ clinicId, initialTemplate, presets, selectedPresetId }: { clinicId: string; initialTemplate?: Template; presets: TemplatePreset[]; selectedPresetId?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const presetsQuery = useQuery({ queryKey: ["template-presets"], queryFn: getTemplatePresets, initialData: presets });
-  const availablePresets = presetsQuery.data;
+  const presetsQuery = useTemplatePresets({ initialData: presets });
+  const availablePresets = presetsQuery.data ?? presets;
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
   const [selectedPreset, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
@@ -118,12 +121,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const treatments = useFieldArray({ control: form.control, name: "treatments" });
   const values = form.watch();
 
-  const mutation = useMutation({
-    mutationFn: (input: TemplateFormValues) => saveTemplate(input satisfies SaveTemplateInput, initialTemplate?.id, clinicId),
+  const mutation = useSaveTemplate(initialTemplate?.id, clinicId, {
     onSuccess: (template) => {
       setStatusMessage("Plantilla guardada para los proveedores Wallet disponibles.");
-      queryClient.invalidateQueries({ queryKey: ["clinic-template", clinicId] });
-      queryClient.invalidateQueries({ queryKey: ["templates"] });
 
       if (!initialTemplate) {
         router.replace(`/dashboard/templates/${template.id}`);
@@ -132,7 +132,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
         setStatusMessage("This clinic already has a template — edit it instead");
-        queryClient.invalidateQueries({ queryKey: ["clinic-template", clinicId] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });
         window.setTimeout(() => router.replace("/dashboard/templates"), 1200);
         return;
       }

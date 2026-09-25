@@ -2,18 +2,30 @@ import Link from "next/link";
 import { CalendarDays, Ellipsis, Rocket } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { getClinics, getPlatformOverview, getTemplates } from "@/lib/api-client";
+import { getAdminClinics } from "@/lib/admin-api";
+import { getTemplates } from "@/lib/api-client";
+
+const ownerLabel = (clinic: Awaited<ReturnType<typeof getAdminClinics>>[number]) =>
+  clinic.users.find((user) => user.role === "OWNER")?.email ?? clinic.users[0]?.email ?? "Sin usuario";
 
 export default async function AdminOverviewPage() {
-  const [overview, clinics, templates] = await Promise.all([getPlatformOverview(), getClinics(), getTemplates()]);
+  const [clinics, templates] = await Promise.all([getAdminClinics(), getTemplates()]);
   const activeClinics = clinics.filter((clinic) => clinic.status === "active");
   const setupClinics = clinics.filter((clinic) => clinic.status === "setup");
+  const totalMembers = clinics.reduce((total, clinic) => total + clinic.members, 0);
   const activeMembers = activeClinics.reduce((total, clinic) => total + clinic.members, 0);
-  const recentOnboards = clinics.slice(0, 4).map((clinic, index) => ({
+  const recentOnboards = clinics.slice(0, 4).map((clinic) => ({
     ...clinic,
-    owner: ["Marta Silva", "Daniel Roca", "Irene Vidal", "Paula Martin"][index] ?? "Clinic owner",
+    owner: ownerLabel(clinic),
     progress: clinic.status === "active" ? 100 : 62,
   }));
+  const networkNodes = clinics.slice(0, 3);
+  const nodePositions = [
+    { className: "left-12 top-20", tone: "bg-[#201715]" },
+    { className: "right-10 top-12", tone: "bg-[#b98a4f]" },
+    { className: "bottom-8 left-1/3", tone: "bg-[#b94f5a]" },
+  ];
+  const memberBars = clinics.length ? clinics.slice(0, 7).map((clinic) => Math.max(8, Math.min(100, clinic.members))) : [];
 
   return (
     <div className="mx-auto max-w-[1180px] space-y-2 text-[#2e2421]">
@@ -23,7 +35,7 @@ export default async function AdminOverviewPage() {
           <button type="button" className="mt-2 inline-flex items-center gap-1 text-sm text-[#806d63]">Sep 1 - Sep 30, 2026 <CalendarDays className="h-3.5 w-3.5" /></button>
         </div>
         <HeaderMetric label="Active clinics" value={activeClinics.length.toString()} detail="this month" />
-        <HeaderMetric label="Members" value={overview.totalMembers.toLocaleString()} detail={`${activeMembers.toLocaleString()} active`} />
+        <HeaderMetric label="Members" value={totalMembers.toLocaleString()} detail={`${activeMembers.toLocaleString()} active`} />
         <Button asChild className="mt-1 rounded-xl bg-[#201715] px-4 text-white hover:bg-[#3b2a25]">
           <Link href="/admin/onboarding"><Rocket className="mr-2 h-4 w-4" /> Onboard clinic</Link>
         </Button>
@@ -34,13 +46,13 @@ export default async function AdminOverviewPage() {
           <div className="grid gap-6 p-5 sm:grid-cols-[210px_1fr] sm:items-center">
             <div className="relative mx-auto grid h-44 w-44 place-items-center rounded-full" style={{ background: "conic-gradient(#201715 0deg 238deg, #b98a4f 238deg 312deg, #eadfd8 312deg 360deg)" }}>
               <div className="grid h-36 w-36 place-items-center rounded-full bg-white text-center">
-                <div><p className="text-3xl font-semibold tracking-tight">{overview.totalClinics}</p><p className="mt-1 text-xs text-[#687476]">Total clinics</p></div>
+                <div><p className="text-3xl font-semibold tracking-tight">{clinics.length}</p><p className="mt-1 text-xs text-[#687476]">Total clinics</p></div>
               </div>
             </div>
             <div className="space-y-4">
-              <StatusRow color="bg-[#201715]" label="Active" value={activeClinics.length.toString()} total={overview.totalClinics} />
-              <StatusRow color="bg-[#b98a4f]" label="Onboarding" value={setupClinics.length.toString()} total={overview.totalClinics} />
-              <StatusRow color="bg-[#eadfd8]" label="Draft programs" value={templates.filter((template) => template.status !== "ACTIVE").length.toString()} total={overview.totalClinics} />
+              <StatusRow color="bg-[#201715]" label="Active" value={activeClinics.length.toString()} total={clinics.length} />
+              <StatusRow color="bg-[#b98a4f]" label="Onboarding" value={setupClinics.length.toString()} total={clinics.length} />
+              <StatusRow color="bg-[#eadfd8]" label="Draft programs" value={templates.filter((template) => template.status !== "ACTIVE").length.toString()} total={clinics.length} />
             </div>
           </div>
         </DashboardPanel>
@@ -51,10 +63,8 @@ export default async function AdminOverviewPage() {
             <div className="absolute left-12 top-24 h-24 w-32 rounded-[45%_55%_55%_45%] bg-[#e3c9b7] opacity-70" />
             <div className="absolute right-16 top-12 h-28 w-36 rounded-[55%_45%_40%_60%] bg-[#e9d7ca]" />
             <div className="absolute bottom-10 left-1/3 h-16 w-28 rounded-[50%_50%_38%_62%] bg-[#efe3da]" />
-            <NetworkNode className="left-12 top-20" name="Madrid" value="355" tone="bg-[#201715]" />
-            <NetworkNode className="right-10 top-12" name="Barcelona" value="510" tone="bg-[#b98a4f]" />
-            <NetworkNode className="bottom-8 left-1/3" name="Valencia" value="82" tone="bg-[#b94f5a]" />
-            <div className="absolute bottom-5 right-5 rounded-xl bg-[#201715] px-4 py-3 text-white shadow-lg"><p className="text-2xl font-semibold">{overview.totalMembers.toLocaleString()}</p><p className="text-xs text-white/70">Members network</p></div>
+            {networkNodes.map((clinic, index) => <NetworkNode key={clinic.id} className={nodePositions[index].className} name={clinic.name} value={clinic.members.toLocaleString()} tone={nodePositions[index].tone} />)}
+            <div className="absolute bottom-5 right-5 rounded-xl bg-[#201715] px-4 py-3 text-white shadow-lg"><p className="text-2xl font-semibold">{totalMembers.toLocaleString()}</p><p className="text-xs text-white/70">Members network</p></div>
           </div>
         </DashboardPanel>
       </section>
@@ -66,7 +76,7 @@ export default async function AdminOverviewPage() {
               <Link key={clinic.id} href={`/admin/clinics/${clinic.id}`} className="grid gap-3 py-3 transition hover:bg-[#fffaf6] sm:grid-cols-[1fr_auto] sm:items-center">
                 <span>
                   <span className="block font-semibold">{clinic.name}</span>
-                  <span className="mt-1 block text-xs text-[#806d63]">{clinic.owner} · {clinic.city}</span>
+                  <span className="mt-1 block text-xs text-[#806d63]">{clinic.owner} · {clinic.addressLine}</span>
                 </span>
                 <span className="min-w-36">
                   <span className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-[#806d63]"><span>{clinic.status === "active" ? "Launched" : "Setup"}</span><span>{clinic.progress}%</span></span>
@@ -79,11 +89,10 @@ export default async function AdminOverviewPage() {
 
         <DashboardPanel title="Member activation" actionLabel="Open analytics" actionHref="/admin/clinics">
           <div className="p-5">
-            <div className="flex items-end justify-between border-b border-[#eadfd8] pb-3 text-xs text-[#927e72]"><span>New members this month</span><span className="font-semibold text-[#a47845]">+18.4%</span></div>
+            <div className="flex items-end justify-between border-b border-[#eadfd8] pb-3 text-xs text-[#927e72]"><span>Members by clinic</span><span className="font-semibold text-[#a47845]">{totalMembers.toLocaleString()} total</span></div>
             <div className="relative mt-4 h-36 border-b border-[#eadfd8]">
-              {[20, 42, 27, 58, 67, 80, 93].map((height, index) => <span key={height} className="absolute bottom-0 w-[10%] rounded-t-md bg-[#e3c9b7]" style={{ height: `${height}%`, left: `${index * 14 + 4}%` }} />)}
-              <div className="absolute inset-x-[6%] top-[20%] border-t-2 border-[#201715]" />
-              <div className="absolute left-[58%] top-[11%] rounded-full bg-[#201715] px-2.5 py-1 text-xs font-semibold text-white">+18%</div>
+              {memberBars.map((height, index) => <span key={`${height}-${index}`} className="absolute bottom-0 w-[10%] rounded-t-md bg-[#e3c9b7]" style={{ height: `${height}%`, left: `${index * 14 + 4}%` }} />)}
+              {memberBars.length ? <div className="absolute inset-x-[6%] top-[20%] border-t-2 border-[#201715]" /> : null}
             </div>
             <div className="mt-3 flex justify-between text-[11px] text-[#748082]"><span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span></div>
           </div>
