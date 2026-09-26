@@ -4,11 +4,12 @@ import * as React from "react";
 import Link from "next/link";
 import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
-import type { Treatment } from "@/lib/api-client";
+import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
+import type { Clinic, MilestoneRewardsInput, TierRewardInput, Treatment } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
-  treatments: Treatment[];
+  treatments?: Treatment[];
   canEdit: boolean;
 }
 
@@ -21,74 +22,97 @@ interface SetupItem {
   value: string;
 }
 
-const clinicDetails = [
-  { label: "Nombre comercial", value: "Clínica Aurea" },
-  { label: "Razón social", value: "Aurea Beauty S.L." },
-  { label: "CIF", value: "B-72938410" },
-  { label: "Dirección", value: "Calle Serrano 42, 28001 Madrid" },
-  { label: "Teléfono", value: "+34 910 240 118" },
-  { label: "Persona de contacto", value: "Ana López · Directora" },
-  { label: "Tiempo como miembro", value: "2 años y 6 meses" },
-  { label: "Número de cuenta", value: "ES12 3456 7890 1234 5678" },
-  { label: "Email", value: "hola@clinicaaurea.com" },
-];
+const EMPTY_TREATMENTS: Treatment[] = [];
 
-const fallbackTreatments = [
-  { id: "hydrafacial", name: "Hydrafacial", points: 120, description: "Limpieza profunda y luminosidad" },
-  { id: "laser", name: "Sesión láser", points: 220, description: "Tratamiento facial avanzado" },
-  { id: "consult", name: "Consulta inicial", points: 60, description: "Valoración personalizada" },
-  { id: "peel", name: "Peeling químico", points: 90, description: "Renovación y cuidado de la piel" },
-];
+const ownerEmailFor = (clinic: Clinic) =>
+  clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
+  clinic.users[0]?.email;
 
-const descriptionsByName: Record<string, string> = {
-  Hydrafacial: "Limpieza profunda y luminosidad",
-  "Sesión láser": "Tratamiento facial avanzado",
-  Consulta: "Valoración personalizada",
-  "Consulta inicial": "Valoración personalizada",
-  Peeling: "Renovación y cuidado de la piel",
-  "Peeling químico": "Renovación y cuidado de la piel",
-};
-
-const initialRewards: SetupItem[] = [
-  { id: "reward-birthday", name: "Crédito de cumpleaños", detail: "Beneficio automático para miembros activos", value: "80 puntos" },
-  { id: "reward-referral", name: "Bono por referido", detail: "Se concede tras la primera visita de la persona referida", value: "100 puntos" },
-  { id: "reward-vip", name: "Revisión VIP", detail: "Recompensa canjeable para clientes Diamond", value: "1 sesión" },
-];
-
-const initialTiers: SetupItem[] = [
-  { id: "tier-silver", name: "Silver", detail: "Acceso base al programa y saldo Wallet", value: "0 puntos" },
-  { id: "tier-gold", name: "Gold", detail: "Reservas prioritarias y bonos de campaña", value: "1.000 puntos" },
-  { id: "tier-diamond", name: "Diamond", detail: "Acceso completo a ventajas premium", value: "2.000 puntos" },
-];
+const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
 function toTreatmentRows(treatments: Treatment[]): SetupItem[] {
-  const rows = treatments.length > 0 ? treatments : fallbackTreatments;
-
-  return rows.map((treatment) => {
-    const displayName = treatment.name === "Consulta" ? "Consulta inicial" : treatment.name === "Peeling" ? "Peeling químico" : treatment.name;
-    const detail = "description" in treatment && typeof treatment.description === "string" ? treatment.description : descriptionsByName[treatment.name] ?? "Servicio disponible para acreditación de puntos";
-
-    return {
-      id: treatment.id,
-      name: displayName,
-      detail,
-      value: `${treatment.points} puntos`,
-    };
-  });
+  return treatments.map((treatment) => ({
+    id: treatment.id,
+    name: treatment.name,
+    detail: typeof treatment.priceEuro === "number" ? `Precio: ${formatNumber(treatment.priceEuro)} euro` : "Precio no configurado",
+    value: `${formatNumber(treatment.points)} puntos`,
+  }));
 }
 
-export function CenterView({ treatments, canEdit }: CenterViewProps) {
+function toRewardRows(rewards: TierRewardInput[] | undefined): SetupItem[] {
+  return (rewards ?? []).map((reward, index) => ({
+    id: `reward-${index}-${reward.name}`,
+    name: reward.name,
+    detail: reward.rewardText?.trim() || "Sin descripción guardada",
+    value: "Nivel",
+  }));
+}
+
+function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
+  if (!milestone) return [];
+
+  return [
+    {
+      id: "milestone-count",
+      name: "Hitos configurados",
+      detail: "Número de hitos del programa",
+      value: formatNumber(milestone.milestoneCount),
+    },
+    {
+      id: "points-to-next-milestone",
+      name: "Siguiente hito",
+      detail: "Puntos necesarios para alcanzar el siguiente hito",
+      value: `${formatNumber(milestone.pointsToNextMilestone)} puntos`,
+    },
+    {
+      id: "points-conversion",
+      name: "Conversión de puntos",
+      detail: `Por cada ${formatNumber(milestone.priceAmount)} euro`,
+      value: `${formatNumber(milestone.pointsAwarded)} puntos`,
+    },
+  ];
+}
+
+function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; value: string }> {
+  if (!clinic) return [];
+
+  const ownerEmail = ownerEmailFor(clinic);
+
+  return [
+    { label: "Nombre comercial", value: clinic.name },
+    { label: "Identificador público", value: clinic.slug },
+    { label: "Dirección", value: clinic.addressLine },
+    { label: "Código postal", value: clinic.pincode },
+    ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
+    { label: "Programa Wallet", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Plan Voone", value: clinic.voonePlan },
+    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
+    {
+      label: "Notificaciones disponibles",
+      value: `${formatNumber(clinic.notificationsRemainingThisMonth)} de ${formatNumber(clinic.notificationsMonthlyQuota)}`,
+    },
+  ];
+}
+
+export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterViewProps) {
+  const currentClinic = useCurrentClinic();
+  const clinic = currentClinic.data;
   const [tab, setTab] = React.useState<CenterTab>("tratamientos");
-  const initialTreatmentRows = React.useMemo(() => toTreatmentRows(treatments), [treatments]);
-  const [treatmentRows, setTreatmentRows] = React.useState<SetupItem[]>(initialTreatmentRows);
-  const [rewardRows, setRewardRows] = React.useState<SetupItem[]>(initialRewards);
-  const [tierRows, setTierRows] = React.useState<SetupItem[]>(initialTiers);
+  const treatmentRowsFromClinic = React.useMemo(() => toTreatmentRows(clinic?.treatments ?? treatments), [clinic?.treatments, treatments]);
+  const rewardRowsFromClinic = React.useMemo(() => toRewardRows(clinic?.template?.tierRewards), [clinic?.template?.tierRewards]);
+  const tierRowsFromClinic = React.useMemo(() => toTierRows(clinic?.template?.milestoneRewards), [clinic?.template?.milestoneRewards]);
+  const clinicDetails = React.useMemo(() => toClinicDetails(clinic), [clinic]);
+  const treatmentRowsKey = React.useMemo(() => rowsKey(treatmentRowsFromClinic), [treatmentRowsFromClinic]);
+  const rewardRowsKey = React.useMemo(() => rowsKey(rewardRowsFromClinic), [rewardRowsFromClinic]);
+  const tierRowsKey = React.useMemo(() => rowsKey(tierRowsFromClinic), [tierRowsFromClinic]);
 
   return (
     <section className="text-[#2e2421]">
       <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#b7874a]">Configuración del negocio</p>
       <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">Mi centro</h1>
       <p className="mt-3 max-w-xl text-[#927e72]">Toda la información de tu negocio, en un solo lugar.</p>
+
+      {currentClinic.isError ? <p className="mt-4 rounded-2xl border border-[#ead0bd] bg-[#fff8f2] px-4 py-3 text-sm font-semibold text-[#8a4d2a]">No se pudieron cargar los datos del centro.</p> : null}
 
       <div className="mt-7 flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/60 p-1">
         <button type="button" onClick={() => setTab("tratamientos")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tratamientos" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tratamientos</button>
@@ -97,21 +121,23 @@ export function CenterView({ treatments, canEdit }: CenterViewProps) {
         <button type="button" onClick={() => setTab("informacion")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "informacion" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Información del centro</button>
       </div>
 
-      {tab === "tratamientos" ? <SetupList title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" rows={treatmentRows} setRows={setTreatmentRows} canEdit={canEdit} /> : null}
-      {tab === "recompensas" ? <SetupList title="Recompensas" description="Premios y beneficios creados durante el onboarding." valueLabel="Valor" rows={rewardRows} setRows={setRewardRows} canEdit={canEdit} /> : null}
-      {tab === "niveles" ? <SetupList title="Niveles" description="Tiers del programa y requisitos de acceso." valueLabel="Requisito" rows={tierRows} setRows={setTierRows} canEdit={canEdit} /> : null}
+      {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
+      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
+      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
 
       {tab === "informacion" ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
           <h2 className="font-serif text-2xl font-semibold">Información del centro</h2>
-          <div className="mt-5 grid gap-x-20 gap-y-5 sm:grid-cols-2">
-            {clinicDetails.map((detail) => (
-              <div key={detail.label}>
-                <p className="text-xs text-[#927e72]">{detail.label}</p>
-                <p className="mt-1 font-semibold">{detail.value}</p>
-              </div>
-            ))}
-          </div>
+          {clinicDetails.length > 0 ? (
+            <div className="mt-5 grid gap-x-20 gap-y-5 sm:grid-cols-2">
+              {clinicDetails.map((detail) => (
+                <div key={detail.label}>
+                  <p className="text-xs text-[#927e72]">{detail.label}</p>
+                  <p className="mt-1 font-semibold">{detail.value}</p>
+                </div>
+              ))}
+            </div>
+          ) : <p className="mt-5 text-sm text-[#927e72]">Cargando la información guardada durante el onboarding...</p>}
           {canEdit ? <Link href="/dashboard/settings" className="mt-6 inline-flex rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar información</Link> : null}
         </div>
       ) : null}
@@ -119,8 +145,13 @@ export function CenterView({ treatments, canEdit }: CenterViewProps) {
   );
 }
 
-function SetupList({ title, description, valueLabel, rows, setRows, canEdit }: { title: string; description: string; valueLabel: string; rows: SetupItem[]; setRows: React.Dispatch<React.SetStateAction<SetupItem[]>>; canEdit: boolean }) {
+function rowsKey(rows: SetupItem[]) {
+  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}`).join("|") || "empty";
+}
+
+function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoading }: { title: string; description: string; valueLabel: string; initialRows: SetupItem[]; canEdit: boolean; isLoading: boolean }) {
   const emptyDraft = { name: "", detail: "", value: "" };
+  const [rows, setRows] = React.useState(initialRows);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState(emptyDraft);
 
@@ -173,7 +204,7 @@ function SetupList({ title, description, valueLabel, rows, setRows, canEdit }: {
         </form>
       ) : null}
 
-      {rows.map((row) => (
+      {rows.length > 0 ? rows.map((row) => (
         <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eadfd8] px-5 py-4 last:border-0">
           <div>
             <p className="font-semibold">{row.name}</p>
@@ -185,7 +216,7 @@ function SetupList({ title, description, valueLabel, rows, setRows, canEdit }: {
             {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}
           </div>
         </div>
-      ))}
+      )) : <p className="px-5 py-4 text-sm text-[#927e72]">{isLoading ? "Cargando datos guardados durante el onboarding..." : "No hay datos guardados para esta sección."}</p>}
     </div>
   );
 }

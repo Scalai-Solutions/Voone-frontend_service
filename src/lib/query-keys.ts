@@ -1,5 +1,6 @@
 export const queryKeys = {
   clinics: () => ["clinics"] as const,
+  currentClinic: () => ["current-clinic"] as const,
   adminMembers: () => ["admin-members"] as const,
   members: () => ["members"] as const,
   member: (memberId: string) => ["member", memberId] as const,
@@ -12,10 +13,12 @@ export const queryKeys = {
   mutations: {
     addMember: () => ["add-member"] as const,
     creditMember: () => ["credit-member"] as const,
+    createPasswordSetupLink: () => ["create-password-setup-link"] as const,
     provisionClinic: () => ["provision-clinic"] as const,
     saveAdminTemplate: () => ["save-admin-template"] as const,
     saveAdminVooneTemplate: () => ["save-admin-voone-template"] as const,
     saveTemplate: () => ["save-template"] as const,
+    sendMemberPassEmail: () => ["send-member-pass-email"] as const,
     signUpMember: () => ["sign-up-member"] as const,
   },
 } as const;

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, CreditCard, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -232,6 +232,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   const [step, setStep] = React.useState(0);
   const [values, setValues] = React.useState<OnboardingValues>(() => firstTemplateValues(presets, templateOptions));
   const [status, setStatus] = React.useState<string | null>(null);
+  const [setupLinkCopied, setSetupLinkCopied] = React.useState(false);
   const selectedTemplate = templateOptions.find((template) => template.id === values.vooneTemplateId);
   const selectedPreset = presets.find((preset) => preset.id === values.presetId) ?? presets[0];
   const templateEdited = Boolean(
@@ -248,6 +249,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   const provisionMutation = useProvisionClinic({
     onSuccess: () => {
       setStatus("Clinic created. Continue with the generated Wallet pass and QR setup.");
+      setSetupLinkCopied(false);
     },
     onError: (error) => {
       const detail = error instanceof Error && "detail" in error ? (error as ApiError).detail : undefined;
@@ -358,6 +360,17 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
     });
   }
 
+  async function copySetupLink() {
+    const setupUrl = provisionMutation.data?.onboardingCredentials?.setupUrl;
+
+    if (!setupUrl) return;
+
+    await navigator.clipboard.writeText(setupUrl);
+    setSetupLinkCopied(true);
+  }
+
+  const setupUrl = provisionMutation.data?.onboardingCredentials?.setupUrl;
+
   return (
     <section className="mx-auto min-h-[650px] max-w-[1180px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] lg:grid lg:grid-cols-[1.02fr_0.98fr]">
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
@@ -373,6 +386,15 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
 
         <div className="mt-8 border-t border-[#eadfd8] pt-5">
           {status ? <p className={`mb-4 text-sm ${status.startsWith("Clinic created") ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
+          {setupUrl ? (
+            <div className="mb-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Client password setup link</p>
+              <code className="mt-2 block break-all rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#2e2421]">{setupUrl}</code>
+              <Button type="button" variant="outline" onClick={copySetupLink} className="mt-3 rounded-xl">
+                <Copy className="mr-2 h-4 w-4" /> {setupLinkCopied ? "Copied" : "Copy setup link"}
+              </Button>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3">
             <Button type="button" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="rounded-xl">Previous</Button>
             {step < steps.length - 1 ? <Button type="button" onClick={next} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continue <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Creating..." : "Create clinic"}<Check className="ml-2 h-4 w-4" /></Button>}

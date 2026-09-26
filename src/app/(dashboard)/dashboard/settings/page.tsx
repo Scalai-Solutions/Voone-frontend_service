@@ -4,30 +4,34 @@ import { RolePermissionsManager } from "@/components/dashboard/role-permissions-
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import { getClinicSignupUrl } from "@/lib/app-url";
 import { getCurrentSession } from "@/lib/auth";
+import { getCurrentStaffClinic } from "@/lib/current-clinic";
+import { formatRole } from "@/lib/roles";
 
-const accountFields = [
-  { label: "Nombre", value: "Usuario Voone" },
-  { label: "Email", value: "owner@voone.ai" },
-  { label: "Rol", value: "Propietario" },
-  { label: "Zona horaria", value: "Europe/Madrid" },
-];
+const ownerFor = (clinic: Awaited<ReturnType<typeof getCurrentStaffClinic>>) =>
+  clinic.users.find((user) => user.role.toUpperCase() === "OWNER") ?? clinic.users[0];
 
-const clinicFields = [
-  { label: "Nombre del centro", value: "Clínica Aurea" },
-  { label: "Propietaria", value: "Ana López" },
-  { label: "Dirección", value: "Calle Serrano 42, 28001 Madrid" },
-  { label: "Teléfono", value: "+34 910 240 118" },
-  { label: "Email", value: "hola@clinicaaurea.com" },
-  { label: "Ubicación", value: "Madrid, España" },
-  { label: "Plan", value: "Aura" },
-  { label: "Facturación", value: "Tarjeta Visa terminada en 4242 · Renovación mensual" },
-  { label: "Cliente de Voone desde", value: "Marzo de 2024" },
-  { label: "Plantilla predeterminada", value: "Gold Beauty Club" },
-];
+const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
 export default async function SettingsPage() {
-  const session = await getCurrentSession();
+  const [session, clinic] = await Promise.all([getCurrentSession(), getCurrentStaffClinic()]);
   const signupUrl = session?.clinicSlug ? await getClinicSignupUrl(session.clinicSlug) : null;
+  const owner = ownerFor(clinic);
+  const accountFields = [
+    { label: "Nombre", value: session?.name ?? owner?.email ?? "Sin nombre guardado" },
+    { label: "Email", value: owner?.email ?? "Sin email guardado" },
+    { label: "Rol", value: session ? formatRole(session.role) : "Sin rol guardado" },
+  ];
+  const clinicFields = [
+    { label: "Nombre del centro", value: clinic.name },
+    { label: "Propietaria", value: owner?.email ?? "Sin propietario guardado" },
+    { label: "Dirección", value: clinic.addressLine },
+    { label: "Código postal", value: clinic.pincode },
+    { label: "Identificador público", value: clinic.slug },
+    { label: "Plan", value: clinic.voonePlan },
+    { label: "Miembros activos", value: formatNumber(clinic.members) },
+    { label: "Plantilla predeterminada", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
+  ];
 
   return (
     <section className="text-[#2e2421]">
@@ -73,7 +77,7 @@ export default async function SettingsPage() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSection eyebrow="Facturación" title="Plan y pagos" icon={CreditCard}>
-              <p className="text-sm leading-6 text-[#806d63]">Plan Aura activo. 24 mensajes manuales disponibles de 30 este mes.</p>
+              <p className="text-sm leading-6 text-[#806d63]">Plan {clinic.voonePlan} activo. {formatNumber(clinic.notificationsRemainingThisMonth)} mensajes manuales disponibles de {formatNumber(clinic.notificationsMonthlyQuota)} este mes.</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Gestionar plan</button>
                 <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Método de pago</button>

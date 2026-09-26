@@ -204,12 +204,29 @@ export interface Member {
   id: string;
   name: string;
   identity: string;
+  email?: string | null;
   templateId: string;
   templateName: string;
   points: number;
   tier: string;
   walletStatus: Record<WalletProvider, ProviderStatus>;
   history: Array<{ id: string; label: string; points: number; date: string }>;
+}
+
+export interface MemberPassWallet {
+  addToWalletUrl: string | null;
+  code: string | null;
+  passes: Record<WalletProvider, { available: boolean; url: string | null }>;
+}
+
+export interface StaffMemberPassResult {
+  member: Member;
+  wallet: MemberPassWallet;
+}
+
+export interface SendMemberPassEmailResult {
+  status: "sent";
+  email: string;
 }
 
 export interface Treatment {
@@ -237,6 +254,8 @@ export interface Clinic {
   users: Array<{ id: string; email: string; role: string }>;
   onboardingCredentials?: {
     email: string;
+    setupUrl?: string | null;
+    setupTokenExpiresAt?: string | null;
     generatedAt?: string | null;
     sentAt?: string | null;
     hasPassword: boolean;
@@ -388,13 +407,6 @@ const mockMembers: Member[] = [
       },
     ],
   },
-];
-
-const mockTreatments: Treatment[] = [
-  { id: "hydrafacial", name: "Hydrafacial", points: 120 },
-  { id: "laser", name: "Sesión láser", points: 220 },
-  { id: "consult", name: "Consulta", points: 60 },
-  { id: "peel", name: "Peeling", points: 90 },
 ];
 
 const mockClinics: Clinic[] = [];
@@ -596,7 +608,7 @@ export function saveAdminVooneTemplate(
 }
 
 export function getMembers() {
-  return withMockFallback(() => apiFetch<Member[]>("/v1/members"), mockMembers);
+  return staffProxyFetch<Member[]>("/members", { method: "GET" });
 }
 
 export function getAdminMembers() {
@@ -641,10 +653,7 @@ export function createMember(input: CreateMemberInput) {
 }
 
 export function getTreatments() {
-  return withMockFallback(
-    () => apiFetch<Treatment[]>("/v1/points/treatments"),
-    mockTreatments,
-  );
+  return getCurrentClinic().then((clinic) => clinic.treatments ?? []);
 }
 
 export function creditMember(
@@ -653,30 +662,16 @@ export function creditMember(
   label: string,
   referralCode?: string,
 ) {
-  const member =
-    mockMembers.find((item) => item.id === memberId) ?? mockMembers[0];
-  const fallback: Member = {
-    ...member,
-    points: member.points + points,
-    history: [
-      {
-        id: "optimistic",
-        label,
-        points,
-        date: new Date().toISOString().slice(0, 10),
-      },
-      ...member.history,
-    ],
-  };
+  return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}/points`, {
+    method: "POST",
+    body: JSON.stringify({ points, label, referralCode }),
+  });
+}
 
-  return withMockFallback(
-    () =>
-      apiFetch<Member>(`/v1/members/${memberId}/points`, {
-        method: "POST",
-        body: JSON.stringify({ points, label, referralCode }),
-      }),
-    fallback,
-  );
+export function lookupMemberByWalletCode(code: string) {
+  return staffProxyFetch<Member>(`/members/lookup?code=${encodeURIComponent(code)}`, {
+    method: "GET",
+  });
 }
 
 export function getDashboardOverview() {
@@ -703,6 +698,10 @@ export function getDashboardOverview() {
 
 export function getClinics() {
   return adminProxyFetch<Clinic[]>("/clinics");
+}
+
+export function getCurrentClinic() {
+  return staffProxyFetch<Clinic>("/clinic", { method: "GET" });
 }
 
 export function getClinic(clinicId: string) {
@@ -830,16 +829,23 @@ export async function signUpMember(slug: string, input: MembershipSignupInput) {
  */
 export async function addMemberAsStaff(input: {
   name: string;
-  phone: string;
-  email?: string;
+  email: string;
+  phone?: string;
 }) {
   // No clinic argument: the route handler takes it from the session, so a signed-in member
   // of one clinic cannot enrol someone into another. consentMarketing and consentSource are
   // set there too, for the same reason — a caller must not describe its own provenance.
-  return staffProxyFetch<{ status: "ok" }>("/members", {
+  return staffProxyFetch<StaffMemberPassResult>("/members", {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function sendMemberPassEmail(memberId: string) {
+  return staffProxyFetch<SendMemberPassEmailResult>(
+    `/members/${encodeURIComponent(memberId)}/pass/email`,
+    { method: "POST" },
+  );
 }
 
 // --- Clinic provisioning ---------------------------------------------------------------
@@ -882,6 +888,12 @@ export interface ProvisionedClinic {
     programName: string;
     hexBackgroundColor: string;
     status: string;
+  };
+  onboardingCredentials?: {
+    email: string;
+    setupUrl: string;
+    setupTokenExpiresAt: string;
+    hasPassword: boolean;
   };
 }
 

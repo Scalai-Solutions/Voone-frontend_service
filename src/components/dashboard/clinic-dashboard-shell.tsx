@@ -31,10 +31,12 @@ const ICONS: Record<ClinicShellIcon, LucideIcon> = {
 
 export function ClinicDashboardShell({
   session,
+  clinicName,
   navItems,
   children,
 }: {
   session: VooneSession;
+  clinicName: string;
   navItems: ClinicShellNavItem[];
   children: React.ReactNode;
 }) {
@@ -112,7 +114,7 @@ export function ClinicDashboardShell({
             <div ref={profileMenuRef} className="relative flex items-center gap-2 rounded-full border border-[#ded2cb] bg-white/70 p-1.5 shadow-[0_14px_40px_-34px_rgba(67,48,43,0.72)] backdrop-blur-xl">
               <Link href="/dashboard/settings" className="rounded-full px-3 py-2 text-left transition hover:bg-white" aria-label="Abrir perfil">
                 <p className="text-xs font-semibold leading-4">{session.name}</p>
-                <p className="text-[10px] leading-4 text-[#8c7870]">Perfil · Clínica Aurea</p>
+                <p className="text-[10px] leading-4 text-[#8c7870]">Perfil · {clinicName}</p>
               </Link>
               <button type="button" onClick={() => setProfileOpen((open) => !open)} className="rounded-full border border-[#e4d8d1] bg-[#fbf8f6] p-2.5 text-[#8e4d41]" aria-label="Abrir ajustes de perfil" aria-expanded={profileOpen}>
                 <Settings className="h-4 w-4" />

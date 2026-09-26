@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { CircleHelp, QrCode, ScanLine, Sparkles, WalletCards } from "lucide-react";
 
-import type { DashboardOverview, Template } from "@/lib/api-client";
+import type { Clinic, DashboardOverview } from "@/lib/api-client";
 
 const reveal = {
   hidden: { opacity: 0, y: 18 },
@@ -20,10 +20,12 @@ function getTimeGreeting() {
   return "Buenas noches";
 }
 
-export function DashboardMotion({ overview, primaryTemplate }: { overview: DashboardOverview; primaryTemplate: Template }) {
+export function DashboardMotion({ overview, clinic }: { overview: DashboardOverview; clinic: Clinic }) {
   const reducedMotion = useReducedMotion();
   const transition = reducedMotion ? { duration: 0 } : { duration: 0.62, ease: [0.16, 1, 0.3, 1] as const };
   const greeting = React.useMemo(() => getTimeGreeting(), []);
+  const firstClinicName = clinic.name.split(/\s+/)[0] ?? clinic.name;
+  const templateName = clinic.template?.programName ?? "Voone Club";
 
   return (
     <motion.section initial="hidden" animate="visible" variants={reveal} transition={transition} className="relative min-h-[calc(100vh-11.5rem)] overflow-hidden rounded-[30px] bg-[#211918] px-6 py-6 text-[#fff8f2] shadow-[0_20px_60px_rgba(67,42,30,0.14)] sm:px-10 lg:px-14 lg:py-7">
@@ -33,14 +35,14 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
           <p className="mb-6 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#d6a979]"><span className="h-px w-8 bg-[#d6a979]" /> Tu club, más cerca</p>
           <h1 className="max-w-[640px] font-serif text-5xl font-semibold leading-[0.98] tracking-[-0.03em] text-[#fff9f5] sm:text-6xl lg:text-[62px]">
             {greeting},<br />
-            <span className="text-[#dfb88c]">Aurea.</span> Bienvenida<br />
+            <span className="text-[#dfb88c]">{firstClinicName}.</span> Bienvenida<br />
             de nuevo.
           </h1>
-          <p className="mt-6 max-w-[540px] text-base leading-7 text-[#c9bbb3]">Gestiona tu comunidad de belleza con una experiencia que se siente tan especial como tu marca.</p>
+          <p className="mt-6 max-w-[540px] text-base leading-7 text-[#c9bbb3]">Gestiona la comunidad de {clinic.name} con una experiencia que se siente tan especial como tu marca.</p>
 
           <div className="mt-7 grid max-w-[500px] grid-cols-1 gap-3 sm:grid-cols-2">
-            <Metric label="Miembros activos" value={overview.activeMembers.toLocaleString("es-ES")} detail="+12% este mes" />
-            <Metric label="Ingresos generados" value={`$${overview.pointsIssuedThisMonth.toLocaleString("es-ES")}`} detail="+8.4% este mes" />
+            <Metric label="Miembros activos" value={overview.activeMembers.toLocaleString("es-ES")} detail="Registrados en backend" />
+            <Metric label="Ingresos generados" value={`$${overview.pointsIssuedThisMonth.toLocaleString("es-ES")}`} detail="Valor provisional" />
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -61,7 +63,7 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
             <p className="mt-1 leading-4 text-[#bfaea5]">Tus clientes vuelven por más.</p>
           </div>
           <div className="absolute h-[330px] w-[330px] rounded-full border border-[#d6a979]/20 bg-[#a37a5c]/10 sm:h-[410px] sm:w-[410px]" />
-          <PhoneWallet templateName={primaryTemplate?.programName ?? primaryTemplate?.name ?? "Aura Club"} />
+          <PhoneWallet clinicName={clinic.name} templateName={templateName} />
         </div>
       </div>
       <Link href="/dashboard/scan" className="absolute left-1/2 top-1/2 hidden h-[88px] w-[88px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[5px] border-[#211918] bg-[#f1d6bd] text-[#402d26] shadow-[0_10px_34px_rgba(241,214,189,0.32)] transition hover:scale-110 lg:flex" aria-label="Escanear código QR">
@@ -71,7 +73,7 @@ export function DashboardMotion({ overview, primaryTemplate }: { overview: Dashb
   );
 }
 
-function PhoneWallet({ templateName }: { templateName: string }) {
+function PhoneWallet({ clinicName, templateName }: { clinicName: string; templateName: string }) {
   return (
     <div className="group relative flex h-[355px] w-[185px] shrink-0 rotate-[7deg] items-center justify-center rounded-[34px] border-[7px] border-[#24201f] bg-[#161313] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.4)] transition duration-500 hover:-translate-y-4 hover:rotate-[-2deg] hover:scale-[1.04] sm:h-[400px] sm:w-[210px]">
       <div className="absolute left-1/2 top-1 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-[#171414]" />
@@ -80,7 +82,7 @@ function PhoneWallet({ templateName }: { templateName: string }) {
         <div className="mx-3 flex flex-1 flex-col justify-between rounded-[20px] bg-gradient-to-br from-[#49372f] via-[#765847] to-[#b69b80] p-4 text-[#fff8f1] shadow-lg">
           <div className="flex items-start justify-between">
             <div>
-              <div className="mb-1 flex items-center gap-1 text-[8px] uppercase tracking-[0.22em] opacity-80"><Sparkles size={9} /> Aurea beauty</div>
+              <div className="mb-1 flex items-center gap-1 text-[8px] uppercase tracking-[0.22em] opacity-80"><Sparkles size={9} /> {clinicName}</div>
               <div className="font-serif text-[15px]">{templateName}</div>
             </div>
             <WalletCards size={13} />
@@ -94,7 +96,7 @@ function PhoneWallet({ templateName }: { templateName: string }) {
             </div>
           </div>
         </div>
-        <div className="px-4 py-4 text-center"><p className="text-[10px] font-semibold text-[#3e302b]">Aurea Beauty Studio</p><p className="mt-1 text-[8px] text-[#8d7569]">3.840 puntos disponibles</p></div>
+        <div className="px-4 py-4 text-center"><p className="text-[10px] font-semibold text-[#3e302b]">{clinicName}</p><p className="mt-1 text-[8px] text-[#8d7569]">Saldo de puntos disponible</p></div>
       </div>
     </div>
   );

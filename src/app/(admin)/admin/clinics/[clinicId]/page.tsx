@@ -103,7 +103,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
           ) : <p className="mt-5 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4 text-sm text-[#806d63]">No selected template for this clinic yet.</p>}
         </div>
 
-        <ClinicCredentialsActions clinicId={clinic.id} email={clinic.onboardingCredentials?.email} generatedAt={clinic.onboardingCredentials?.generatedAt} sentAt={clinic.onboardingCredentials?.sentAt} hasPassword={clinic.onboardingCredentials?.hasPassword} />
+        <ClinicCredentialsActions clinicId={clinic.id} email={clinic.onboardingCredentials?.email} setupUrl={clinic.onboardingCredentials?.setupUrl} setupTokenExpiresAt={clinic.onboardingCredentials?.setupTokenExpiresAt} generatedAt={clinic.onboardingCredentials?.generatedAt} sentAt={clinic.onboardingCredentials?.sentAt} hasPassword={clinic.onboardingCredentials?.hasPassword} />
       </section>
 
       <section className="space-y-4">
