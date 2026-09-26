@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMember } from "@/features/members/api/useMember";
 import { type Member } from "@/lib/api-client";
@@ -20,11 +21,16 @@ export function MemberDetail({ memberId }: { memberId: string }) {
   const [manualReason, setManualReason] = useState("");
   const [notice, setNotice] = useState("");
   const member = useMember(memberId);
+  const adjustmentKeyRef = useRef<string | null>(null);
+
   const manualPointsMutation = useCreditMember({
     onError: () => {
       setNotice("No se pudieron añadir los puntos. Inténtalo de nuevo.");
     },
     onSuccess: (updatedMember) => {
+      // Retired once spent, so a second and genuinely different adjustment is not
+      // mistaken for a duplicate of the first.
+      adjustmentKeyRef.current = null;
       queryClient.setQueryData<Member>(queryKeys.member(memberId), updatedMember);
       setManualPoints("");
       setManualReason("");
@@ -46,7 +52,15 @@ export function MemberDetail({ memberId }: { memberId: string }) {
       return;
     }
 
-    manualPointsMutation.mutate({ memberId, points, label: `Ajuste manual: ${reason}` });
+    // Same attempt on a retry, a new one after a success.
+    adjustmentKeyRef.current ??= newIdempotencyKey();
+
+    manualPointsMutation.mutate({
+      memberId,
+      points,
+      label: `Ajuste manual: ${reason}`,
+      idempotencyKey: adjustmentKeyRef.current,
+    });
   }
 
   return (

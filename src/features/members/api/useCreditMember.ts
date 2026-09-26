@@ -8,6 +8,11 @@ type CreditMemberInput = {
   points: number;
   label: string;
   referralCode?: string;
+  /**
+   * Stable across retries of the same credit. Required rather than optional so a call
+   * site cannot omit it and silently lose the double-credit guard.
+   */
+  idempotencyKey: string;
 };
 
 type UseCreditMemberOptions = Omit<
@@ -20,8 +25,8 @@ export function useCreditMember(options?: UseCreditMemberOptions) {
 
   return useMutation({
     mutationKey: queryKeys.mutations.creditMember(),
-    mutationFn: ({ memberId, points, label, referralCode }) =>
-      creditMember(memberId, points, label, referralCode),
+    mutationFn: ({ memberId, points, label, referralCode, idempotencyKey }) =>
+      creditMember(memberId, points, label, { idempotencyKey, referralCode }),
     ...options,
     onSuccess: (data, variables, onMutateResult, context) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.members() });
