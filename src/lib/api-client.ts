@@ -661,16 +661,38 @@ export function getTreatments() {
   return getCurrentClinic().then((clinic) => clinic.treatments ?? []);
 }
 
+/**
+ * Credits a member, exactly once.
+ *
+ * `idempotencyKey` is REQUIRED and must be minted by the caller. That is the whole
+ * mechanism: the backend rejects a second movement carrying a key it has already seen,
+ * so the key has to be stable across retries of the SAME credit. A key generated here —
+ * or server-side in the route handler, which is what it used to do — is different on
+ * every attempt, which does not merely fail to prevent double-crediting: it guarantees
+ * it, because the one signal the guard relies on is destroyed before the request leaves.
+ *
+ * Callers mint one when the operation begins and keep it until that operation succeeds.
+ */
 export function creditMember(
   memberId: string,
   points: number,
   label: string,
-  referralCode?: string,
+  options: { idempotencyKey: string; referralCode?: string },
 ) {
   return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}/points`, {
     method: "POST",
-    body: JSON.stringify({ points, label, referralCode }),
+    body: JSON.stringify({
+      points,
+      label,
+      referralCode: options.referralCode,
+      idempotencyKey: options.idempotencyKey,
+    }),
   });
+}
+
+/** A key for one credit attempt. */
+export function newIdempotencyKey(): string {
+  return crypto.randomUUID();
 }
 
 export function lookupMemberByWalletCode(code: string) {

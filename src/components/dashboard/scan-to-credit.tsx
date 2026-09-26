@@ -4,6 +4,7 @@ import * as React from "react";
 import { ArrowLeft, CheckCircle2, QrCode, ScanLine, Search, X } from "lucide-react";
 import { motion } from "motion/react";
 
+import { newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMembers } from "@/features/members/api/useMembers";
 import { useTreatments } from "@/features/treatments/api/useTreatments";
@@ -64,6 +65,8 @@ export function ScanToCredit() {
     );
   }, [treatmentSearch, treatments.data]);
 
+  const creditKeyRef = React.useRef<string | null>(null);
+
   const confirmMutation = useCreditMember({
     onError: (error) => {
       setNotice(
@@ -105,6 +108,7 @@ export function ScanToCredit() {
     scannerControlsRef.current = null;
     selectedMemberRef.current = null;
     lastScanRef.current = "";
+    creditKeyRef.current = null;
     setSelectedMember(null);
     setSelectedTreatmentIds([]);
     setTreatmentSearch("");
@@ -219,11 +223,17 @@ export function ScanToCredit() {
 
     const label = selectedTreatments.map((treatment) => treatment.name).join(" + ").slice(0, 120);
 
+    // Minted once per credit attempt and reused on every retry, which is what makes the
+    // backend's guard work: a fresh key each time would let a double tap, or a retry
+    // after a timeout, credit the member twice. Cleared by resetScan once it lands.
+    creditKeyRef.current ??= newIdempotencyKey();
+
     confirmMutation.mutate({
       memberId: selectedMember.id,
       points: selectedTreatmentPoints,
       label,
       referralCode: referralCode || undefined,
+      idempotencyKey: creditKeyRef.current,
     });
   }
 
