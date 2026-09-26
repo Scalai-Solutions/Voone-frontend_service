@@ -836,14 +836,39 @@ export async function getPublicClinic(slug: string) {
  * response as a new one. The backend deliberately makes the two indistinguishable, so there
  * is nothing here to branch on and nothing to report back beyond success.
  */
+/**
+ * `claimToken` comes back ONLY when the member was newly created.
+ *
+ * Its absence is the answer for a number that is already a member, and it is deliberate
+ * rather than an error: handing a pass to whoever typed the number would give a stranger
+ * that member's name and points. So the confirmation screen must treat "no token" as a
+ * normal outcome and say something sensible, not retry or complain.
+ */
 export async function signUpMember(slug: string, input: MembershipSignupInput) {
-  return apiFetch<{ status: "ok" }>(
+  return apiFetch<{ status: "ok"; claimToken?: string }>(
     `/v1/clinics/${encodeURIComponent(slug)}/members`,
     {
       method: "POST",
       body: JSON.stringify(input),
     },
   );
+}
+
+/**
+ * Where the browser exchanges a claim for the pass.
+ *
+ * Built against the API origin rather than this app's, because the endpoint is public
+ * and served by the backend — the member's phone fetches it directly, with the token as
+ * the only authorisation.
+ */
+export function passClaimUrl(claimToken: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_VOONE_API_URL;
+
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_VOONE_API_URL is not configured");
+  }
+
+  return `${baseUrl.replace(/\/$/, "")}/v1/pass-claims/${encodeURIComponent(claimToken)}`;
 }
 
 /**
