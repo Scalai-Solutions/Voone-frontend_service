@@ -286,7 +286,7 @@ export function ScanToCredit() {
           className={selectedMember ? "fixed inset-x-0 bottom-0 top-[104px] z-50 overflow-y-auto bg-[#211918]/30 p-0 backdrop-blur-[2px] sm:top-[112px]" : "space-y-4"}
         >
           {selectedMember ? (
-            <div className="ml-auto flex min-h-full w-full max-w-[640px] flex-col border-l border-[#ddcec3] bg-[#f6f1ed] px-4 pb-28 pt-4 shadow-[-24px_0_70px_rgba(34,24,20,0.2)] sm:px-7 sm:pt-6">
+            <div className="ml-auto flex min-h-full w-full max-w-[640px] flex-col border-l border-[#ddcec3] bg-[#f6f1ed] px-4 pb-4 pt-4 shadow-[-24px_0_70px_rgba(34,24,20,0.2)] sm:px-7 sm:pb-6 sm:pt-6">
               <div className="mb-6 flex items-center justify-between gap-3">
                 <button type="button" onClick={() => resetScan()} className="inline-flex h-11 items-center gap-2 rounded-full border border-[#d8c8bd] bg-white px-4 text-sm font-semibold text-[#493832] shadow-sm transition hover:bg-[#fffaf6]">
                   <ArrowLeft className="h-4 w-4" /> Volver a escanear
@@ -359,7 +359,7 @@ export function ScanToCredit() {
               </div>
 
               {selectedTreatments.length > 0 ? (
-                <div className="fixed bottom-0 right-0 z-[60] w-full max-w-[640px] border-t border-[#d8c8bd] bg-[#f6f1ed]/95 p-4 backdrop-blur sm:px-7">
+                <div className="mt-auto pt-5">
                   <button type="button" onClick={handleCredit} disabled={confirmMutation.isPending} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#161211] px-5 py-4 text-sm font-bold text-white shadow-[0_18px_44px_rgba(22,18,17,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55">
                     <CheckCircle2 size={18} /> {confirmMutation.isPending ? "Guardando puntos..." : `Añadir ${selectedTreatmentPoints.toLocaleString("es-ES")} puntos`}
                   </button>
