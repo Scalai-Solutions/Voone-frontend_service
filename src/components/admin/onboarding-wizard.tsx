@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -228,6 +229,7 @@ const tierRewardsPayload = (values: OnboardingValues) =>
     .filter((tier) => tier.name.length > 0);
 
 export function OnboardingWizard({ presets, templates }: { presets: TemplatePreset[]; templates: VooneTemplate[] }) {
+  const router = useRouter();
   const templateOptions = templateOptionsFor(presets, templates);
   const [step, setStep] = React.useState(0);
   const [values, setValues] = React.useState<OnboardingValues>(() => firstTemplateValues(presets, templateOptions));
@@ -247,9 +249,10 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         values.infoText !== (selectedTemplate.infoText ?? initialValues.infoText)),
   );
   const provisionMutation = useProvisionClinic({
-    onSuccess: () => {
+    onSuccess: (provisionedClinic) => {
       setStatus("Clinic created. Continue with the generated Wallet pass and QR setup.");
       setSetupLinkCopied(false);
+      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}`);
     },
     onError: (error) => {
       const detail = error instanceof Error && "detail" in error ? (error as ApiError).detail : undefined;
