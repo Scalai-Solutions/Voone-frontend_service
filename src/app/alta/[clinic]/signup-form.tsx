@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useSignUpMember } from "@/features/members/api/useSignUpMember";
-import { ApiError, type PublicClinic } from "@/lib/api-client";
+import { ApiError, type PublicClinic, passClaimUrl } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
 
 /**
@@ -69,15 +69,74 @@ const signupSchema = z.object({
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
+/**
+ * The pass, handed over on the phone that just scanned the QR.
+ *
+ * A plain link, not a fetch: Safari recognises the .pkpass content type and opens the
+ * native Add-to-Wallet sheet itself. Fetching the bytes into JavaScript would only get
+ * in the way of that.
+ *
+ * Apple only, for now. The pilot is Apple-first and the claim endpoint issues an Apple
+ * artifact, so an Android member is told the truth rather than handed a file their
+ * phone cannot open.
+ */
+function AddToWallet({ claimToken }: { claimToken: string }) {
+  // Read once, in a lazy initialiser rather than an effect: this component only ever
+  // mounts after the sign-up mutation resolves, which is client-side, so navigator is
+  // there. An effect would set state during mount and cascade a second render for
+  // something that cannot change.
+  //
+  // iPad is excluded deliberately: iPadOS has never had a Wallet app, so a pass cannot
+  // be installed there at all.
+  const [isIphone] = React.useState(
+    () => typeof navigator !== "undefined" && /iPhone|iPod/.test(navigator.userAgent)
+  );
+
+  if (!isIphone) {
+    return (
+      <p className="mt-4 text-sm text-muted-foreground">
+        Tu tarjeta está lista. La versión para Google Wallet llegará muy pronto; mientras
+        tanto, pídela en recepción.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-5">
+      <a
+        href={passClaimUrl(claimToken)}
+        className="inline-flex h-11 items-center justify-center rounded-md bg-foreground px-6 text-sm font-medium text-background"
+      >
+        Añadir a Apple Wallet
+      </a>
+      {/* The window is fifteen minutes, so saying so is kinder than letting it expire
+          silently while the member finishes their appointment. */}
+      <p className="mt-3 text-xs text-muted-foreground">
+        Añádela ahora: este enlace caduca en unos minutos. Si lo pierdes, pídela en
+        recepción.
+      </p>
+    </div>
+  );
+}
+
 export function SignupForm({ clinic }: { clinic: PublicClinic }) {
   const [done, setDone] = React.useState(false);
+  /**
+   * Present only when this submission CREATED the member. A number that was already a
+   * member gets none — that is what stops someone typing a stranger's number and being
+   * handed their card — so null here is a normal outcome, not a failure.
+   */
+  const [claimToken, setClaimToken] = React.useState<string | null>(null);
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: { name: "", phone: "", birthYear: "", sex: "", consentMarketing: false },
   });
 
   const mutation = useSignUpMember(clinic.slug, {
-    onSuccess: () => setDone(true),
+    onSuccess: (result) => {
+      setClaimToken(result.claimToken ?? null);
+      setDone(true);
+    },
   });
 
   const onSubmit = (values: SignupFormValues) => {
@@ -97,13 +156,22 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
           <Check className="h-6 w-6 text-success" aria-hidden />
         </div>
         <h2 className="font-serif text-2xl">Ya eres socia</h2>
-        {/* Deliberately does not promise a pass yet: issuance is a separate step, and a
-            success screen that shows a wallet button which does not work is worse than
-            one that says what actually happens next. */}
         <p className="mt-2 text-sm text-muted-foreground">
-          Te hemos dado de alta en {clinic.template.programName}. Te avisaremos en cuanto tu pase
-          esté listo para añadirlo a tu móvil.
+          Te hemos dado de alta en {clinic.template.programName}.
         </p>
+
+        {claimToken ? (
+          <AddToWallet claimToken={claimToken} />
+        ) : (
+          /* No token means this number was already a member. Said plainly, and pointing
+             at reception rather than at a retry: submitting the form again will not
+             produce a card, by design. */
+          <p className="mt-4 text-sm text-muted-foreground">
+            Ya estabas en el programa, así que tu tarjeta sigue siendo la misma. Si no la
+            encuentras en tu móvil, pídela en recepción.
+          </p>
+        )}
+
         <p className="mt-4 text-xs text-muted-foreground">{clinic.template.infoText}</p>
       </div>
     );
