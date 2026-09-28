@@ -12,7 +12,21 @@ import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic
 import { type ApiError, type TemplatePreset, type VooneTemplate, type VooneTemplateButton, type VooneTemplateTextModule } from "@/lib/api-client";
 
 const steps = ["Owner", "Center", "Program", "Pass"];
-const defaultTierNames = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"];
+/**
+ * A working ladder, not five names. A clinic that changes nothing still gets a
+ * programme that ranks members — before this, tiers had no points and nothing could
+ * decide which one anybody was in.
+ *
+ * The spacing widens as the tiers climb, which is the shape loyalty programmes usually
+ * take: Silver should feel reachable and Diamond should not.
+ */
+const defaultTiers: TierRewardDraft[] = [
+  { name: "Bronze", rewardText: "", minLifetimePoints: "0", milestoneCount: "5", pointsToNextMilestone: "200" },
+  { name: "Silver", rewardText: "", minLifetimePoints: "1000", milestoneCount: "5", pointsToNextMilestone: "400" },
+  { name: "Gold", rewardText: "", minLifetimePoints: "3000", milestoneCount: "5", pointsToNextMilestone: "800" },
+  { name: "Platinum", rewardText: "", minLifetimePoints: "7000", milestoneCount: "5", pointsToNextMilestone: "1600" },
+  { name: "Diamond", rewardText: "", minLifetimePoints: "15000", milestoneCount: "5", pointsToNextMilestone: "3000" },
+];
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const normalizeSlug = (value: string) =>
@@ -32,6 +46,10 @@ type TreatmentDraft = {
 type TierRewardDraft = {
   name: string;
   rewardText: string;
+  /** Strings because they are bound to inputs; coerced on submit. */
+  minLifetimePoints: string;
+  milestoneCount: string;
+  pointsToNextMilestone: string;
 };
 
 type MilestoneRewardDraft = {
@@ -96,7 +114,7 @@ const initialValues: OnboardingValues = {
   dataConsent: false,
   programName: "",
   treatments: [{ name: "", priceEuro: "" }],
-  tierRewards: defaultTierNames.map((name) => ({ name, rewardText: "" })),
+  tierRewards: defaultTiers.map((tier) => ({ ...tier })),
   milestoneRewards: {
     milestoneCount: "10",
     pointsToNextMilestone: "2000",
@@ -197,6 +215,13 @@ const intOrDefault = (value: string, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+/** Zero is a legitimate floor for the lowest tier, so this cannot reuse intOrDefault. */
+const intOrZero = (value: string) => {
+  const parsed = Number.parseInt(value, 10);
+
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+};
+
 const milestonePayload = (values: OnboardingValues) => ({
   milestoneCount: intOrDefault(values.milestoneRewards.milestoneCount, 10),
   pointsToNextMilestone: intOrDefault(values.milestoneRewards.pointsToNextMilestone, 2000),
@@ -225,8 +250,19 @@ const treatmentsPayload = (values: OnboardingValues) => {
 
 const tierRewardsPayload = (values: OnboardingValues) =>
   values.tierRewards
-    .map((tier) => ({ name: tier.name.trim(), rewardText: tier.rewardText.trim() }))
-    .filter((tier) => tier.name.length > 0);
+    .map((tier) => ({
+      name: tier.name.trim(),
+      rewardText: tier.rewardText.trim(),
+      // A tier without points cannot rank anybody, so an empty box means zero rather
+      // than "unset" — and the backend rejects two tiers sharing a floor, which is how
+      // a clinic finds out it left two blank.
+      minLifetimePoints: intOrZero(tier.minLifetimePoints),
+      milestoneCount: intOrDefault(tier.milestoneCount, 5),
+      pointsToNextMilestone: intOrDefault(tier.pointsToNextMilestone, 200),
+    }))
+    .filter((tier) => tier.name.length > 0)
+    // Sorted so the clinic can type them in any order and still get a sane ladder.
+    .sort((a, b) => a.minLifetimePoints - b.minLifetimePoints);
 
 export function OnboardingWizard({ presets, templates }: { presets: TemplatePreset[]; templates: VooneTemplate[] }) {
   const router = useRouter();
@@ -445,7 +481,7 @@ function ProgramStep({ values, update }: { values: OnboardingValues; update: <Va
     update("milestoneRewards", { ...values.milestoneRewards, [key]: value });
   };
 
-  return <StepContent title="Build the rewards program." detail="Capture the essentials now; the clinic can refine the complete catalog after launch."><div className="grid gap-6"><WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Aurea Beauty Club" /></WizardField><section className="grid gap-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Treatments and prices</p><Button type="button" variant="outline" onClick={() => update("treatments", [...values.treatments, { name: "", priceEuro: "" }])} className="h-9 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add option</Button></div><div className="grid gap-3">{values.treatments.map((treatment, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-[1fr_150px_auto]"><Input aria-label={`Treatment ${index + 1} name`} value={treatment.name} onChange={(event) => updateTreatment(index, { ...treatment, name: event.target.value })} placeholder="Spa" /><Input aria-label={`Treatment ${index + 1} price`} type="number" min="0" value={treatment.priceEuro} onChange={(event) => updateTreatment(index, { ...treatment, priceEuro: event.target.value })} placeholder="120 euro" /><Button type="button" variant="ghost" onClick={() => update("treatments", values.treatments.filter((_, itemIndex) => itemIndex !== index))} disabled={values.treatments.length === 1} aria-label={`Remove treatment ${index + 1}`} className="h-10 rounded-xl"><Trash2 className="h-4 w-4" /></Button></div>)}</div></section><section className="grid gap-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Tier rewards</p><Button type="button" variant="outline" onClick={() => update("tierRewards", [...values.tierRewards, { name: "", rewardText: "" }])} className="h-9 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add tier</Button></div><div className="grid gap-3">{values.tierRewards.map((tier, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-[150px_1fr_auto]"><Input aria-label={`Tier ${index + 1} name`} value={tier.name} onChange={(event) => updateTier(index, { ...tier, name: event.target.value })} placeholder="Bronze" /><Input aria-label={`Tier ${index + 1} reward`} value={tier.rewardText} onChange={(event) => updateTier(index, { ...tier, rewardText: event.target.value })} placeholder="Priority booking, birthday credit" /><Button type="button" variant="ghost" onClick={() => update("tierRewards", values.tierRewards.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove tier ${index + 1}`} className="h-10 rounded-xl"><Trash2 className="h-4 w-4" /></Button></div>)}</div></section><section className="grid gap-3"><p className="text-sm font-semibold">Milestone rewards</p><div className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-2"><WizardField label="Milestones"><Input type="number" min="1" value={values.milestoneRewards.milestoneCount} onChange={(event) => updateMilestone("milestoneCount", event.target.value)} /></WizardField><WizardField label="Points to next milestone"><Input type="number" min="1" value={values.milestoneRewards.pointsToNextMilestone} onChange={(event) => updateMilestone("pointsToNextMilestone", event.target.value)} /></WizardField><WizardField label="Price amount"><Input type="number" min="1" value={values.milestoneRewards.priceAmount} onChange={(event) => updateMilestone("priceAmount", event.target.value)} /></WizardField><WizardField label="Points awarded"><Input type="number" min="1" value={values.milestoneRewards.pointsAwarded} onChange={(event) => updateMilestone("pointsAwarded", event.target.value)} /></WizardField></div></section></div></StepContent>;
+  return <StepContent title="Build the rewards program." detail="Capture the essentials now; the clinic can refine the complete catalog after launch."><div className="grid gap-6"><WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Aurea Beauty Club" /></WizardField><section className="grid gap-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Treatments and prices</p><Button type="button" variant="outline" onClick={() => update("treatments", [...values.treatments, { name: "", priceEuro: "" }])} className="h-9 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add option</Button></div><div className="grid gap-3">{values.treatments.map((treatment, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-[1fr_150px_auto]"><Input aria-label={`Treatment ${index + 1} name`} value={treatment.name} onChange={(event) => updateTreatment(index, { ...treatment, name: event.target.value })} placeholder="Spa" /><Input aria-label={`Treatment ${index + 1} price`} type="number" min="0" value={treatment.priceEuro} onChange={(event) => updateTreatment(index, { ...treatment, priceEuro: event.target.value })} placeholder="120 euro" /><Button type="button" variant="ghost" onClick={() => update("treatments", values.treatments.filter((_, itemIndex) => itemIndex !== index))} disabled={values.treatments.length === 1} aria-label={`Remove treatment ${index + 1}`} className="h-10 rounded-xl"><Trash2 className="h-4 w-4" /></Button></div>)}</div></section><section className="grid gap-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Tier rewards</p><Button type="button" variant="outline" onClick={() => update("tierRewards", [...values.tierRewards, { name: "", rewardText: "", minLifetimePoints: "", milestoneCount: "5", pointsToNextMilestone: "200" }])} className="h-9 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add tier</Button></div><div className="grid gap-3">{values.tierRewards.map((tier, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3"><div className="grid gap-3 sm:grid-cols-[150px_1fr_auto]"><Input aria-label={`Tier ${index + 1} name`} value={tier.name} onChange={(event) => updateTier(index, { ...tier, name: event.target.value })} placeholder="Bronze" /><Input aria-label={`Tier ${index + 1} reward`} value={tier.rewardText} onChange={(event) => updateTier(index, { ...tier, rewardText: event.target.value })} placeholder="Priority booking, birthday credit" /><Button type="button" variant="ghost" onClick={() => update("tierRewards", values.tierRewards.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove tier ${index + 1}`} className="h-10 rounded-xl"><Trash2 className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-3"><WizardField label="Reached at (lifetime points)"><Input aria-label={`Tier ${index + 1} points`} type="number" min="0" value={tier.minLifetimePoints} onChange={(event) => updateTier(index, { ...tier, minLifetimePoints: event.target.value })} placeholder="0" /></WizardField><WizardField label="Milestones in this tier"><Input aria-label={`Tier ${index + 1} milestones`} type="number" min="1" value={tier.milestoneCount} onChange={(event) => updateTier(index, { ...tier, milestoneCount: event.target.value })} /></WizardField><WizardField label="Points between milestones"><Input aria-label={`Tier ${index + 1} milestone spacing`} type="number" min="1" value={tier.pointsToNextMilestone} onChange={(event) => updateTier(index, { ...tier, pointsToNextMilestone: event.target.value })} /></WizardField></div></div>)}</div></section><section className="grid gap-3"><p className="text-sm font-semibold">Milestone rewards</p><div className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-2"><WizardField label="Milestones"><Input type="number" min="1" value={values.milestoneRewards.milestoneCount} onChange={(event) => updateMilestone("milestoneCount", event.target.value)} /></WizardField><WizardField label="Points to next milestone"><Input type="number" min="1" value={values.milestoneRewards.pointsToNextMilestone} onChange={(event) => updateMilestone("pointsToNextMilestone", event.target.value)} /></WizardField><WizardField label="Price amount"><Input type="number" min="1" value={values.milestoneRewards.priceAmount} onChange={(event) => updateMilestone("priceAmount", event.target.value)} /></WizardField><WizardField label="Points awarded"><Input type="number" min="1" value={values.milestoneRewards.pointsAwarded} onChange={(event) => updateMilestone("pointsAwarded", event.target.value)} /></WizardField></div></section></div></StepContent>;
 }
 
 function PassStepEditor({ presets, templates, selectedPreset, selectedTemplate, templateEdited, values, update, selectTemplate }: { presets: TemplatePreset[]; templates: OnboardingTemplateOption[]; selectedPreset: TemplatePreset | undefined; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {

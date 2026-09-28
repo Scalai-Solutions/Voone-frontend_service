@@ -37,6 +37,16 @@ export interface TemplateTreatmentInput {
 export interface TierRewardInput {
   name: string;
   rewardText?: string;
+  /**
+   * Lifetime points at which a member reaches this tier. What makes a tier a tier
+   * rather than a label — without it nothing can decide which one a member is in.
+   */
+  minLifetimePoints: number;
+  /** Reward steps inside this tier, and the points between them. Per tier, not per
+   * clinic: one ladder cannot let Bronze be five steps of 200 while Diamond is ten of
+   * 3000. */
+  milestoneCount: number;
+  pointsToNextMilestone: number;
 }
 
 export interface MilestoneRewardsInput {
