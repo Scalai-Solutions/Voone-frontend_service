@@ -84,7 +84,7 @@ export function ScanToCredit() {
     (value: string) => {
       const normalizedValue = value.trim().toLowerCase();
       return members.data?.find((member) => {
-        return member.id.toLowerCase() === normalizedValue || member.identity.toLowerCase() === normalizedValue || member.name.toLowerCase().includes(normalizedValue);
+        return member.code?.toLowerCase() === normalizedValue || member.id.toLowerCase() === normalizedValue || member.identity.toLowerCase() === normalizedValue || member.name.toLowerCase().includes(normalizedValue);
       });
     },
     [members.data]

@@ -50,7 +50,7 @@ export function MembersTable() {
 
   const tiers = Array.from(new Set(members.data.map((member) => member.tier)));
   const filteredMembers = members.data.filter((member) => {
-    const searchable = `${member.name} ${member.id} ${member.identity} ${member.templateName} ${member.tier}`.toLowerCase();
+    const searchable = `${member.name} ${member.code ?? ""} ${member.id} ${member.identity} ${member.templateName} ${member.tier}`.toLowerCase();
     const matchesSearch = searchable.includes(searchTerm.toLowerCase());
     const matchesTier = tierFilter === "all" || member.tier === tierFilter;
 
@@ -126,7 +126,9 @@ function MemberRow({ member }: { member: Member }) {
     <tr className="border-t border-[#eadfd8]">
       <td className="px-5 py-4">
         <Link href={`/dashboard/members/${member.id}`} className="font-semibold hover:text-[#9b633e]">{member.name}</Link>
-        <p className="mt-1 text-xs text-[#927e72]">{identityIsPhone ? member.id : member.identity}</p>
+        {/* The number on the member's card. Falls back to the old line for members the
+            backfill has not reached — a uuid, which is why the code exists. */}
+        <p className="mt-1 text-xs text-[#927e72]">{member.code ?? (identityIsPhone ? member.id : member.identity)}</p>
       </td>
       <td className="px-5 py-4">{profile.sex}</td>
       <td className="px-5 py-4">{profile.age}</td>
