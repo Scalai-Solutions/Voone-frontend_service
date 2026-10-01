@@ -11,7 +11,7 @@ import { useAdminMembers } from "@/features/members/api/useAdminMembers";
 export function AdminMemberSearch() {
   const [search, setSearch] = React.useState("");
   const members = useAdminMembers();
-  const filtered = members.data?.filter((member) => `${member.name} ${member.id} ${member.identity}`.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const filtered = members.data?.filter((member) => `${member.name} ${member.code ?? ""} ${member.id} ${member.identity}`.toLowerCase().includes(search.toLowerCase())) ?? [];
 
   if (members.isLoading) return <Skeleton className="h-72 w-full" />;
   if (members.error) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar los miembros.</div>;
@@ -35,7 +35,7 @@ export function AdminMemberSearch() {
                 <tr key={member.id}>
                   <td className="px-4 py-3">
                     <Link href={`/dashboard/members/${member.id}`} className="font-medium text-primary hover:underline">{member.name}</Link>
-                    <p className="text-xs text-muted-foreground">{member.id} - {member.identity}</p>
+                    <p className="text-xs text-muted-foreground">{member.code ?? member.id} - {member.identity}</p>
                   </td>
                   <td className="px-4 py-3">{member.templateName}</td>
                   <td className="px-4 py-3">{member.points.toLocaleString()}</td>

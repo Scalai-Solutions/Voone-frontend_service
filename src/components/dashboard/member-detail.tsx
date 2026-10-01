@@ -72,7 +72,10 @@ export function MemberDetail({ memberId }: { memberId: string }) {
         <CardContent className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">ID de miembro</p>
-            <p className="text-lg font-semibold">{member.data.id}</p>
+            {/* The five-character code printed on the member's card. Falls back to the
+                internal id for members the backfill has not reached — a uuid, which is
+                what this field used to show and the reason the code exists. */}
+            <p className="text-lg font-semibold tracking-widest">{member.data.code ?? member.data.id}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Puntos actuales</p>
