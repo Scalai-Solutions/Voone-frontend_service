@@ -213,12 +213,6 @@ const normalizeTemplate = (template: TemplateApiResponse): Template => {
 export interface Member {
   id: string;
   name: string;
-  /**
-   * The five-character number printed on the member's card, which reception asks for.
-   *
-   * Null for members who signed up before the column existed and have not been
-   * backfilled — render the absence rather than substituting the id, which is a uuid.
-   */
   code: string | null;
   identity: string;
   email?: string | null;
@@ -279,6 +273,98 @@ export interface Clinic {
   } | null;
   treatments?: Treatment[];
   template?: AdminClinicTemplate | null;
+}
+
+export type NotificationType = "BROADCAST" | "SEGMENT" | "SINGLE" | "POINTS" | "TIER";
+export type NotificationStatus =
+  | "QUEUED"
+  | "PROCESSING"
+  | "SENT"
+  | "PARTIAL_FAILED"
+  | "FAILED"
+  | "CANCELLED";
+export type NotificationDeliveryStatus = "QUEUED" | "SENT" | "DOWNGRADED" | "FAILED" | "SKIPPED";
+export type NotifyOnCredit = "NEVER" | "MILESTONE_AND_TIER" | "ALWAYS";
+
+export interface NotificationMessageInput {
+  header: string;
+  body: string;
+  actionUrl?: string;
+  notify: boolean;
+  scheduledAt?: string;
+}
+
+export interface NotificationSegmentInput {
+  tier?: string;
+  inactiveDays?: number;
+  lastVisitBefore?: string;
+  categoryNotVisited?: string;
+}
+
+export interface SegmentNotificationInput extends NotificationMessageInput {
+  segment: NotificationSegmentInput;
+}
+
+export interface NotificationSummary {
+  id: string;
+  clinicId: string;
+  type: NotificationType;
+  header: string;
+  body: string;
+  actionUrl?: string | null;
+  notify: boolean;
+  segmentJson?: unknown;
+  status: NotificationStatus;
+  scheduledAt?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  providerMessageId?: string | null;
+}
+
+export interface NotificationCounts {
+  total: number;
+  sent: number;
+  downgraded: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface NotificationCreatedResponse {
+  notificationId: string;
+  status: NotificationStatus;
+}
+
+export interface NotificationListResponse {
+  items: NotificationSummary[];
+  nextCursor: string | null;
+}
+
+export interface NotificationStatusResponse {
+  notification: NotificationSummary;
+  counts: NotificationCounts;
+}
+
+export interface NotificationQuotaResponse {
+  used: number;
+  remaining: number;
+  resetsAt: string | null;
+}
+
+export interface NotificationSettings {
+  notifyOnCredit: NotifyOnCredit;
+  marketingEnabled: boolean;
+}
+
+export interface ClinicGeoLocation {
+  id?: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ClinicGeoLocationsResponse {
+  locations: ClinicGeoLocation[];
+  note: string;
 }
 
 export interface WalletInfrastructure {
@@ -373,7 +459,7 @@ const mockMembers: Member[] = [
   {
     id: "MEM-1048",
     name: "Veronica Navarro",
-    code: "K7M2Q",
+    code: "A7K9Q",
     identity: "+34 612 440 901",
     templateId: "gold-beauty",
     templateName: "Gold Beauty Club",
@@ -391,7 +477,7 @@ const mockMembers: Member[] = [
   {
     id: "MEM-2033",
     name: "Mateo Ruiz",
-    code: "T4XBN",
+    code: "M4T2O",
     identity: "mateo@example.com",
     templateId: "diamond-skin",
     templateName: "Diamond Skin Plan",
@@ -408,7 +494,7 @@ const mockMembers: Member[] = [
   {
     id: "MEM-3110",
     name: "Lucia Gomez",
-    code: "W9HDR",
+    code: "L9C3A",
     identity: "+34 699 120 441",
     templateId: "gold-beauty",
     templateName: "Gold Beauty Club",
@@ -627,6 +713,117 @@ export function saveAdminVooneTemplate(
   );
 }
 
+export function broadcastNotification(
+  clinicId: string,
+  input: NotificationMessageInput,
+  idempotencyKey?: string,
+) {
+  return staffProxyFetch<NotificationCreatedResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/notifications/broadcast`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    },
+  );
+}
+
+export function sendSegmentNotification(
+  clinicId: string,
+  input: SegmentNotificationInput,
+  idempotencyKey?: string,
+) {
+  return staffProxyFetch<NotificationCreatedResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/notifications/segment`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    },
+  );
+}
+
+export function sendMemberNotification(
+  memberId: string,
+  input: Omit<NotificationMessageInput, "scheduledAt">,
+  idempotencyKey?: string,
+) {
+  return staffProxyFetch<NotificationCreatedResponse>(
+    `/members/${encodeURIComponent(memberId)}/notifications`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    },
+  );
+}
+
+export function getNotifications(
+  clinicId: string,
+  filters: { status?: NotificationStatus; type?: NotificationType; cursor?: string } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (filters.status) params.set("status", filters.status);
+  if (filters.type) params.set("type", filters.type);
+  if (filters.cursor) params.set("cursor", filters.cursor);
+
+  const query = params.toString();
+
+  return staffProxyFetch<NotificationListResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/notifications${query ? `?${query}` : ""}`,
+    { method: "GET" },
+  );
+}
+
+export function getNotification(notificationId: string) {
+  return staffProxyFetch<NotificationStatusResponse>(
+    `/notifications/${encodeURIComponent(notificationId)}`,
+    { method: "GET" },
+  );
+}
+
+export function deleteNotification(notificationId: string) {
+  return staffProxyFetch<void>(`/notifications/${encodeURIComponent(notificationId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function getMemberNotificationQuota(memberId: string) {
+  return staffProxyFetch<NotificationQuotaResponse>(
+    `/members/${encodeURIComponent(memberId)}/notification-quota`,
+    { method: "GET" },
+  );
+}
+
+export function getNotificationSettings(clinicId: string) {
+  return staffProxyFetch<NotificationSettings>(
+    `/clinics/${encodeURIComponent(clinicId)}/notification-settings`,
+    { method: "GET" },
+  );
+}
+
+export function saveNotificationSettings(clinicId: string, input: NotificationSettings) {
+  return staffProxyFetch<NotificationSettings>(
+    `/clinics/${encodeURIComponent(clinicId)}/notification-settings`,
+    { method: "PUT", body: JSON.stringify(input) },
+  );
+}
+
+export function getClinicGeoLocations(clinicId: string) {
+  return staffProxyFetch<ClinicGeoLocationsResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/geo-locations`,
+    { method: "GET" },
+  );
+}
+
+export function saveClinicGeoLocations(clinicId: string, locations: ClinicGeoLocation[]) {
+  return staffProxyFetch<ClinicGeoLocationsResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/geo-locations`,
+    { method: "PUT", body: JSON.stringify({ locations }) },
+  );
+}
+
 export function getMembers() {
   return staffProxyFetch<Member[]>("/members", { method: "GET" });
 }
@@ -654,7 +851,6 @@ export function createMember(input: CreateMemberInput) {
   const fallback: Member & { walletLink: string } = {
     id: `MEM-${Math.floor(4000 + Math.random() * 5000)}`,
     name: input.name,
-    // Mock only. The real code is generated by the backend against its unique index.
     code: null,
     identity: input.identity,
     templateId: template.id,
@@ -859,7 +1055,7 @@ export async function getPublicClinic(slug: string) {
  * is nothing here to branch on and nothing to report back beyond success.
  */
 /**
- * `claimToken` comes back ONLY when the member was newly created.
+ * `wallet` comes back ONLY when the member was newly created.
  *
  * Its absence is the answer for a number that is already a member, and it is deliberate
  * rather than an error: handing a pass to whoever typed the number would give a stranger
@@ -867,7 +1063,7 @@ export async function getPublicClinic(slug: string) {
  * normal outcome and say something sensible, not retry or complain.
  */
 export async function signUpMember(slug: string, input: MembershipSignupInput) {
-  return apiFetch<{ status: "ok"; claimToken?: string }>(
+  return apiFetch<{ status: "ok"; wallet?: MemberPassWallet }>(
     `/v1/clinics/${encodeURIComponent(slug)}/members`,
     {
       method: "POST",
@@ -925,12 +1121,6 @@ export function sendMemberPassEmail(memberId: string) {
 // --- Clinic provisioning ---------------------------------------------------------------
 
 export interface ProvisionClinicInput {
-  /**
-   * Five characters, and optional: the backend generates one when it is absent.
-   *
-   * Send undefined rather than an empty string for "generate one" — an empty string is
-   * a value the backend validates and rejects.
-   */
   slug?: string;
   name: string;
   addressLine: string;

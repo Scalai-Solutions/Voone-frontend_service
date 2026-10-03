@@ -14,7 +14,7 @@ const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
 export default async function SettingsPage() {
   const [session, clinic] = await Promise.all([getCurrentSession(), getCurrentStaffClinic()]);
-  const signupUrl = session?.clinicSlug ? await getClinicSignupUrl(session.clinicSlug) : null;
+  const signupUrl = await getClinicSignupUrl(clinic.id);
   const owner = ownerFor(clinic);
   const accountFields = [
     { label: "Nombre", value: session?.name ?? owner?.email ?? "Sin nombre guardado" },

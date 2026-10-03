@@ -27,24 +27,6 @@ const defaultTiers: TierRewardDraft[] = [
   { name: "Platinum", rewardText: "", minLifetimePoints: "7000", milestoneCount: "5", pointsToNextMilestone: "1600" },
   { name: "Diamond", rewardText: "", minLifetimePoints: "15000", milestoneCount: "5", pointsToNextMilestone: "3000" },
 ];
-/** Exactly five characters, matching newClinicSlugSchema on the backend. */
-const slugPattern = /^[a-z0-9]{5}$/;
-
-/**
- * Strips a typed slug down to what the backend will accept.
- *
- * No hyphens and nothing derived from the clinic's name any more: the slug is five
- * characters, and at that length there is nothing name-derived that stays distinct across
- * clinics. Leaving the field blank is the normal path — the backend generates one.
- */
-const normalizeSlug = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, 5);
-
 type TreatmentDraft = {
   name: string;
   priceEuro: string;
@@ -79,7 +61,6 @@ type OnboardingValues = {
   centerEmail: string;
   addressLine: string;
   pincode: string;
-  slug: string;
   logo: string;
   colors: [string, string, string];
   dataConsent: boolean;
@@ -115,7 +96,6 @@ const initialValues: OnboardingValues = {
   centerEmail: "",
   addressLine: "",
   pincode: "",
-  slug: "",
   logo: "",
   colors: ["#ead0bd", "#201715", "#b98a4f"],
   dataConsent: false,
@@ -346,10 +326,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Add the center name, address, and postal code.");
       return;
     }
-    if (step === 1 && values.slug && !slugPattern.test(values.slug)) {
-      setStatus("The public ID is exactly 5 characters: lowercase letters and numbers.");
-      return;
-    }
     if (step === 1 && !values.dataConsent) {
       setStatus("Confirm the data processing consent before continuing.");
       return;
@@ -366,16 +342,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   }
 
   function finish() {
-    // Blank means "generate one", which is the normal path. Only a slug the operator
-    // actually typed is validated, and only then is it sent — an empty string would be
-    // rejected by the backend rather than treated as absent.
-    const typed = normalizeSlug(values.slug);
-    const slug = typed || undefined;
-
-    if (slug && !slugPattern.test(slug)) {
-      setStatus("The public ID is exactly 5 characters: lowercase letters and numbers.");
-      return;
-    }
     if (!values.vooneTemplateId) {
       setStatus("Choose a template design before creating the clinic.");
       return;
@@ -389,7 +355,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
     const infoModule = values.textModules.find((module) => module.label.toLowerCase().includes("info"));
 
     provisionMutation.mutate({
-      slug,
       name: values.centerName,
       addressLine: values.addressLine,
       pincode: values.pincode,
@@ -482,7 +447,34 @@ function OwnerStep({ values, update }: { values: OnboardingValues; update: <Valu
 }
 
 function CenterStep({ values, update }: { values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void }) {
-  return <StepContent title="Tell us about the center." detail="These details create the public membership page and form the clinic record."><div className="grid gap-4 sm:grid-cols-2"><WizardField label="Center name" className="sm:col-span-2"><Input value={values.centerName} onChange={(event) => update("centerName", event.target.value)} placeholder="Clínica Aurea" /></WizardField><WizardField label="Center address" className="sm:col-span-2"><Input value={values.addressLine} onChange={(event) => update("addressLine", event.target.value)} placeholder="Calle Serrano 42" /></WizardField><WizardField label="Postal code"><Input value={values.pincode} onChange={(event) => update("pincode", event.target.value)} placeholder="28001" /></WizardField><WizardField label="Public ID (optional)"><Input value={values.slug} onChange={(event) => update("slug", normalizeSlug(event.target.value))} placeholder="Generated — 5 characters" maxLength={5} autoCapitalize="none" /></WizardField><WizardField label="Center mobile"><Input value={values.centerMobile} onChange={(event) => update("centerMobile", event.target.value)} placeholder="+34 910 000 000" /></WizardField><WizardField label="Center email"><Input type="email" value={values.centerEmail} onChange={(event) => update("centerEmail", event.target.value)} placeholder="hola@clinic.com" /></WizardField><label className="flex items-start gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm sm:col-span-2"><input type="checkbox" checked={values.dataConsent} onChange={(event) => update("dataConsent", event.target.checked)} className="mt-1 h-4 w-4 accent-[#201715]" /><span><span className="font-semibold">Data processing consent</span><span className="mt-1 block text-[#806d63]">The center confirms it is authorised to process membership data.</span></span></label></div></StepContent>;
+  return (
+    <StepContent title="Tell us about the center." detail="These details create the public membership page and form the clinic record.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <WizardField label="Center name" className="sm:col-span-2">
+          <Input value={values.centerName} onChange={(event) => update("centerName", event.target.value)} placeholder="Clínica Aurea" />
+        </WizardField>
+        <WizardField label="Center address" className="sm:col-span-2">
+          <Input value={values.addressLine} onChange={(event) => update("addressLine", event.target.value)} placeholder="Calle Serrano 42" />
+        </WizardField>
+        <WizardField label="Postal code">
+          <Input value={values.pincode} onChange={(event) => update("pincode", event.target.value)} placeholder="28001" />
+        </WizardField>
+        <WizardField label="Center mobile">
+          <Input value={values.centerMobile} onChange={(event) => update("centerMobile", event.target.value)} placeholder="+34 910 000 000" />
+        </WizardField>
+        <WizardField label="Center email">
+          <Input type="email" value={values.centerEmail} onChange={(event) => update("centerEmail", event.target.value)} placeholder="hola@clinic.com" />
+        </WizardField>
+        <label className="flex items-start gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm sm:col-span-2">
+          <input type="checkbox" checked={values.dataConsent} onChange={(event) => update("dataConsent", event.target.checked)} className="mt-1 h-4 w-4 accent-[#201715]" />
+          <span>
+            <span className="font-semibold">Data processing consent</span>
+            <span className="mt-1 block text-[#806d63]">The center confirms it is authorised to process membership data.</span>
+          </span>
+        </label>
+      </div>
+    </StepContent>
+  );
 }
 
 function ProgramStep({ values, update }: { values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void }) {
