@@ -213,6 +213,7 @@ const normalizeTemplate = (template: TemplateApiResponse): Template => {
 export interface Member {
   id: string;
   name: string;
+  code: string | null;
   identity: string;
   email?: string | null;
   templateId: string;
@@ -458,6 +459,7 @@ const mockMembers: Member[] = [
   {
     id: "MEM-1048",
     name: "Veronica Navarro",
+    code: "A7K9Q",
     identity: "+34 612 440 901",
     templateId: "gold-beauty",
     templateName: "Gold Beauty Club",
@@ -475,6 +477,7 @@ const mockMembers: Member[] = [
   {
     id: "MEM-2033",
     name: "Mateo Ruiz",
+    code: "M4T2O",
     identity: "mateo@example.com",
     templateId: "diamond-skin",
     templateName: "Diamond Skin Plan",
@@ -491,6 +494,7 @@ const mockMembers: Member[] = [
   {
     id: "MEM-3110",
     name: "Lucia Gomez",
+    code: "L9C3A",
     identity: "+34 699 120 441",
     templateId: "gold-beauty",
     templateName: "Gold Beauty Club",
@@ -847,6 +851,7 @@ export function createMember(input: CreateMemberInput) {
   const fallback: Member & { walletLink: string } = {
     id: `MEM-${Math.floor(4000 + Math.random() * 5000)}`,
     name: input.name,
+    code: null,
     identity: input.identity,
     templateId: template.id,
     templateName: template.name ?? template.programName,
