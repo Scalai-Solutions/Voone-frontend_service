@@ -1,16 +1,18 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Check } from "lucide-react";
+import { Check, ShieldCheck, WalletCards } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useSignUpMember } from "@/features/members/api/useSignUpMember";
-import { ApiError, type PublicClinic, passClaimUrl } from "@/lib/api-client";
+import { ApiError, type MemberPassWallet, type PublicClinic } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
 
 /**
@@ -69,51 +71,54 @@ const signupSchema = z.object({
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
-/**
- * The pass, handed over on the phone that just scanned the QR.
- *
- * A plain link, not a fetch: Safari recognises the .pkpass content type and opens the
- * native Add-to-Wallet sheet itself. Fetching the bytes into JavaScript would only get
- * in the way of that.
- *
- * Apple only, for now. The pilot is Apple-first and the claim endpoint issues an Apple
- * artifact, so an Android member is told the truth rather than handed a file their
- * phone cannot open.
- */
-function AddToWallet({ claimToken }: { claimToken: string }) {
-  // Read once, in a lazy initialiser rather than an effect: this component only ever
-  // mounts after the sign-up mutation resolves, which is client-side, so navigator is
-  // there. An effect would set state during mount and cascade a second render for
-  // something that cannot change.
-  //
-  // iPad is excluded deliberately: iPadOS has never had a Wallet app, so a pass cannot
-  // be installed there at all.
-  const [isIphone] = React.useState(
-    () => typeof navigator !== "undefined" && /iPhone|iPod/.test(navigator.userAgent)
-  );
-
-  if (!isIphone) {
-    return (
-      <p className="mt-4 text-sm text-muted-foreground">
-        Tu tarjeta está lista. La versión para Google Wallet llegará muy pronto; mientras
-        tanto, pídela en recepción.
-      </p>
-    );
-  }
+function WalletReady({ clinic, wallet }: { clinic: PublicClinic; wallet: MemberPassWallet }) {
+  const walletPageUrl = wallet.code ? `/wallet/add/${encodeURIComponent(wallet.code)}` : null;
+  const appleUrl = wallet.passes.apple.url ?? (wallet.code ? `/api/wallet/passes/${encodeURIComponent(wallet.code)}/apple` : null);
 
   return (
-    <div className="mt-5">
-      <a
-        href={passClaimUrl(claimToken)}
-        className="inline-flex h-11 items-center justify-center rounded-md bg-foreground px-6 text-sm font-medium text-background"
-      >
-        Añadir a Apple Wallet
-      </a>
-      {/* The window is fifteen minutes, so saying so is kinder than letting it expire
-          silently while the member finishes their appointment. */}
-      <p className="mt-3 text-xs text-muted-foreground">
-        Añádela ahora: este enlace caduca en unos minutos. Si lo pierdes, pídela en
-        recepción.
+    <div className="text-center">
+      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-border bg-background text-[#b7874a] shadow-sm">
+        <WalletCards className="h-7 w-7" aria-hidden />
+      </div>
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{clinic.name}</p>
+      <h2 className="mt-2 font-serif text-3xl font-semibold text-foreground">Tu pase está listo</h2>
+      <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+        Añádelo al Wallet de este móvil para identificarte en recepción y recibir tus puntos.
+      </p>
+
+      <div className="mt-5 rounded-2xl border border-border bg-background p-4">
+        <p className="mb-3 text-sm font-semibold">Guardar pase</p>
+        <div className="flex flex-col items-center gap-3">
+          {wallet.passes.google.available && wallet.passes.google.url ? (
+            <Link href={wallet.passes.google.url} className="inline-flex min-h-[55px] items-center justify-center rounded-full transition duration-200 hover:scale-[1.01]" rel="noopener noreferrer">
+              <Image src="/wallet/add-to-google-wallet-es.svg" alt="Añadir a Google Wallet" width={199} height={55} priority className="h-[55px] w-auto" />
+            </Link>
+          ) : (
+            <div className="w-full rounded-2xl border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground">
+              Google Wallet no está disponible para este pase.
+            </div>
+          )}
+
+          {wallet.passes.apple.available && appleUrl ? (
+            <Link href={appleUrl} className="inline-flex min-h-[48px] items-center justify-center rounded-xl transition duration-200 hover:scale-[1.01]" rel="noopener noreferrer">
+              <Image src="/wallet/ES_Add_to_Apple_Wallet_RGB_101921.svg" alt="Añadir a Apple Wallet" width={133} height={35} className="h-[44px] w-auto" />
+            </Link>
+          ) : (
+            <div className="w-full rounded-2xl border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground">
+              Apple Wallet no está disponible para este pase.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {walletPageUrl ? (
+        <Link href={walletPageUrl} className="mt-4 inline-flex text-sm font-semibold text-[#8a5b34] underline-offset-4 hover:underline">
+          Abrir página completa del pase
+        </Link>
+      ) : null}
+
+      <p className="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground">
+        <ShieldCheck className="h-4 w-4 text-[#9f7654]" aria-hidden /> Enlace seguro y personal
       </p>
     </div>
   );
@@ -121,12 +126,7 @@ function AddToWallet({ claimToken }: { claimToken: string }) {
 
 export function SignupForm({ clinic }: { clinic: PublicClinic }) {
   const [done, setDone] = React.useState(false);
-  /**
-   * Present only when this submission CREATED the member. A number that was already a
-   * member gets none — that is what stops someone typing a stranger's number and being
-   * handed their card — so null here is a normal outcome, not a failure.
-   */
-  const [claimToken, setClaimToken] = React.useState<string | null>(null);
+  const [wallet, setWallet] = React.useState<MemberPassWallet | null>(null);
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: { name: "", phone: "", birthYear: "", sex: "", consentMarketing: false },
@@ -134,7 +134,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
 
   const mutation = useSignUpMember(clinic.slug, {
     onSuccess: (result) => {
-      setClaimToken(result.claimToken ?? null);
+      setWallet(result.wallet ?? null);
       setDone(true);
     },
   });
@@ -150,6 +150,10 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
   };
 
   if (done) {
+    if (wallet) {
+      return <WalletReady clinic={clinic} wallet={wallet} />;
+    }
+
     return (
       <div className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/15">
@@ -160,17 +164,10 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
           Te hemos dado de alta en {clinic.template.programName}.
         </p>
 
-        {claimToken ? (
-          <AddToWallet claimToken={claimToken} />
-        ) : (
-          /* No token means this number was already a member. Said plainly, and pointing
-             at reception rather than at a retry: submitting the form again will not
-             produce a card, by design. */
-          <p className="mt-4 text-sm text-muted-foreground">
-            Ya estabas en el programa, así que tu tarjeta sigue siendo la misma. Si no la
-            encuentras en tu móvil, pídela en recepción.
-          </p>
-        )}
+        <p className="mt-4 text-sm text-muted-foreground">
+          Ya estabas en el programa, así que tu tarjeta sigue siendo la misma. Si no la
+          encuentras en tu móvil, pídela en recepción.
+        </p>
 
         <p className="mt-4 text-xs text-muted-foreground">{clinic.template.infoText}</p>
       </div>
@@ -271,7 +268,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       ) : null}
 
       <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Un momento..." : "Unirme al club"}
+        {mutation.isPending ? "Preparando pase..." : "Crear pase Wallet"}
       </Button>
 
       {/* No link: this references a notice version so the consent record means something,

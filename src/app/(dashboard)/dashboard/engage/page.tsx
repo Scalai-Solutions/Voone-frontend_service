@@ -3,23 +3,72 @@
 import * as React from "react";
 import { AlertTriangle, Plus, X } from "lucide-react";
 
+import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
+import {
+  ApiError,
+  broadcastNotification,
+  sendSegmentNotification,
+} from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 const automaticMessages = ["Después de una visita", "Recuperación", "Cumpleaños"];
-const manualQuotaTotal = 30;
-const manualQuotaRemaining = 24;
 const manualQuotaLowThreshold = 5;
-const manualQuotaUsedPercent = Math.round(((manualQuotaTotal - manualQuotaRemaining) / manualQuotaTotal) * 100);
-const manualQuotaIsLow = manualQuotaRemaining < manualQuotaLowThreshold;
 
 export default function CommunicationsPage() {
+  const currentClinic = useCurrentClinic();
   const [composeOpen, setComposeOpen] = React.useState(false);
   const [noticeTab, setNoticeTab] = React.useState<"manuales" | "automaticos">("manuales");
   const [title, setTitle] = React.useState("Tu próxima recompensa está cerca");
   const [body, setBody] = React.useState("Reserva tu próxima visita esta semana y añade puntos extra a tu pase.");
   const [audience, setAudience] = React.useState("Todos los miembros activos");
   const [sendWhen, setSendWhen] = React.useState("Ahora");
+  const [sendState, setSendState] = React.useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sendMessage, setSendMessage] = React.useState<string | null>(null);
   const maxLength = 180;
+  const manualQuotaTotal = currentClinic.data?.notificationsMonthlyQuota ?? 0;
+  const manualQuotaRemaining = currentClinic.data?.notificationsRemainingThisMonth ?? 0;
+  const manualQuotaUsedPercent = manualQuotaTotal > 0
+    ? Math.round(((manualQuotaTotal - manualQuotaRemaining) / manualQuotaTotal) * 100)
+    : 0;
+  const manualQuotaIsLow = manualQuotaRemaining < manualQuotaLowThreshold;
+
+  const sendCommunication = async () => {
+    if (!currentClinic.data) {
+      setSendState("error");
+      setSendMessage("No se pudo resolver la clínica actual.");
+      return;
+    }
+
+    setSendState("sending");
+    setSendMessage(null);
+
+    try {
+      const idempotencyKey = crypto.randomUUID();
+      const input = {
+        header: title.trim(),
+        body: body.trim(),
+        notify: true,
+      };
+      const response = audience === "Clientes Gold"
+        ? await sendSegmentNotification(
+            currentClinic.data.id,
+            { ...input, segment: { tier: "Gold" } },
+            idempotencyKey
+          )
+        : await broadcastNotification(currentClinic.data.id, input, idempotencyKey);
+
+      setSendState("sent");
+      setSendMessage(`Comunicación enviada. Estado: ${response.status}.`);
+      setComposeOpen(false);
+    } catch (error) {
+      setSendState("error");
+      setSendMessage(
+        error instanceof ApiError && error.detail
+          ? error.detail
+          : "No se pudo enviar la comunicación."
+      );
+    }
+  };
 
   return (
     <section className="text-[#2e2421]">
@@ -35,7 +84,7 @@ export default function CommunicationsPage() {
       <div className="mt-7 grid max-w-[940px] gap-4 md:grid-cols-2">
         <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Mensajes manuales</p>
-          <p className="mt-3 font-serif text-4xl font-semibold">{manualQuotaRemaining} <span className="font-sans text-sm font-normal text-[#c9b7ad]">/ {manualQuotaTotal} restantes</span></p>
+          <p className="mt-3 font-serif text-4xl font-semibold">{currentClinic.isLoading ? "..." : manualQuotaRemaining} <span className="font-sans text-sm font-normal text-[#c9b7ad]">/ {manualQuotaTotal} restantes</span></p>
           <div className="mt-3 h-1.5 rounded-full bg-white/15"><div className="h-full rounded-full bg-[#d6a979]" style={{ width: `${manualQuotaUsedPercent}%` }} /></div>
           <p className="mt-2 text-xs text-[#c9b7ad]">Tu plan Aura · Se renueva el 1 de octubre</p>
         </div>
@@ -50,6 +99,12 @@ export default function CommunicationsPage() {
         <div className="mt-4 flex max-w-[940px] items-start gap-3 rounded-2xl border border-[#d86d5e]/40 bg-[#fff7f5] px-4 py-3 text-sm font-semibold text-[#8f3f35] shadow-[0_14px_34px_-28px_rgba(185,65,53,0.7)]" role="alert">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#b94135]" />
           <p>{`Alerta de cuota activa: avisaremos cuando queden ${manualQuotaLowThreshold} mensajes manuales.`}</p>
+        </div>
+      ) : null}
+
+      {sendMessage ? (
+        <div className={cn("mt-4 max-w-[940px] rounded-2xl px-4 py-3 text-sm font-semibold", sendState === "error" ? "border border-[#d86d5e]/40 bg-[#fff7f5] text-[#8f3f35]" : "border border-[#86b37e]/40 bg-[#f3fbf1] text-[#456f3f]")} role="status">
+          {sendMessage}
         </div>
       ) : null}
 
@@ -70,8 +125,8 @@ export default function CommunicationsPage() {
 
           {noticeTab === "manuales" ? (
             <>
-              <label className="mt-5 block text-sm font-semibold">Título<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={60} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]" /></label>
-              <label className="mt-4 block text-sm font-semibold">Cuerpo del mensaje<textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, maxLength))} rows={4} className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]" /><span className="mt-1 block text-right text-xs text-[#927e72]">{body.length}/{maxLength}</span></label>
+              <label className="mt-5 block text-sm font-semibold">Header / título de Google Wallet<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={60} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]" /><span className="mt-1 block text-xs font-normal text-[#927e72]">Se envía como <span className="font-mono">message.header</span> en Google Wallet.</span></label>
+              <label className="mt-4 block text-sm font-semibold">Body / cuerpo del mensaje<textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, maxLength))} rows={4} className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]" /><span className="mt-1 block text-right text-xs text-[#927e72]">{body.length}/{maxLength}</span></label>
               <button onClick={() => setComposeOpen(true)} className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white">Configurar envío</button>
             </>
           ) : (
@@ -95,9 +150,9 @@ export default function CommunicationsPage() {
                 <label className="text-sm font-semibold">Segmento<select value={audience} onChange={(event) => setAudience(event.target.value)} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"><option>Todos los miembros activos</option><option>Clientes Gold</option><option>Mujeres · 25-40 · Madrid</option></select></label>
                 <label className="text-sm font-semibold">Cuándo<select value={sendWhen} onChange={(event) => setSendWhen(event.target.value)} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"><option>Ahora</option><option>Programar para mañana</option><option>Programar fecha y hora</option></select></label>
               </div>
-              <label className="mt-4 block text-sm font-semibold">Título<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={60} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal" /></label>
-              <label className="mt-4 block text-sm font-semibold">Cuerpo del mensaje<textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, maxLength))} rows={5} className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal" /><span className="mt-1 block text-right text-xs text-[#927e72]">{body.length}/{maxLength}</span></label>
-              <button onClick={() => setComposeOpen(false)} className="mt-4 w-full rounded-full bg-[#b8864b] py-3 font-semibold text-white">{sendWhen === "Ahora" ? "Enviar ahora" : "Programar comunicación"}</button>
+              <label className="mt-4 block text-sm font-semibold">Header / título de Google Wallet<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={60} className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal" /><span className="mt-1 block text-xs font-normal text-[#927e72]">Se envía como <span className="font-mono">message.header</span>.</span></label>
+              <label className="mt-4 block text-sm font-semibold">Body / cuerpo del mensaje<textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, maxLength))} rows={5} className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal" /><span className="mt-1 block text-right text-xs text-[#927e72]">{body.length}/{maxLength}</span></label>
+              <button onClick={() => void sendCommunication()} disabled={sendState === "sending" || !title.trim() || !body.trim()} className="mt-4 w-full rounded-full bg-[#b8864b] py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{sendState === "sending" ? "Enviando..." : sendWhen === "Ahora" ? "Enviar ahora" : "Programar comunicación"}</button>
             </div>
             <Preview title={title} body={body} compact />
           </div>
@@ -113,7 +168,9 @@ function Preview({ title, body, compact = false }: { title: string; body: string
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Vista previa</p>
       <div className="mt-4 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]">
         <p className="font-semibold">Voone Wallet</p>
-        <p className="mt-3 font-semibold">{title || "Título del mensaje"}</p>
+        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9a755f]">Header</p>
+        <p className="mt-1 font-semibold">{title || "Header del mensaje"}</p>
+        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9a755f]">Body</p>
         <p className="mt-2 text-sm leading-5 text-[#806e66]">{body || "El contenido aparecerá aquí mientras escribes."}</p>
       </div>
     </div>

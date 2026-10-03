@@ -23,6 +23,6 @@ export const getAppOrigin = async (): Promise<string> => {
   return host ? `${protocol}://${host}` : "";
 };
 
-/** Absolute URL of a clinic's public sign-up page. */
-export const getClinicSignupUrl = async (clinicSlug: string): Promise<string> =>
-  `${await getAppOrigin()}/alta/${clinicSlug}`;
+/** Absolute URL of a clinic's public sign-up page. Prefer the opaque clinic UUID. */
+export const getClinicSignupUrl = async (clinicPublicKey: string): Promise<string> =>
+  `${await getAppOrigin()}/alta/${clinicPublicKey}`;
