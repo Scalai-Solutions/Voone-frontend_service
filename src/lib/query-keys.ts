@@ -4,12 +4,24 @@ export const queryKeys = {
   adminMembers: () => ["admin-members"] as const,
   members: () => ["members"] as const,
   member: (memberId: string) => ["member", memberId] as const,
+  staffProgram: () => ["staff-program"] as const,
+  memberRewards: (memberId: string) => ["member-rewards", memberId] as const,
   templatePresets: () => ["template-presets"] as const,
   clinicTemplate: (clinicId: string) => ["clinic-template", clinicId] as const,
   template: (templateId: string) => ["template", templateId] as const,
   treatments: () => ["treatments"] as const,
   templates: () => ["templates"] as const,
   vooneTemplates: () => ["voone-templates"] as const,
+  onboarding: {
+    catalog: (clinicId: string) => ["onboarding", clinicId, "catalog"] as const,
+    estimates: (clinicId: string) => ["onboarding", clinicId, "estimates"] as const,
+    preview: (clinicId: string, answers: unknown) =>
+      ["onboarding", clinicId, "preview", answers] as const,
+    programs: (clinicId: string) => ["onboarding", clinicId, "programs"] as const,
+    program: (clinicId: string, programId: string) =>
+      ["onboarding", clinicId, "program", programId] as const,
+    recalibration: (clinicId: string) => ["onboarding", clinicId, "recalibration"] as const,
+  },
   mutations: {
     addMember: () => ["add-member"] as const,
     creditMember: () => ["credit-member"] as const,
