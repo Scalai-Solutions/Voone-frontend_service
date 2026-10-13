@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
+import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMember } from "@/features/members/api/useMember";
+import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -21,6 +23,10 @@ export function MemberDetail({ memberId }: { memberId: string }) {
   const [manualReason, setManualReason] = useState("");
   const [notice, setNotice] = useState("");
   const member = useMember(memberId);
+  // A centre with an active programme records visits in euros; one without keeps the older
+  // points form. Not decided until the lookup has answered, so neither form flashes.
+  const staffProgram = useStaffProgram();
+  const hasProgram = Boolean(staffProgram.data);
   const adjustmentKeyRef = useRef<string | null>(null);
 
   const manualPointsMutation = useCreditMember({
@@ -78,7 +84,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             <p className="text-lg font-semibold tracking-widest">{member.data.code ?? member.data.id}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Puntos actuales</p>
+            <p className="text-sm text-muted-foreground">{hasProgram ? "Progreso (€ pagados)" : "Puntos actuales"}</p>
             <p className="text-3xl font-semibold tracking-tight">{member.data.points.toLocaleString()}</p>
           </div>
           <div>
@@ -87,7 +93,8 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
           {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}
-          <form onSubmit={submitManualPoints} className="rounded-lg border border-border bg-background/70 p-4">
+          {hasProgram ? <ProgramVisitPanel memberId={memberId} /> : null}
+          {!hasProgram && !staffProgram.isLoading ? <form onSubmit={submitManualPoints} className="rounded-lg border border-border bg-background/70 p-4">
             <p className="text-sm font-semibold">Añadir puntos manualmente</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-[120px_1fr]">
               <label className="text-xs font-medium text-muted-foreground">
@@ -121,7 +128,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
               <Plus className="mr-2 h-4 w-4" /> {manualPointsMutation.isPending ? "Guardando" : "Registrar ajuste"}
             </Button>
             {notice ? <p role="status" className="mt-3 rounded-md bg-muted/70 p-3 text-sm text-muted-foreground">{notice}</p> : null}
-          </form>
+          </form> : null}
           <Button
             type="button"
             variant="destructive"
