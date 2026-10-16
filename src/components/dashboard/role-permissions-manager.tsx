@@ -172,7 +172,7 @@ export function RolePermissionsManager({
       <div className="grid gap-3 md:grid-cols-2">
         {clinic.users.map((user) => (
           <TeamUserCard
-            key={user.id}
+            key={`${user.id}:${(user.permissions ?? []).slice().sort().join(",")}`}
             user={user}
             busy={pendingUserId === user.id}
             onSave={savePermissions}
@@ -251,10 +251,6 @@ function TeamUserCard({
   const [draftPermissions, setDraftPermissions] = React.useState<Permission[]>(
     user.permissions ?? [],
   );
-
-  React.useEffect(() => {
-    setDraftPermissions(user.permissions ?? []);
-  }, [user.permissions]);
 
   const toggleDraft = (permission: Permission) => {
     if (!editable) return;

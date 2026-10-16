@@ -1,6 +1,4 @@
-import { PERMISSIONS, hasPermission } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { isForwardableStaffPath } from "@/lib/staff-proxy-paths";
 import { requireStaffSession } from "@/lib/staff-guard";
 
 type Context = { params: Promise<{ path: string[] }> };
