@@ -122,8 +122,8 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
       </div>
 
       {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
-      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
-      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
+      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
+      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
 
       {tab === "informacion" ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">

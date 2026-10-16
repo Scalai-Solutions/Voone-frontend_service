@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/page-kit";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { getAdminClinic } from "@/lib/admin-api";
-import { ApiError, type MilestoneRewardsInput, type TierRewardInput } from "@/lib/api-client";
+import { ApiError, type MilestoneRewardsInput } from "@/lib/api-client";
 
 const ownerLabel = (clinic: Awaited<ReturnType<typeof getAdminClinic>>) =>
   clinic.users.find((user) => user.role === "OWNER")?.email ?? clinic.users[0]?.email ?? "Sin usuario";

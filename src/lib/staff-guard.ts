@@ -1,6 +1,12 @@
 import "server-only";
 
-import { getCurrentSession, isDashboardRole, type VooneSession } from "@/lib/auth";
+import {
+  getCurrentSession,
+  hasPermission,
+  isDashboardRole,
+  type Permission,
+  type VooneSession,
+} from "@/lib/auth";
 
 /**
  * The session behind a staff route handler, or a Response to return instead.
@@ -16,7 +22,10 @@ export const requireStaffSession = async (): Promise<
 
   if (!session || !isDashboardRole(session.role)) {
     return {
-      response: Response.json({ code: "FORBIDDEN", message: "Forbidden" }, { status: 403 }),
+      response: Response.json(
+        { code: "FORBIDDEN", message: "Forbidden" },
+        { status: 403 },
+      ),
     };
   }
 
@@ -25,8 +34,11 @@ export const requireStaffSession = async (): Promise<
     // refusing. Distinct from the 403 so a misconfigured session is diagnosable.
     return {
       response: Response.json(
-        { code: "NO_CLINIC", message: "La sesión no tiene una clínica asociada." },
-        { status: 409 }
+        {
+          code: "NO_CLINIC",
+          message: "La sesión no tiene una clínica asociada.",
+        },
+        { status: 409 },
       ),
     };
   }
@@ -42,6 +54,27 @@ export const requireStaffSession = async (): Promise<
  * deliberately has no clinic, so requireStaffSession refuses it — an administrator cannot
  * perform a clinic's own writes by accident.
  */
+export const requirePermission = async (
+  permission: Permission,
+): Promise<{ session: VooneSession } | { response: Response }> => {
+  const guard = await requireStaffSession();
+
+  if ("response" in guard) {
+    return guard;
+  }
+
+  if (!hasPermission(guard.session, permission)) {
+    return {
+      response: Response.json(
+        { code: "FORBIDDEN", message: "Permiso insuficiente." },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return guard;
+};
+
 export const requireAdminSession = async (): Promise<
   { session: VooneSession } | { response: Response }
 > => {
@@ -49,7 +82,10 @@ export const requireAdminSession = async (): Promise<
 
   if (!session || session.role !== "voone_admin") {
     return {
-      response: Response.json({ code: "FORBIDDEN", message: "Forbidden" }, { status: 403 })
+      response: Response.json(
+        { code: "FORBIDDEN", message: "Forbidden" },
+        { status: 403 },
+      ),
     };
   }
 

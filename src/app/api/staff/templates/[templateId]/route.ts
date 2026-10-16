@@ -1,5 +1,6 @@
+import { PERMISSIONS } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { requireStaffSession } from "@/lib/staff-guard";
+import { requirePermission } from "@/lib/staff-guard";
 
 /**
  * Updates a template.
@@ -10,8 +11,11 @@ import { requireStaffSession } from "@/lib/staff-guard";
  * needs the ownership check to live in the backend, where the relation is; it is a real
  * gap and is tracked rather than papered over here.
  */
-export async function PATCH(request: Request, context: { params: Promise<{ templateId: string }> }) {
-  const guard = await requireStaffSession();
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ templateId: string }> },
+) {
+  const guard = await requirePermission(PERMISSIONS.clinicEdit);
 
   if ("response" in guard) {
     return guard.response;
@@ -19,11 +23,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ templ
 
   const { templateId } = await context.params;
 
-  const response = await staffFetch(`/v1/templates/${encodeURIComponent(templateId)}`, {
-    method: "PATCH",
-    headers: { "x-clinic-id": guard.session.clinicId },
-    body: await request.text(),
-  });
+  const response = await staffFetch(
+    `/v1/templates/${encodeURIComponent(templateId)}`,
+    {
+      method: "PATCH",
+      headers: { "x-clinic-id": guard.session.clinicId },
+      body: await request.text(),
+    },
+  );
 
   return forwardResponse(response);
 }

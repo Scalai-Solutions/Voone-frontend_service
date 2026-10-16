@@ -16,6 +16,31 @@ import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
+const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
+  mujer: "Mujer",
+  hombre: "Hombre",
+  otro: "Otro",
+  prefiero_no_decirlo: "Prefiere no decirlo",
+};
+
+const ageFromBirthDate = (birthDate: string) => {
+  const today = new Date();
+  const date = new Date(`${birthDate}T00:00:00.000Z`);
+  let age = today.getFullYear() - date.getUTCFullYear();
+  const birthdayThisYear = new Date(Date.UTC(today.getFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
+  if (today.getTime() < birthdayThisYear.getTime()) age -= 1;
+
+  return age;
+};
+
+const memberAge = (member: Member) => {
+  if (member.birthDate) return ageFromBirthDate(member.birthDate);
+  if (member.birthYear) return new Date().getFullYear() - member.birthYear;
+
+  return "-";
+};
+
 export function MemberDetail({ memberId }: { memberId: string }) {
   const queryClient = useQueryClient();
   const [deactivated, setDeactivated] = useState(false);
@@ -89,7 +114,21 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Nivel</p>
-            <p className="font-medium">{member.data.tier}</p>
+            <p className="font-medium">{member.data.tier || "-"}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-background/70 p-3 text-sm">
+            <div>
+              <p className="text-muted-foreground">Sexo</p>
+              <p className="font-medium">{member.data.sex ? sexLabels[member.data.sex] : "-"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Edad</p>
+              <p className="font-medium">{memberAge(member.data)}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-muted-foreground">Fecha de nacimiento</p>
+              <p className="font-medium">{member.data.birthDate ?? (member.data.birthYear ? String(member.data.birthYear) : "-")}</p>
+            </div>
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
           {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}

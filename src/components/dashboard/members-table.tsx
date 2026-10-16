@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Download, Filter, MapPin, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
+import { CalendarDays, Download, Filter, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/page-kit";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,10 +16,29 @@ const audienceRows = [
   { name: "Sin visita · 90 días", criteria: "Actividad", count: 47, updated: "12 sep" },
 ];
 
-const profileByMember: Record<string, { sex: string; age: number; city: string }> = {
-  "MEM-1048": { sex: "Mujer", age: 29, city: "Madrid" },
-  "MEM-2033": { sex: "Hombre", age: 34, city: "Valencia" },
-  "MEM-3110": { sex: "Mujer", age: 41, city: "Barcelona" },
+const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
+  mujer: "Mujer",
+  hombre: "Hombre",
+  otro: "Otro",
+  prefiero_no_decirlo: "Prefiere no decirlo",
+};
+
+const ageFromBirthDate = (birthDate: string) => {
+  const today = new Date();
+  const date = new Date(`${birthDate}T00:00:00.000Z`);
+  let age = today.getFullYear() - date.getUTCFullYear();
+  const birthdayThisYear = new Date(Date.UTC(today.getFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
+  if (today.getTime() < birthdayThisYear.getTime()) age -= 1;
+
+  return age;
+};
+
+const memberAge = (member: Member) => {
+  if (member.birthDate) return ageFromBirthDate(member.birthDate);
+  if (member.birthYear) return new Date().getFullYear() - member.birthYear;
+
+  return "-";
 };
 
 const tierColors: Record<string, string> = {
@@ -28,6 +47,11 @@ const tierColors: Record<string, string> = {
   Silver: "bg-[#d8d8d4] text-[#4d4e4a]",
   Nuevo: "bg-[#eadfd8] text-[#6f5c53]",
 };
+
+const formatDate = (value: string | null) =>
+  value
+    ? new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
+    : "Sin visitas";
 
 export function MembersTable() {
   const [tab, setTab] = React.useState<"personas" | "audiencias">("personas");
@@ -102,9 +126,9 @@ export function MembersTable() {
           </div>
 
           <div className="overflow-x-auto rounded-3xl border border-[#e2d5cc] bg-white/80">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left text-sm">
               <thead className="bg-[#2d211e] text-[#fff9f4]">
-                <tr>{["Persona", "Sexo", "Edad", "Móvil", "Nivel", "Gasto", "Ubicación", "Acciones"].map((heading) => <th key={heading} className="px-5 py-4 font-semibold">{heading}</th>)}</tr>
+                <tr>{["Persona", "Sexo", "Edad", "Móvil", "Nivel", "Puntos", "Dinero gastado", "Última visita", "Acciones"].map((heading) => <th key={heading} className="px-5 py-4 font-semibold">{heading}</th>)}</tr>
               </thead>
               <tbody>
                 {filteredMembers.map((member) => <MemberRow key={member.id} member={member} />)}
@@ -118,9 +142,8 @@ export function MembersTable() {
 }
 
 function MemberRow({ member }: { member: Member }) {
-  const profile = profileByMember[member.id] ?? { sex: "-", age: "-", city: "Madrid" };
   const identityIsPhone = member.identity.trim().startsWith("+");
-  const spent = `${Math.max(member.points, 0).toLocaleString("es-ES")} €`;
+  const spent = `${Math.max(member.moneySpent, 0).toLocaleString("es-ES")} €`;
 
   return (
     <tr className="border-t border-[#eadfd8]">
@@ -130,12 +153,13 @@ function MemberRow({ member }: { member: Member }) {
             backfill has not reached — a uuid, which is why the code exists. */}
         <p className="mt-1 text-xs text-[#927e72]">{member.code ?? (identityIsPhone ? member.id : member.identity)}</p>
       </td>
-      <td className="px-5 py-4">{profile.sex}</td>
-      <td className="px-5 py-4">{profile.age}</td>
+      <td className="px-5 py-4">{member.sex ? sexLabels[member.sex] : "-"}</td>
+      <td className="px-5 py-4">{memberAge(member)}</td>
       <td className="px-5 py-4">{identityIsPhone ? member.identity : "-"}</td>
       <td className="px-5 py-4"><span className={cn("rounded-full px-3 py-1.5 text-xs font-bold", tierColors[member.tier] ?? "bg-[#eadfd8] text-[#6f5c53]")}>{member.tier}</span></td>
+      <td className="px-5 py-4 font-semibold">{member.points.toLocaleString("es-ES")}</td>
       <td className="px-5 py-4 font-semibold">{spent}</td>
-      <td className="px-5 py-4"><MapPin size={14} className="mr-1 inline text-[#b8864b]" />{profile.city}</td>
+      <td className="px-5 py-4"><CalendarDays size={14} className="mr-1 inline text-[#b8864b]" />{formatDate(member.lastVisitedAt)}</td>
       <td className="px-5 py-4"><Link href={`/dashboard/members/${member.id}`} className="inline-flex items-center rounded-full border border-[#d9c9bf] px-4 py-2 text-xs font-semibold hover:bg-[#f6eee8]"><Pencil size={14} className="mr-1" />Editar</Link></td>
     </tr>
   );

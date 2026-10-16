@@ -1,8 +1,9 @@
+import { PERMISSIONS } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { requireStaffSession } from "@/lib/staff-guard";
+import { requirePermission } from "@/lib/staff-guard";
 
 export async function GET(request: Request) {
-  const guard = await requireStaffSession();
+  const guard = await requirePermission(PERMISSIONS.scanUse);
 
   if ("response" in guard) {
     return guard.response;

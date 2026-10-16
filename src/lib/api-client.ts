@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/auth";
+import type { Permission, Role } from "@/lib/auth-shared";
 
 export type WalletProvider = "google" | "apple";
 export type ProviderStatus = "added" | "not_added" | "unavailable" | "failed";
@@ -138,6 +138,17 @@ export interface Template {
 
 export type VoonePlan = "starter" | "medium" | "pro";
 
+export interface ClinicUser {
+  id: string;
+  name?: string | null;
+  email: string;
+  role: string;
+  permissions: Permission[];
+  hasPassword?: boolean;
+  onboardingPasswordGeneratedAt?: string | null;
+  onboardingCredentialsSentAt?: string | null;
+}
+
 export interface AdminClinicTemplate {
   id: string;
   presetId?: string;
@@ -216,9 +227,14 @@ export interface Member {
   code: string | null;
   identity: string;
   email?: string | null;
+  birthDate?: string | null;
+  birthYear?: number | null;
+  sex?: "mujer" | "hombre" | "otro" | "prefiero_no_decirlo" | null;
   templateId: string;
   templateName: string;
   points: number;
+  moneySpent: number;
+  lastVisitedAt: string | null;
   tier: string;
   walletStatus: Record<WalletProvider, ProviderStatus>;
   history: Array<{ id: string; label: string; points: number; date: string }>;
@@ -262,7 +278,7 @@ export interface Clinic {
   members: number;
   templates: number;
   status: "active" | "setup";
-  users: Array<{ id: string; email: string; role: string }>;
+  users: ClinicUser[];
   onboardingCredentials?: {
     email: string;
     setupUrl?: string | null;
@@ -453,66 +469,6 @@ const mockTemplatePresets: TemplatePreset[] = [
   { id: "classic-gold", name: "Classic Gold", hexBackgroundColor: "#ead0bd" },
   { id: "modern-dark", name: "Modern Dark", hexBackgroundColor: "#2a2e35" },
   { id: "fresh-mint", name: "Fresh Mint", hexBackgroundColor: "#d8efe3" },
-];
-
-const mockMembers: Member[] = [
-  {
-    id: "MEM-1048",
-    name: "Veronica Navarro",
-    code: "A7K9Q",
-    identity: "+34 612 440 901",
-    templateId: "gold-beauty",
-    templateName: "Gold Beauty Club",
-    points: 1250,
-    tier: "Gold",
-    walletStatus: {
-      google: "added",
-      apple: appleEnabled ? "not_added" : "unavailable",
-    },
-    history: [
-      { id: "h1", label: "Hydrafacial", points: 120, date: "2026-09-04" },
-      { id: "h2", label: "Bono por referido", points: 80, date: "2026-08-22" },
-    ],
-  },
-  {
-    id: "MEM-2033",
-    name: "Mateo Ruiz",
-    code: "M4T2O",
-    identity: "mateo@example.com",
-    templateId: "diamond-skin",
-    templateName: "Diamond Skin Plan",
-    points: 2480,
-    tier: "Diamond",
-    walletStatus: {
-      google: "not_added",
-      apple: appleEnabled ? "not_added" : "unavailable",
-    },
-    history: [
-      { id: "h3", label: "Sesión láser", points: 220, date: "2026-09-02" },
-    ],
-  },
-  {
-    id: "MEM-3110",
-    name: "Lucia Gomez",
-    code: "L9C3A",
-    identity: "+34 699 120 441",
-    templateId: "gold-beauty",
-    templateName: "Gold Beauty Club",
-    points: 540,
-    tier: "Silver",
-    walletStatus: {
-      google: "added",
-      apple: appleEnabled ? "failed" : "unavailable",
-    },
-    history: [
-      {
-        id: "h4",
-        label: "Crédito de bienvenida",
-        points: 100,
-        date: "2026-08-18",
-      },
-    ],
-  },
 ];
 
 const mockClinics: Clinic[] = [];
@@ -856,6 +812,8 @@ export function createMember(input: CreateMemberInput) {
     templateId: template.id,
     templateName: template.name ?? template.programName,
     points: 0,
+    moneySpent: 0,
+    lastVisitedAt: null,
     tier: "Nuevo",
     walletStatus: {
       google: "not_added",
@@ -953,6 +911,47 @@ export function getClinic(clinicId: string) {
   return adminProxyFetch<Clinic>(`/clinics/${encodeURIComponent(clinicId)}`);
 }
 
+export interface CreateClinicUserInput {
+  name?: string;
+  email: string;
+  permissions: Permission[];
+}
+
+export interface ClinicUserMutationResponse {
+  user: ClinicUser;
+  setupUrl?: string;
+  setupTokenExpiresAt?: string;
+  emailSent?: boolean;
+}
+
+export function createClinicUser(
+  clinicId: string,
+  input: CreateClinicUserInput,
+) {
+  return staffProxyFetch<ClinicUserMutationResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/users`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function updateClinicUser(
+  clinicId: string,
+  userId: string,
+  input: Partial<Pick<CreateClinicUserInput, "name" | "permissions">>,
+) {
+  return staffProxyFetch<ClinicUserMutationResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/users/${encodeURIComponent(userId)}`,
+    { method: "PUT", body: JSON.stringify(input) },
+  );
+}
+
+export function deleteClinicUser(clinicId: string, userId: string) {
+  return staffProxyFetch<void>(
+    `/clinics/${encodeURIComponent(clinicId)}/users/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function getWalletInfrastructure() {
   const fallback: WalletInfrastructure = {
     appleCertificateExpiresAt: "2027-02-14T00:00:00.000Z",
@@ -1025,11 +1024,9 @@ export interface MembershipSignupInput {
   phone: string;
   /** Optional additional contact. The phone is the identity. */
   email?: string;
-  /**
-   * Year of birth, not an age: an age is wrong within a year of being stored and nothing
-   * would ever correct it. Optional — refusing a sign-up over a demographic costs a
-   * member to gain a data point.
-   */
+  /** Full date of birth as YYYY-MM-DD. */
+  birthDate?: string;
+  /** Deprecated fallback accepted for older clients. */
   birthYear?: number;
   /** Self-declared. "prefiero_no_decirlo" is a real answer, not an absent field. */
   sex?: "mujer" | "hombre" | "otro" | "prefiero_no_decirlo";

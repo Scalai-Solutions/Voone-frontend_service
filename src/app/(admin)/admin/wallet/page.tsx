@@ -1,14 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-kit";
-import { getWalletInfrastructure } from "@/lib/api-client";
+import { getAdminWalletInfrastructure } from "@/lib/admin-api";
 
-function daysUntil(value: string) {
+function daysUntil(value: string | null) {
+  if (!value) return null;
+
   const remaining = new Date(value).getTime() - Date.now();
-  return Math.max(0, Math.ceil(remaining / 86_400_000));
+
+  return Number.isFinite(remaining) ? Math.max(0, Math.ceil(remaining / 86_400_000)) : null;
 }
 
 export default async function WalletStatusPage() {
-  const wallet = await getWalletInfrastructure();
+  const wallet = await getAdminWalletInfrastructure();
   const expiryDays = daysUntil(wallet.appleCertificateExpiresAt);
 
   return (
@@ -26,8 +29,17 @@ export default async function WalletStatusPage() {
           </div>
           <div className="mt-5 rounded-[22px] border border-warning/40 bg-[#fff7e7] p-5">
             <p className="text-sm font-medium">Certificate renewal</p>
-            <p className="mt-2 font-serif text-5xl font-semibold">{expiryDays} days</p>
-            <p className="mt-1 text-sm text-muted-foreground">Vence el {new Date(wallet.appleCertificateExpiresAt).toLocaleDateString("es-ES")}</p>
+            {expiryDays === null ? (
+              <>
+                <p className="mt-2 font-serif text-4xl font-semibold">No configurado</p>
+                <p className="mt-1 text-sm text-muted-foreground">Apple Wallet signing is not currently available.</p>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 font-serif text-5xl font-semibold">{expiryDays} days</p>
+                <p className="mt-1 text-sm text-muted-foreground">Vence el {new Date(wallet.appleCertificateExpiresAt).toLocaleDateString("es-ES")}</p>
+              </>
+            )}
           </div>
         </div>
 

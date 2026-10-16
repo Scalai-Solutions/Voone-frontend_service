@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { CenterView } from "@/components/dashboard/center-view";
-import { getCurrentSession, hasRole } from "@/lib/auth";
+import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 
 export default async function TemplatesPage() {
   const session = await getCurrentSession();
@@ -10,7 +10,7 @@ export default async function TemplatesPage() {
     redirect("/login");
   }
 
-  const canEdit = hasRole(session, ["owner", "manager"]);
+  const canEdit = hasPermission(session, PERMISSIONS.clinicEdit);
 
   return <CenterView canEdit={canEdit} />;
 }

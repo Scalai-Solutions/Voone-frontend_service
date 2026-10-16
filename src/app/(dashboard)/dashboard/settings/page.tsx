@@ -3,7 +3,7 @@ import { AlertTriangle, Bell, Building2, CreditCard, Download, KeyRound, LifeBuo
 import { RolePermissionsManager } from "@/components/dashboard/role-permissions-manager";
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import { getClinicSignupUrl } from "@/lib/app-url";
-import { getCurrentSession } from "@/lib/auth";
+import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
 import { formatRole } from "@/lib/roles";
 
@@ -21,6 +21,7 @@ export default async function SettingsPage() {
     { label: "Email", value: owner?.email ?? "Sin email guardado" },
     { label: "Rol", value: session ? formatRole(session.role) : "Sin rol guardado" },
   ];
+  const canManageTeam = hasPermission(session, PERMISSIONS.teamManage);
   const clinicFields = [
     { label: "Nombre del centro", value: clinic.name },
     { label: "Propietaria", value: owner?.email ?? "Sin propietario guardado" },
@@ -71,9 +72,11 @@ export default async function SettingsPage() {
             <button className="mt-5 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar información del centro</button>
           </SettingsSection>
 
-          <SettingsSection eyebrow="Equipo" title="Roles y permisos" icon={UsersRound}>
-            <RolePermissionsManager />
-          </SettingsSection>
+          {canManageTeam ? (
+            <SettingsSection eyebrow="Equipo" title="Cuentas asociadas" icon={UsersRound}>
+              <RolePermissionsManager initialClinic={clinic} />
+            </SettingsSection>
+          ) : null}
 
           <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSection eyebrow="Facturación" title="Plan y pagos" icon={CreditCard}>
