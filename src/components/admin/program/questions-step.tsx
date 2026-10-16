@@ -108,6 +108,20 @@ export function QuestionsStep({
   const ticketChosen = answers.ticket ?? estimates.preselectedTicketBucket;
   const freqChosen = answers.freq ?? estimates.preselectedFreqBucket;
 
+  // What the programme is actually built from, and what to show in the number boxes. The exact
+  // figure wins; otherwise it is the chosen chip's value, or the recommendation. This mirrors the
+  // engine's own precedence so the box never says one thing while the programme uses another.
+  const recommendedTicket = Math.round(estimates.ticketEstimate);
+  const recommendedVisits = estimates.visitsEstimate;
+  const bucketTicket =
+    estimates.ticketBuckets.find((b) => b.id === answers.ticket)?.value ?? recommendedTicket;
+  const ticketNow =
+    answers.ticketValue ??
+    (answers.ticket && answers.ticket !== estimates.preselectedTicketBucket
+      ? bucketTicket
+      : recommendedTicket);
+  const visitsNow = answers.visitsValue ?? visitsFromBucket(answers.freq, estimates) ?? recommendedVisits;
+
   const debounced = useDebounced(answers, 500);
   const preview = usePreview(clinicId, debounced);
 
@@ -127,36 +141,72 @@ export function QuestionsStep({
         <Question
           number={1}
           title="¿Cuánto gasta una clienta en una visita normal?"
-          note={`Estimado de tu catálogo: ${formatEuro(estimates.ticketEstimate)}`}
+          note={`Recomendado según tu catálogo: ${formatEuro(estimates.ticketEstimate)}. Puedes escribir tu cifra exacta: el programa entero se rehace con ella.`}
         >
           <Options
             label="Ticket medio"
-            value={ticketChosen}
+            value={answers.ticketValue != null ? "" : ticketChosen}
+            // A chip is a quick pick: it replaces any exact figure typed before it.
             onSelect={(id) =>
-              set("ticket", id === estimates.preselectedTicketBucket ? null : id)
+              onChange({
+                ...answers,
+                ticket: id === estimates.preselectedTicketBucket ? null : id,
+                ticketValue: null,
+              })
             }
             options={estimates.ticketBuckets.map((b) => ({
               id: b.id,
               label: b.label,
-              badge: b.id === estimates.preselectedTicketBucket ? "Estimado" : undefined,
+              badge: b.id === estimates.preselectedTicketBucket ? "Recomendado" : undefined,
             }))}
+          />
+          <NumberField
+            label="Ticket medio exacto (€)"
+            unit="€"
+            value={ticketNow}
+            recommended={recommendedTicket}
+            min={estimates.limits.ticket.min}
+            max={estimates.limits.ticket.max}
+            integer
+            onCommit={(n) =>
+              onChange({ ...answers, ticket: null, ticketValue: n === recommendedTicket ? null : n })
+            }
+            onReset={() => onChange({ ...answers, ticket: null, ticketValue: null })}
           />
         </Question>
 
         <Question
           number={2}
           title="¿Cada cuánto vienen las clientas habituales?"
-          note={`Estimado de tu catálogo: unas ${estimates.visitsEstimate.toLocaleString("es-ES")} visitas al año`}
+          note={`Recomendado según tu catálogo: unas ${estimates.visitsEstimate.toLocaleString("es-ES")} visitas al año. Puedes escribir tu cifra exacta.`}
         >
           <Options
             label="Frecuencia"
-            value={freqChosen}
-            onSelect={(id) => set("freq", id === estimates.preselectedFreqBucket ? null : id)}
+            value={answers.visitsValue != null ? "" : freqChosen}
+            onSelect={(id) =>
+              onChange({
+                ...answers,
+                freq: id === estimates.preselectedFreqBucket ? null : id,
+                visitsValue: null,
+              })
+            }
             options={estimates.freqBuckets.map((b) => ({
               id: b.id,
               label: b.label,
-              badge: b.id === estimates.preselectedFreqBucket ? "Estimado" : undefined,
+              badge: b.id === estimates.preselectedFreqBucket ? "Recomendado" : undefined,
             }))}
+          />
+          <NumberField
+            label="Visitas al año exactas"
+            unit="visitas"
+            value={visitsNow}
+            recommended={recommendedVisits}
+            min={estimates.limits.visits.min}
+            max={estimates.limits.visits.max}
+            onCommit={(n) =>
+              onChange({ ...answers, freq: null, visitsValue: n === recommendedVisits ? null : n })
+            }
+            onReset={() => onChange({ ...answers, freq: null, visitsValue: null })}
           />
         </Question>
 
@@ -233,6 +283,143 @@ export function QuestionsStep({
       <aside className="lg:sticky lg:top-6 lg:self-start">
         <LivePreview preview={preview} />
       </aside>
+    </div>
+  );
+}
+
+/** The visits a frequency chip stands for, as the engine computes them (52 weeks over the gap). */
+const FREQ_WEEKS: Record<string, number> = { f1: 3, f2: 4.3, f3: 7, f4: 10.8, f5: 21.7 };
+
+const visitsFromBucket = (
+  freq: string | null | undefined,
+  estimates: OnboardingEstimates,
+): number | null =>
+  freq && freq !== estimates.preselectedFreqBucket && FREQ_WEEKS[freq]
+    ? Math.round((52 / FREQ_WEEKS[freq]) * 10) / 10
+    : null;
+
+/** People in Spain type 5,1 as readily as 5.1. */
+const parseNumber = (text: string): number => Number(text.trim().replace(",", "."));
+
+/**
+ * An exact figure the centre can type, shown beside the quick-pick chips.
+ *
+ * The number is the source of truth; the chips are shortcuts into it. A figure is only passed on
+ * once it is valid, and an invalid one shows its reason where it is typed and changes nothing —
+ * a half-typed "6" on the way to "65" must not rebuild the programme around 6. The recommendation
+ * is always shown, with a way back to it.
+ */
+function NumberField({
+  label,
+  unit,
+  value,
+  recommended,
+  min,
+  max,
+  integer = false,
+  onCommit,
+  onReset,
+}: {
+  label: string;
+  unit: string;
+  /** What the programme is built from right now. */
+  value: number;
+  recommended: number;
+  min: number;
+  max: number;
+  integer?: boolean;
+  onCommit: (value: number) => void;
+  onReset: () => void;
+}) {
+  // Null while the person is not typing, so the box follows the programme (a chip, a reset).
+  const [text, setText] = React.useState<string | null>(null);
+  const id = React.useId();
+  const shown = text ?? String(value).replace(".", ",");
+
+  const range = `Entre ${min.toLocaleString("es-ES")} y ${max.toLocaleString("es-ES")}`;
+
+  const problem = React.useMemo((): string | null => {
+    if (text === null) return null;
+
+    const n = parseNumber(text);
+
+    if (text.trim() === "" || !Number.isFinite(n)) return "Escribe un número.";
+    if (integer && !Number.isInteger(n)) return "Tiene que ser un número entero.";
+    if (n < min || n > max) return `${range}.`;
+
+    return null;
+  }, [text, integer, min, max, range]);
+
+  const differs = value !== recommended;
+
+  return (
+    <div className="grid gap-1.5">
+      <div className="flex flex-wrap items-end gap-3">
+        <label htmlFor={id} className="grid gap-1 text-xs font-medium text-muted-foreground">
+          <span>{label}</span>
+          <span className="flex items-center gap-2">
+            <input
+              id={id}
+              inputMode="decimal"
+              value={shown}
+              aria-invalid={problem ? true : undefined}
+              aria-describedby={`${id}-hint`}
+              onChange={(event) => {
+                const next = event.target.value;
+                const n = parseNumber(next);
+
+                setText(next);
+
+                // Passed on only when valid; one decimal is all a visits figure can mean.
+                const valid =
+                  next.trim() !== "" &&
+                  Number.isFinite(n) &&
+                  n >= min &&
+                  n <= max &&
+                  (!integer || Number.isInteger(n));
+
+                if (valid) onCommit(integer ? n : Math.round(n * 10) / 10);
+              }}
+              onBlur={() => {
+                if (!problem) setText(null);
+              }}
+              className={cn(
+                "h-10 w-28 rounded-md border bg-card px-3 text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-ring",
+                problem ? "border-destructive" : "border-input",
+              )}
+            />
+            <span className="text-muted-foreground">{unit}</span>
+          </span>
+        </label>
+
+        <p id={`${id}-hint`} className="pb-2 text-xs text-muted-foreground">
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+            Recomendado
+          </span>{" "}
+          <span>{String(recommended).replace(".", ",")}</span>
+          {differs || text !== null ? (
+            <>
+              {" · "}
+              <button
+                type="button"
+                className="font-semibold text-foreground underline underline-offset-4"
+                onClick={() => {
+                  setText(null);
+                  onReset();
+                }}
+              >
+                Volver a lo recomendado
+              </button>
+            </>
+          ) : null}
+        </p>
+      </div>
+
+      {problem ? (
+        <p role="alert" className="text-xs text-destructive">
+          {problem} No se rehace el programa hasta que sea válido.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -341,6 +528,10 @@ function LivePreview({ preview }: { preview: ReturnType<typeof usePreview> }) {
 
   return (
     <div
+      // Re-created for each fresh answer rather than patched in place. A browser that translates
+      // the page swaps React's text nodes for its own, and edits to the swapped nodes never show:
+      // the preview would keep the figures of an earlier answer, which is worse than no preview.
+      key={preview.dataUpdatedAt}
       className={cn(
         "grid gap-4 rounded-lg border border-border bg-card p-5 shadow-sm transition-opacity",
         preview.isFetching && "opacity-70",
@@ -359,7 +550,7 @@ function LivePreview({ preview }: { preview: ReturnType<typeof usePreview> }) {
           <li key={tier.key} className="flex items-baseline justify-between gap-3 text-sm">
             <span className="font-semibold">{tier.label}</span>
             <span className="text-muted-foreground">
-              {tier.threshold === 0 ? "al empezar" : `desde ${formatProgress(tier.threshold)}`}
+              {tier.threshold === 0 ? "al empezar" : `desde ${formatProgress(tier.threshold)} gastados`}
               {tier.minTenureMonths ? ` · ${tier.minTenureMonths} meses` : ""}
             </span>
           </li>
@@ -375,7 +566,7 @@ function LivePreview({ preview }: { preview: ReturnType<typeof usePreview> }) {
         {rewards.slice(0, 3).map((m) => (
           <li key={m.n} className="flex justify-between gap-3">
             <span className="truncate">{m.reward?.name}</span>
-            <span className="shrink-0 text-muted-foreground">{formatProgress(m.threshold)}</span>
+            <span className="shrink-0 text-muted-foreground">{formatProgress(m.realSpend)}</span>
           </li>
         ))}
       </ul>

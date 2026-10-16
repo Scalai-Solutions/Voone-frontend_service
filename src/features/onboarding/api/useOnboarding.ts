@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { queryKeys } from "@/lib/query-keys";
 import {
   createDraft,
+  getCalculator,
   getCatalog,
   getEstimates,
   getProgram,
@@ -13,6 +14,7 @@ import {
   publishProgram,
   replaceCatalog,
   swapMilestone,
+  type CalcInput,
   type CatalogInputRow,
   type OnboardingAnswers,
 } from "@/lib/onboarding-api";
@@ -80,6 +82,28 @@ export function usePreview(clinicId: string, answers: OnboardingAnswers | null) 
     queryKey: queryKeys.onboarding.preview(clinicId, answers),
     queryFn: () => previewProgram(clinicId, answers as OnboardingAnswers),
     enabled: answers !== null,
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Five years of what a programme costs and brings in, for the inputs typed.
+ *
+ * `input` is null until the person has typed something valid, so nothing is asked for a half-typed
+ * figure. The previous answer stays on screen while the next one loads, so the chart does not
+ * blank on every keystroke. Read-only: it never changes the programme it is computed from.
+ */
+export function useCalculator(
+  clinicId: string,
+  programId: string,
+  input: Partial<CalcInput> | null,
+) {
+  return useQuery({
+    queryKey: queryKeys.onboarding.calculator(clinicId, programId, input),
+    queryFn: () => getCalculator(clinicId, programId, input as Partial<CalcInput>),
+    enabled: input !== null,
     placeholderData: keepPreviousData,
     retry: false,
     staleTime: 60_000,

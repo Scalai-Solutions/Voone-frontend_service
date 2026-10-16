@@ -19,6 +19,7 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["programs", "*"], methods: ["GET"] },
   { pattern: ["programs", "*", "publish"], methods: ["POST"] },
   { pattern: ["programs", "*", "milestones", "*"], methods: ["PATCH"] },
+  { pattern: ["programs", "*", "calculator"], methods: ["POST"] },
   { pattern: ["recalibration"], methods: ["GET"] },
 ];
 

@@ -20,6 +20,7 @@ import {
 import { ApiError } from "@/lib/api-client";
 import type { CatalogRow, OnboardingAnswers, ProgramListItem } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
+import { CalculatorSection } from "./calculator-section";
 import { CatalogStep } from "./catalog-step";
 import { ProgramView } from "./program-view";
 import { QuestionsStep } from "./questions-step";
@@ -265,6 +266,8 @@ function ProgramSetupLoaded({
                     : undefined
                 }
               />
+
+              <CalculatorSection clinicId={clinicId} programId={program.id} />
 
               {problem ? (
                 <p role="alert" className="text-sm text-destructive">

@@ -21,6 +21,8 @@ export const queryKeys = {
     program: (clinicId: string, programId: string) =>
       ["onboarding", clinicId, "program", programId] as const,
     recalibration: (clinicId: string) => ["onboarding", clinicId, "recalibration"] as const,
+    calculator: (clinicId: string, programId: string, input: unknown) =>
+      ["onboarding", clinicId, "calculator", programId, input] as const,
   },
   mutations: {
     addMember: () => ["add-member"] as const,
