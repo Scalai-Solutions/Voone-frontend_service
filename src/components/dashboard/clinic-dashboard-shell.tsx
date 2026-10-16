@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { cn } from "@/lib/utils";
-import type { VooneSession } from "@/lib/auth";
+import type { VooneSession } from "@/lib/auth-shared";
 
 export type ClinicShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings";
 

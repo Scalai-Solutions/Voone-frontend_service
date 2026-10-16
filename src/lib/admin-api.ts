@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ApiError, type Clinic, type Member } from "@/lib/api-client";
+import { ApiError, type Clinic, type Member, type WalletInfrastructure } from "@/lib/api-client";
 import { staffFetch } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -50,4 +50,8 @@ export function getAdminClinic(clinicId: string) {
 
 export function getAdminMembers() {
   return adminFetch<Member[]>("/v1/admin/members");
+}
+
+export function getAdminWalletInfrastructure() {
+  return adminFetch<WalletInfrastructure>("/v1/admin/wallet");
 }

@@ -1,5 +1,6 @@
+import { PERMISSIONS } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { requireStaffSession } from "@/lib/staff-guard";
+import { requirePermission } from "@/lib/staff-guard";
 
 /**
  * Creates the clinic's template.
@@ -10,7 +11,7 @@ import { requireStaffSession } from "@/lib/staff-guard";
  * give two places to keep in step and a second set of error messages.
  */
 export async function POST(request: Request) {
-  const guard = await requireStaffSession();
+  const guard = await requirePermission(PERMISSIONS.clinicEdit);
 
   if ("response" in guard) {
     return guard.response;

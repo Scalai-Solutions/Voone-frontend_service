@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { DevRoleSwitcher } from "@/components/shared/dev-role-switcher";
-import type { Role } from "@/lib/auth";
+import type { Role } from "@/lib/auth-shared";
 
 export function AppProviders({
   authEnabled,

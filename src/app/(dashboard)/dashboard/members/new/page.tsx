@@ -1,11 +1,23 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import { PageHeader } from "@/components/shared/page-kit";
 import { getClinicSignupUrl } from "@/lib/app-url";
+import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
 
 export default async function NewMemberPage() {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  if (!hasPermission(session, PERMISSIONS.membersManage)) {
+    redirect("/dashboard");
+  }
+
   const clinic = await getCurrentStaffClinic();
   const signupUrl = await getClinicSignupUrl(clinic.id);
 

@@ -12,6 +12,8 @@
  * a new backend route is unreachable through the proxy until someone decides it should be.
  * Routes that need the clinic taken from the session have dedicated handlers instead
  * (`/api/staff/members`, `/api/staff/clinic`, ...), which Next matches before this catch-all.
+ * Clinic-user routes are also safe to proxy: their handlers verify the clinic ID against the
+ * session headers and require team-management permission.
  *
  * Each pattern is the path split into segments; `*` stands for exactly one non-empty segment.
  */
@@ -21,6 +23,8 @@ const ALLOWED: string[][] = [
   ["clinics", "*", "notifications", "segment"],
   ["clinics", "*", "notification-settings"],
   ["clinics", "*", "geo-locations"],
+  ["clinics", "*", "users"],
+  ["clinics", "*", "users", "*"],
   ["members", "*", "notifications"],
   ["members", "*", "notification-quota"],
   ["notifications", "*"],

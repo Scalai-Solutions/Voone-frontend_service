@@ -1,11 +1,12 @@
+import { PERMISSIONS } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { requireStaffSession } from "@/lib/staff-guard";
+import { requirePermission } from "@/lib/staff-guard";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ memberId: string }> },
 ) {
-  const guard = await requireStaffSession();
+  const guard = await requirePermission(PERMISSIONS.pointsAdjust);
 
   if ("response" in guard) {
     return guard.response;

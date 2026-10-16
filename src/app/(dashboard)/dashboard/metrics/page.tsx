@@ -1,13 +1,10 @@
+import { redirect } from "next/navigation";
 import { BarChart3, Crown, Gift, PiggyBank, ReceiptText, Sparkles, Trophy, UsersRound } from "lucide-react";
 
-import { getMembers, type Member } from "@/lib/api-client";
+import { ApiError, type Member } from "@/lib/api-client";
+import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
+import { staffFetch } from "@/lib/staff-api";
 import { cn } from "@/lib/utils";
-
-const memberProfiles: Record<string, { age: number; city: string }> = {
-  "MEM-1048": { age: 29, city: "Madrid" },
-  "MEM-2033": { age: 34, city: "Valencia" },
-  "MEM-3110": { age: 41, city: "Barcelona" },
-};
 
 const ageRanges = [
   { label: "18-24", min: 18, max: 24 },
@@ -24,8 +21,41 @@ const tierStyles: Record<string, string> = {
   Nuevo: "bg-[#eadfd8] text-[#6f5c53]",
 };
 
+async function getMetricsMembers(): Promise<Member[]> {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  if (!hasPermission(session, PERMISSIONS.membersManage)) {
+    redirect("/dashboard");
+  }
+
+  const response = await staffFetch(
+    `/v1/clinics/${encodeURIComponent(session.clinicSlug)}/members`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      code?: string;
+      message?: string;
+    } | null;
+
+    throw new ApiError(
+      `Voone staff request failed: ${response.status}`,
+      response.status,
+      body?.code,
+      body?.message,
+    );
+  }
+
+  return response.json() as Promise<Member[]>;
+}
+
 export default async function MetricsPage() {
-  const members = await getMembers();
+  const members = await getMetricsMembers();
   const metrics = buildMetrics(members);
 
   return (
@@ -97,6 +127,21 @@ export default async function MetricsPage() {
   );
 }
 
+function memberAge(member: Member) {
+  if (member.birthDate) {
+    const today = new Date();
+    const date = new Date(`${member.birthDate}T00:00:00.000Z`);
+    let age = today.getFullYear() - date.getUTCFullYear();
+    const birthdayThisYear = new Date(Date.UTC(today.getFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
+    if (today.getTime() < birthdayThisYear.getTime()) age -= 1;
+
+    return age;
+  }
+
+  return member.birthYear ? new Date().getFullYear() - member.birthYear : null;
+}
+
 function buildMetrics(members: Member[]) {
   const latestHistoryDate = members.flatMap((member) => member.history.map((item) => item.date)).sort().at(-1);
   const monthKey = latestHistoryDate?.slice(0, 7) ?? new Date().toISOString().slice(0, 7);
@@ -120,7 +165,7 @@ function buildMetrics(members: Member[]) {
     membersByAge: ageRanges.map((range) => ({
       label: range.label,
       count: members.filter((member) => {
-        const age = memberProfiles[member.id]?.age;
+        const age = memberAge(member);
         return typeof age === "number" && age >= range.min && age <= range.max;
       }).length,
     })),
@@ -141,7 +186,7 @@ function pointsForMonth(member: Member, monthKey: string) {
 
 function rankMembers(members: Member[], scoreForMember: (member: Member) => number) {
   return members
-    .map((member) => ({ member, score: scoreForMember(member), city: memberProfiles[member.id]?.city ?? "Madrid" }))
+    .map((member) => ({ member, score: scoreForMember(member), city: "Madrid" }))
     .filter((item) => item.score > 0)
     .sort((first, second) => second.score - first.score)
     .slice(0, 5);

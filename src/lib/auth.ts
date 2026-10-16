@@ -4,34 +4,24 @@ import { cookies } from "next/headers";
 import { getServerSession, type NextAuthOptions, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-export type Role = "owner" | "manager" | "staff" | "voone_admin";
-
-export interface VooneSession {
-  userId: string;
-  role: Role;
-  clinicId: string;
-  /**
-   * The clinic's URL key. The backend scopes members by slug rather than id, because the
-   * same key is what a QR poster carries — so staff sign-ups and the public page address
-   * the clinic identically.
-   */
-  clinicSlug: string;
-  name: string;
-}
-
-const DASHBOARD_ROLES: Role[] = ["owner", "manager", "staff"];
-const ALL_ROLES: Role[] = [...DASHBOARD_ROLES, "voone_admin"];
+import {
+  ALL_ROLES,
+  type Permission,
+  type Role,
+  type VooneSession,
+} from "@/lib/auth-shared";
+export {
+  PERMISSIONS,
+  hasPermission,
+  hasRole,
+  isDashboardRole,
+  type Permission,
+  type Role,
+  type VooneSession,
+} from "@/lib/auth-shared";
 
 export function isAuthEnabled() {
   return process.env.AUTH_ENABLED === "true";
-}
-
-export function hasRole(session: VooneSession | null, allowed: Role[]) {
-  return Boolean(session && allowed.includes(session.role));
-}
-
-export function isDashboardRole(role: Role) {
-  return DASHBOARD_ROLES.includes(role);
 }
 
 function parseRole(value: string | undefined): Role {
@@ -47,11 +37,14 @@ function roleForLocalAccount(value: string | undefined): Role | undefined {
 export async function getMockSession(): Promise<VooneSession> {
   const cookieStore = await cookies();
   const localAccount = cookieStore.get("voone-local-account")?.value;
-  const role = roleForLocalAccount(localAccount) ?? parseRole(cookieStore.get("voone-dev-role")?.value);
+  const role =
+    roleForLocalAccount(localAccount) ??
+    parseRole(cookieStore.get("voone-dev-role")?.value);
 
   return {
     userId: localAccount ?? "dev-user-001",
     role,
+    permissions: [],
     // Both match the backend seed, so a dashboard running against a freshly seeded
     // backend can add members, write its template and render its QR with no configuration.
     // The id has to be the real one: template writes are scoped by clinic id, and a
@@ -59,7 +52,8 @@ export async function getMockSession(): Promise<VooneSession> {
     // still fell back to mock data on error.
     clinicId: "00000000-0000-4000-8000-0000000a0001",
     clinicSlug: "aurea",
-    name: role === "voone_admin" ? "Administrador Voone" : "Equipo Clínica Aurea",
+    name:
+      role === "voone_admin" ? "Administrador Voone" : "Equipo Clínica Aurea",
   };
 }
 
@@ -84,6 +78,7 @@ export async function getCurrentSession(): Promise<VooneSession | null> {
   return {
     userId: user.userId,
     role: user.role,
+    permissions: user.permissions ?? [],
     clinicId: user.clinicId,
     clinicSlug: user.clinicSlug ?? "",
     name: user.name ?? "Voone user",
@@ -115,11 +110,17 @@ const secretsMatch = (received: string, expected: string): boolean => {
 const normalizeLoginIdentifier = (value: string) => {
   const trimmedValue = value.trim().toLowerCase();
 
-  return trimmedValue.includes("@") ? trimmedValue : trimmedValue.replace(/[\s()-]/g, "");
+  return trimmedValue.includes("@")
+    ? trimmedValue
+    : trimmedValue.replace(/[\s()-]/g, "");
 };
 
 const configuredAccounts = () => {
-  const accounts: Array<{ identifiers: string[]; password: string; user: User }> = [];
+  const accounts: Array<{
+    identifiers: string[];
+    password: string;
+    user: User;
+  }> = [];
 
   const clinicEmail = process.env.VOONE_DEV_AUTH_EMAIL;
   const clinicPassword = process.env.VOONE_DEV_AUTH_PASSWORD;
@@ -137,9 +138,10 @@ const configuredAccounts = () => {
         name: "Usuario Voone",
         email: clinicEmail,
         role: parseRole(process.env.VOONE_DEV_AUTH_ROLE),
+        permissions: [],
         clinicId: process.env.VOONE_DEV_AUTH_CLINIC_ID ?? "clinic-aurea",
-        clinicSlug: process.env.VOONE_DEV_AUTH_CLINIC_SLUG ?? "aurea"
-      }
+        clinicSlug: process.env.VOONE_DEV_AUTH_CLINIC_SLUG ?? "aurea",
+      },
     });
   }
 
@@ -159,33 +161,41 @@ const configuredAccounts = () => {
         name: "Administrador Voone",
         email: adminEmail,
         role: "voone_admin" as Role,
+        permissions: [],
         // Deliberately empty: Voone staff belong to no clinic. requireStaffSession refuses
         // a session without one, so an administrator cannot perform a clinic's own writes
         // by accident — which is the correct separation rather than a missing feature.
         clinicId: "",
-        clinicSlug: ""
-      }
+        clinicSlug: "",
+      },
     });
   }
 
   return accounts;
 };
 
-async function authorizeBackendAccount(identifier: string, password: string): Promise<User | null> {
-  const base = process.env.VOONE_API_URL ?? process.env.NEXT_PUBLIC_VOONE_API_URL;
+async function authorizeBackendAccount(
+  identifier: string,
+  password: string,
+): Promise<User | null> {
+  const base =
+    process.env.VOONE_API_URL ?? process.env.NEXT_PUBLIC_VOONE_API_URL;
   const key = process.env.STAFF_API_KEY;
 
   if (!base || !key) return null;
 
-  const response = await fetch(`${base.replace(/\/$/, "")}/v1/auth/credentials`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-voone-staff-key": key,
+  const response = await fetch(
+    `${base.replace(/\/$/, "")}/v1/auth/credentials`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-voone-staff-key": key,
+      },
+      body: JSON.stringify({ identifier, password }),
+      cache: "no-store",
     },
-    body: JSON.stringify({ identifier, password }),
-    cache: "no-store",
-  }).catch(() => null);
+  ).catch(() => null);
 
   if (!response?.ok) return null;
 
@@ -213,7 +223,10 @@ export const authOptions: NextAuthOptions = {
 
         const identifier = normalizeLoginIdentifier(credentials.identifier);
 
-        const backendUser = await authorizeBackendAccount(identifier, credentials.password);
+        const backendUser = await authorizeBackendAccount(
+          identifier,
+          credentials.password,
+        );
 
         if (backendUser) {
           return backendUser;
@@ -222,7 +235,7 @@ export const authOptions: NextAuthOptions = {
         const account = configuredAccounts().find(
           (candidate) =>
             candidate.identifiers.includes(identifier) &&
-            secretsMatch(credentials.password, candidate.password)
+            secretsMatch(credentials.password, candidate.password),
         );
 
         return account ? account.user : null;
@@ -234,6 +247,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = user.id;
         token.role = user.role;
+        token.permissions = user.permissions;
         token.clinicId = user.clinicId;
         token.clinicSlug = user.clinicSlug;
       }
@@ -243,7 +257,15 @@ export const authOptions: NextAuthOptions = {
     session({ session, token }) {
       if (session.user) {
         session.user.userId = String(token.userId ?? "");
-        session.user.role = parseRole(typeof token.role === "string" ? token.role : undefined);
+        session.user.role = parseRole(
+          typeof token.role === "string" ? token.role : undefined,
+        );
+        session.user.permissions = Array.isArray(token.permissions)
+          ? token.permissions.filter(
+              (permission): permission is Permission =>
+                typeof permission === "string",
+            )
+          : [];
         session.user.clinicId = String(token.clinicId ?? "");
         session.user.clinicSlug = String(token.clinicSlug ?? "");
       }

@@ -1,117 +1,356 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
+import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
+import {
+  ApiError,
+  createClinicUser,
+  deleteClinicUser,
+  updateClinicUser,
+  type Clinic,
+  type ClinicUser,
+} from "@/lib/api-client";
+import { PERMISSIONS, type Permission } from "@/lib/auth-shared";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
-type RoleTemplate = "Owner" | "Esthetician";
-
-interface ManagedRole {
-  id: string;
-  name: string;
-  template: RoleTemplate;
-  rights: string[];
-}
-
-const accessRights = [
-  { id: "profile", label: "Editar datos del centro" },
-  { id: "billing", label: "Gestionar facturación" },
-  { id: "members", label: "Gestionar miembros" },
-  { id: "points", label: "Ajustar puntos" },
-  { id: "scan", label: "Escanear visitas" },
-  { id: "engage", label: "Enviar comunicaciones" },
+const permissionOptions: Array<{
+  id: Permission;
+  label: string;
+  helper: string;
+}> = [
+  {
+    id: PERMISSIONS.membersManage,
+    label: "Miembros",
+    helper: "Ver y crear miembros",
+  },
+  {
+    id: PERMISSIONS.pointsAdjust,
+    label: "Puntos",
+    helper: "Sumar puntos a miembros",
+  },
+  { id: PERMISSIONS.scanUse, label: "Escáner", helper: "Usar recepción y QR" },
+  {
+    id: PERMISSIONS.notificationsSend,
+    label: "Comunicaciones",
+    helper: "Ver y enviar notificaciones",
+  },
+  {
+    id: PERMISSIONS.clinicEdit,
+    label: "Editar centro",
+    helper: "Cambiar datos y Wallet",
+  },
+  {
+    id: PERMISSIONS.teamManage,
+    label: "Equipo",
+    helper: "Crear o borrar cuentas",
+  },
 ];
 
-const templateRights: Record<RoleTemplate, string[]> = {
-  Owner: accessRights.map((right) => right.id),
-  Esthetician: ["members", "points", "scan"],
-};
-
-const initialRoles: ManagedRole[] = [
-  { id: "role-owner", name: "Owner", template: "Owner", rights: templateRights.Owner },
-  { id: "role-esthetician", name: "Esthetician", template: "Esthetician", rights: templateRights.Esthetician },
+const defaultWorkerPermissions: Permission[] = [
+  PERMISSIONS.membersManage,
+  PERMISSIONS.pointsAdjust,
+  PERMISSIONS.scanUse,
 ];
 
-export function RolePermissionsManager() {
-  const [roles, setRoles] = React.useState(initialRoles);
-  const [template, setTemplate] = React.useState<RoleTemplate>("Esthetician");
-  const [name, setName] = React.useState("Esthetician");
-  const [rights, setRights] = React.useState<string[]>(templateRights.Esthetician);
+const normalizeRole = (role: string) => role.toLowerCase();
 
-  function chooseTemplate(nextTemplate: RoleTemplate) {
-    setTemplate(nextTemplate);
-    setName(nextTemplate);
-    setRights(templateRights[nextTemplate]);
-  }
+const canEditUser = (user: ClinicUser) => normalizeRole(user.role) !== "owner";
 
-  function toggleRight(rightId: string) {
-    setRights((currentRights) =>
-      currentRights.includes(rightId)
-        ? currentRights.filter((item) => item !== rightId)
-        : [...currentRights, rightId]
+export function RolePermissionsManager({
+  initialClinic,
+}: {
+  initialClinic: Clinic;
+}) {
+  const queryClient = useQueryClient();
+  const currentClinic = useCurrentClinic({ initialData: initialClinic });
+  const clinic = currentClinic.data ?? initialClinic;
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [permissions, setPermissions] = React.useState<Permission[]>(
+    defaultWorkerPermissions,
+  );
+  const [pendingUserId, setPendingUserId] = React.useState<string | null>(null);
+  const [status, setStatus] = React.useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const refreshClinic = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+  };
+
+  const togglePermission = (permission: Permission) => {
+    setPermissions((current) =>
+      current.includes(permission)
+        ? current.filter((item) => item !== permission)
+        : [...current, permission],
     );
-  }
+  };
 
-  function addRole(event: React.FormEvent<HTMLFormElement>) {
+  const messageForError = (error: unknown, fallback: string) =>
+    error instanceof ApiError && error.detail ? error.detail : fallback;
+
+  const createUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setStatus(null);
+    setPendingUserId("new");
 
-    const trimmedName = name.trim();
-    if (!trimmedName || !rights.length) return;
+    try {
+      const response = await createClinicUser(clinic.id, {
+        name: name.trim() || undefined,
+        email: email.trim(),
+        permissions,
+      });
 
-    setRoles((currentRoles) => [
-      ...currentRoles,
-      { id: `role-${Date.now()}`, name: trimmedName, template, rights },
-    ]);
-    chooseTemplate("Esthetician");
-  }
+      setName("");
+      setEmail("");
+      setPermissions(defaultWorkerPermissions);
+      refreshClinic();
+      setStatus({
+        type: "success",
+        text: response.emailSent
+          ? "Cuenta creada. Hemos enviado el enlace para crear contraseña."
+          : `Cuenta creada. Copia el enlace de acceso: ${response.setupUrl ?? "no disponible"}`,
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        text: messageForError(error, "No se pudo crear la cuenta."),
+      });
+    } finally {
+      setPendingUserId(null);
+    }
+  };
+
+  const savePermissions = async (
+    user: ClinicUser,
+    nextPermissions: Permission[],
+  ) => {
+    setStatus(null);
+    setPendingUserId(user.id);
+
+    try {
+      await updateClinicUser(clinic.id, user.id, {
+        permissions: nextPermissions,
+      });
+      refreshClinic();
+      setStatus({ type: "success", text: "Permisos actualizados." });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        text: messageForError(error, "No se pudieron actualizar los permisos."),
+      });
+    } finally {
+      setPendingUserId(null);
+    }
+  };
+
+  const removeUser = async (user: ClinicUser) => {
+    setStatus(null);
+    setPendingUserId(user.id);
+
+    try {
+      await deleteClinicUser(clinic.id, user.id);
+      refreshClinic();
+      setStatus({ type: "success", text: "Cuenta eliminada." });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        text: messageForError(error, "No se pudo eliminar la cuenta."),
+      });
+    } finally {
+      setPendingUserId(null);
+    }
+  };
 
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-2">
-        {roles.map((role) => (
-          <div key={role.id} className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4 text-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{role.name}</p>
-                <p className="mt-1 text-xs text-[#927e72]">Plantilla {role.template}</p>
-              </div>
-              <button type="button" onClick={() => setRoles((currentRoles) => currentRoles.filter((item) => item.id !== role.id))} className="text-[#b94135]" aria-label={`Eliminar rol ${role.name}`}>
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {role.rights.map((rightId) => {
-                const right = accessRights.find((item) => item.id === rightId);
-                return right ? <span key={right.id} className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{right.label}</span> : null;
-              })}
-            </div>
-          </div>
+        {clinic.users.map((user) => (
+          <TeamUserCard
+            key={user.id}
+            user={user}
+            busy={pendingUserId === user.id}
+            onSave={savePermissions}
+            onDelete={removeUser}
+          />
         ))}
       </div>
 
-      <form onSubmit={addRole} className="rounded-2xl border border-[#eadfd8] bg-white/70 p-4">
-        <div className="flex flex-wrap gap-2">
-          {(["Owner", "Esthetician"] as RoleTemplate[]).map((item) => (
-            <button key={item} type="button" onClick={() => chooseTemplate(item)} className={cn("rounded-full px-4 py-2 text-sm font-semibold", template === item ? "bg-[#2d211e] text-white" : "border border-[#cdb9aa] text-[#754b36]")}>{item}</button>
-          ))}
+      {status ? (
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-3 text-sm font-semibold",
+            status.type === "error"
+              ? "border border-[#d86d5e]/40 bg-[#fff7f5] text-[#8f3f35]"
+              : "border border-[#86b37e]/40 bg-[#f3fbf1] text-[#456f3f]",
+          )}
+        >
+          {status.text}
         </div>
-        <label className="mt-4 block text-sm font-semibold">
-          Nombre del rol
-          <input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm font-normal outline-none focus:border-[#b8864b]" />
-        </label>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {accessRights.map((right) => (
-            <label key={right.id} className="flex items-center gap-2 rounded-xl border border-[#eadfd8] bg-[#fffaf6] px-3 py-2 text-sm">
-              <input type="checkbox" checked={rights.includes(right.id)} onChange={() => toggleRight(right.id)} className="h-4 w-4 accent-[#b8864b]" />
-              {right.label}
-            </label>
-          ))}
+      ) : null}
+
+      <form
+        onSubmit={createUser}
+        className="rounded-2xl border border-[#eadfd8] bg-white/70 p-4"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm font-semibold">
+            Nombre
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm font-normal outline-none focus:border-[#b8864b]"
+              placeholder="Recepción"
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Email
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm font-normal outline-none focus:border-[#b8864b]"
+              placeholder="equipo@clinica.com"
+            />
+          </label>
         </div>
-        <button type="submit" disabled={!name.trim() || !rights.length} className="mt-4 inline-flex items-center rounded-full bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-          <Plus className="mr-2 h-4 w-4" /> Crear rol
+        <PermissionChecklist
+          permissions={permissions}
+          onToggle={togglePermission}
+        />
+        <button
+          type="submit"
+          disabled={pendingUserId === "new" || !email.trim()}
+          className="mt-4 inline-flex items-center rounded-full bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Plus className="mr-2 h-4 w-4" /> Crear cuenta asociada
         </button>
       </form>
+    </div>
+  );
+}
+
+function TeamUserCard({
+  user,
+  busy,
+  onSave,
+  onDelete,
+}: {
+  user: ClinicUser;
+  busy: boolean;
+  onSave: (user: ClinicUser, permissions: Permission[]) => void;
+  onDelete: (user: ClinicUser) => void;
+}) {
+  const editable = canEditUser(user);
+  const [draftPermissions, setDraftPermissions] = React.useState<Permission[]>(
+    user.permissions ?? [],
+  );
+
+  React.useEffect(() => {
+    setDraftPermissions(user.permissions ?? []);
+  }, [user.permissions]);
+
+  const toggleDraft = (permission: Permission) => {
+    if (!editable) return;
+    setDraftPermissions((current) =>
+      current.includes(permission)
+        ? current.filter((item) => item !== permission)
+        : [...current, permission],
+    );
+  };
+
+  return (
+    <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{user.name || user.email}</p>
+          <p className="mt-1 text-xs text-[#927e72]">
+            {user.email} · {user.role.toLowerCase()}
+          </p>
+          <p className="mt-1 text-xs text-[#927e72]">
+            {user.hasPassword ? "Contraseña activa" : "Pendiente de contraseña"}
+          </p>
+        </div>
+        {editable ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onDelete(user)}
+            className="text-[#b94135] disabled:opacity-50"
+            aria-label={`Eliminar cuenta ${user.email}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+      {editable ? (
+        <>
+          <PermissionChecklist
+            permissions={draftPermissions}
+            onToggle={toggleDraft}
+            compact
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onSave(user, draftPermissions)}
+            className="mt-3 inline-flex items-center rounded-full border border-[#cdb9aa] px-3 py-1.5 text-xs font-semibold text-[#754b36] disabled:opacity-50"
+          >
+            <Save className="mr-2 h-3.5 w-3.5" /> Guardar permisos
+          </button>
+        </>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="rounded-full bg-[#2d211e] px-3 py-1 text-xs font-semibold text-white">
+            Acceso completo
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PermissionChecklist({
+  permissions,
+  onToggle,
+  compact = false,
+}: {
+  permissions: Permission[];
+  onToggle: (permission: Permission) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "mt-4 grid gap-2",
+        compact ? "sm:grid-cols-1" : "sm:grid-cols-2",
+      )}
+    >
+      {permissionOptions.map((permission) => (
+        <label
+          key={permission.id}
+          className="flex items-start gap-2 rounded-xl border border-[#eadfd8] bg-[#fffaf6] px-3 py-2 text-sm"
+        >
+          <input
+            type="checkbox"
+            checked={permissions.includes(permission.id)}
+            onChange={() => onToggle(permission.id)}
+            className="mt-0.5 h-4 w-4 accent-[#b8864b]"
+          />
+          <span>
+            <span className="block font-semibold">{permission.label}</span>
+            <span className="block text-xs text-[#927e72]">
+              {permission.helper}
+            </span>
+          </span>
+        </label>
+      ))}
     </div>
   );
 }

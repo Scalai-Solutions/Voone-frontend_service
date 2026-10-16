@@ -30,7 +30,9 @@ const SEX_OPTIONS = [
 ] as const;
 
 /** Read once, like the backend's bound. */
-const CURRENT_YEAR = new Date().getFullYear();
+const today = new Date();
+const CURRENT_YEAR = today.getFullYear();
+const TODAY_ISO = today.toISOString().slice(0, 10);
 
 const signupSchema = z.object({
   name: z
@@ -52,17 +54,22 @@ const signupSchema = z.object({
   // Empty string rather than undefined as the resting value, because that is what an
   // untouched <input> and <select> actually hold — mapping it to undefined happens once,
   // on submit, rather than being guarded at every read.
-  birthYear: z
+  birthDate: z
     .string()
     .trim()
-    .refine(
-      (value) =>
-        value === "" ||
-        (/^\d{4}$/.test(value) &&
-          Number(value) >= CURRENT_YEAR - 120 &&
-          Number(value) <= CURRENT_YEAR),
-      "Introduce un año de nacimiento válido"
-    ),
+    .refine((value) => {
+      if (value === "") return true;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+      const date = new Date(`${value}T00:00:00.000Z`);
+      const year = date.getUTCFullYear();
+
+      return (
+        date.toISOString().slice(0, 10) === value &&
+        year >= CURRENT_YEAR - 120 &&
+        value <= TODAY_ISO
+      );
+    }, "Introduce una fecha de nacimiento válida"),
   sex: z.union([z.enum(SEX_OPTIONS.map((option) => option.value)), z.literal("")]),
   // Never .default(true) and never pre-ticked: consent has to be an affirmative act, and an
   // unticked box is a valid "no" that still creates the member.
@@ -129,7 +136,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
   const [wallet, setWallet] = React.useState<MemberPassWallet | null>(null);
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: "", phone: "", birthYear: "", sex: "", consentMarketing: false },
+    defaultValues: { name: "", phone: "", birthDate: "", sex: "", consentMarketing: false },
   });
 
   const mutation = useSignUpMember(clinic.slug, {
@@ -143,7 +150,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
     mutation.mutate({
       name: values.name,
       phone: values.phone,
-      birthYear: values.birthYear === "" ? undefined : Number(values.birthYear),
+      birthDate: values.birthDate === "" ? undefined : values.birthDate,
       sex: values.sex === "" ? undefined : values.sex,
       consentMarketing: values.consentMarketing,
     });
@@ -217,19 +224,15 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Field
-          label="Año de nacimiento"
-          error={form.formState.errors.birthYear?.message}
+          label="Fecha de nacimiento"
+          error={form.formState.errors.birthDate?.message}
           hint="Opcional"
         >
           <Input
-            {...form.register("birthYear")}
-            // A year, not a date picker: four digits is faster to type one-handed than
-            // scrolling a calendar back forty years, which is what this is scanned on.
-            type="text"
-            inputMode="numeric"
-            autoComplete="bday-year"
-            maxLength={4}
-            placeholder="1994"
+            {...form.register("birthDate")}
+            type="date"
+            autoComplete="bday"
+            max={TODAY_ISO}
             enterKeyHint="next"
           />
         </Field>

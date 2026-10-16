@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/auth";
+import type { Role } from "@/lib/auth-shared";
 
 export function formatRole(role: Role) {
   if (role === "owner") return "Propietario";

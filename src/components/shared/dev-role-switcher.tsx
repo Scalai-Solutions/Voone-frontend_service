@@ -2,7 +2,7 @@
 
 import { ShieldCheck } from "lucide-react";
 
-import type { Role } from "@/lib/auth";
+import type { Role } from "@/lib/auth-shared";
 import { formatRole } from "@/lib/roles";
 
 const ROLES: Role[] = ["owner", "manager", "staff", "voone_admin"];

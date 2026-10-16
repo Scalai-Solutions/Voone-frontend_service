@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/auth";
+import type { Permission, Role } from "@/lib/auth-shared";
 
 export type WalletProvider = "google" | "apple";
 export type ProviderStatus = "added" | "not_added" | "unavailable" | "failed";
@@ -138,6 +138,17 @@ export interface Template {
 
 export type VoonePlan = "starter" | "medium" | "pro";
 
+export interface ClinicUser {
+  id: string;
+  name?: string | null;
+  email: string;
+  role: string;
+  permissions: Permission[];
+  hasPassword?: boolean;
+  onboardingPasswordGeneratedAt?: string | null;
+  onboardingCredentialsSentAt?: string | null;
+}
+
 export interface AdminClinicTemplate {
   id: string;
   presetId?: string;
@@ -216,9 +227,14 @@ export interface Member {
   code: string | null;
   identity: string;
   email?: string | null;
+  birthDate?: string | null;
+  birthYear?: number | null;
+  sex?: "mujer" | "hombre" | "otro" | "prefiero_no_decirlo" | null;
   templateId: string;
   templateName: string;
   points: number;
+  moneySpent: number;
+  lastVisitedAt: string | null;
   tier: string;
   walletStatus: Record<WalletProvider, ProviderStatus>;
   history: Array<{ id: string; label: string; points: number; date: string }>;
@@ -262,7 +278,7 @@ export interface Clinic {
   members: number;
   templates: number;
   status: "active" | "setup";
-  users: Array<{ id: string; email: string; role: string }>;
+  users: ClinicUser[];
   onboardingCredentials?: {
     email: string;
     setupUrl?: string | null;
@@ -464,6 +480,8 @@ const mockMembers: Member[] = [
     templateId: "gold-beauty",
     templateName: "Gold Beauty Club",
     points: 1250,
+    moneySpent: 320,
+    lastVisitedAt: "2026-09-04T00:00:00.000Z",
     tier: "Gold",
     walletStatus: {
       google: "added",
@@ -482,6 +500,8 @@ const mockMembers: Member[] = [
     templateId: "diamond-skin",
     templateName: "Diamond Skin Plan",
     points: 2480,
+    moneySpent: 220,
+    lastVisitedAt: "2026-09-02T00:00:00.000Z",
     tier: "Diamond",
     walletStatus: {
       google: "not_added",
@@ -499,6 +519,8 @@ const mockMembers: Member[] = [
     templateId: "gold-beauty",
     templateName: "Gold Beauty Club",
     points: 540,
+    moneySpent: 0,
+    lastVisitedAt: "2026-08-18T00:00:00.000Z",
     tier: "Silver",
     walletStatus: {
       google: "added",
@@ -856,6 +878,8 @@ export function createMember(input: CreateMemberInput) {
     templateId: template.id,
     templateName: template.name ?? template.programName,
     points: 0,
+    moneySpent: 0,
+    lastVisitedAt: null,
     tier: "Nuevo",
     walletStatus: {
       google: "not_added",
@@ -953,6 +977,47 @@ export function getClinic(clinicId: string) {
   return adminProxyFetch<Clinic>(`/clinics/${encodeURIComponent(clinicId)}`);
 }
 
+export interface CreateClinicUserInput {
+  name?: string;
+  email: string;
+  permissions: Permission[];
+}
+
+export interface ClinicUserMutationResponse {
+  user: ClinicUser;
+  setupUrl?: string;
+  setupTokenExpiresAt?: string;
+  emailSent?: boolean;
+}
+
+export function createClinicUser(
+  clinicId: string,
+  input: CreateClinicUserInput,
+) {
+  return staffProxyFetch<ClinicUserMutationResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/users`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function updateClinicUser(
+  clinicId: string,
+  userId: string,
+  input: Partial<Pick<CreateClinicUserInput, "name" | "permissions">>,
+) {
+  return staffProxyFetch<ClinicUserMutationResponse>(
+    `/clinics/${encodeURIComponent(clinicId)}/users/${encodeURIComponent(userId)}`,
+    { method: "PUT", body: JSON.stringify(input) },
+  );
+}
+
+export function deleteClinicUser(clinicId: string, userId: string) {
+  return staffProxyFetch<void>(
+    `/clinics/${encodeURIComponent(clinicId)}/users/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function getWalletInfrastructure() {
   const fallback: WalletInfrastructure = {
     appleCertificateExpiresAt: "2027-02-14T00:00:00.000Z",
@@ -1025,11 +1090,9 @@ export interface MembershipSignupInput {
   phone: string;
   /** Optional additional contact. The phone is the identity. */
   email?: string;
-  /**
-   * Year of birth, not an age: an age is wrong within a year of being stored and nothing
-   * would ever correct it. Optional — refusing a sign-up over a demographic costs a
-   * member to gain a data point.
-   */
+  /** Full date of birth as YYYY-MM-DD. */
+  birthDate?: string;
+  /** Deprecated fallback accepted for older clients. */
   birthYear?: number;
   /** Self-declared. "prefiero_no_decirlo" is a real answer, not an absent field. */
   sex?: "mujer" | "hombre" | "otro" | "prefiero_no_decirlo";

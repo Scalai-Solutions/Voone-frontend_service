@@ -1,7 +1,8 @@
 import { z } from "zod";
 
+import { PERMISSIONS } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { requireStaffSession } from "@/lib/staff-guard";
+import { requirePermission } from "@/lib/staff-guard";
 
 /**
  * Staff member entry.
@@ -53,7 +54,7 @@ const withFrontendPassLink = (payload: unknown, request: Request): unknown => {
 };
 
 export async function GET() {
-  const guard = await requireStaffSession();
+  const guard = await requirePermission(PERMISSIONS.membersManage);
 
   if ("response" in guard) {
     return guard.response;
@@ -68,7 +69,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const guard = await requireStaffSession();
+  const guard = await requirePermission(PERMISSIONS.membersManage);
 
   if ("response" in guard) {
     return guard.response;
