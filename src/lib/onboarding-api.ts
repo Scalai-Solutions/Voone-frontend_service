@@ -84,6 +84,13 @@ export interface OnboardingAnswers {
   /** Null or absent means "use the estimate from the catalogue". */
   ticket?: string | null;
   freq?: string | null;
+  /**
+   * The centre's own exact figures. They win over the buckets above, and everything in the
+   * programme is built from annual spend (ticket x visits), so changing either regenerates the
+   * whole programme. Null or absent means the recommended value.
+   */
+  ticketValue?: number | null;
+  visitsValue?: number | null;
   objective: Objective;
   investment: Investment;
   occupancy: Occupancy;
@@ -97,6 +104,8 @@ export interface OnboardingEstimates {
   annualSpend: number;
   preselectedTicketBucket: string;
   preselectedFreqBucket: string;
+  /** The ranges the exact figures may take; the backend refuses anything outside them. */
+  limits: { ticket: { min: number; max: number }; visits: { min: number; max: number } };
   ticketBuckets: Array<{ id: string; label: string; value: number }>;
   freqBuckets: Array<{ id: string; label: string }>;
   /** Rows the engine could not file, which the centre must categorise. */
@@ -105,9 +114,13 @@ export interface OnboardingEstimates {
 
 /* ------------------------------------------------------------------------ programme */
 
+/**
+ * A gift, by name only. What a gift is worth or costs is deliberately not here: the founders'
+ * review is that a centre should see what it gives and what its clients spend, not what each
+ * gift is worth. The backend does not send a value, so no screen can show one.
+ */
 export interface PresentedItem {
   name: string;
-  value: number;
 }
 
 export interface PresentedMilestone {
@@ -115,14 +128,17 @@ export interface PresentedMilestone {
   /** The tier band, 1 to 4. */
   band: number;
   type: "premio" | "ventaja" | "nivel";
-  /** Progress euros. */
+  /** Progress euros. Not shown: `realSpend` is what a centre reads. */
   threshold: number;
+  /** What a client has actually paid when she reaches this step, in whole euros. */
+  realSpend: number;
+  /** Months for a typical repeating client to get here. */
+  month: number;
   tier?: { key: TierKey; label: string };
   reward?: {
     name: string;
-    value: number;
     items: PresentedItem[];
-    alternatives: Array<{ name: string; value: number; items: PresentedItem[] }>;
+    alternatives: Array<{ name: string; items: PresentedItem[] }>;
   };
   perk?: { kind: string; name: string; description: string };
 }
@@ -139,10 +155,12 @@ export interface PresentedProgram {
   estimates: { segment: string; ticket: number; visitsPerYear: number; annualSpend: number };
   tiers: PresentedTier[];
   ladder: PresentedMilestone[];
-  recurring: { every: number; name: string; value: number };
-  referrals: Array<{ n: number; name: string; value: number }>;
+  /** After Diamante: one reward for every `every` euros a client pays. */
+  recurring: { every: number; name: string };
+  /** `minRevenue`: the least the centre has earned from the people referred by this step. */
+  referrals: Array<{ n: number; name: string; minRevenue: number }>;
   welcomeProgress: number;
-  familyAndFriends: { title: string; description: string };
+  familyAndFriends: { title: string; description: string; comingSoon: boolean };
   adaptations: string[];
   review: string[];
 }
@@ -180,6 +198,39 @@ export interface ProgramListItem {
   configVersion: string;
   publishedAt: string | null;
   createdAt: string;
+}
+
+/* ----------------------------------------------------------------------- calculator */
+
+export interface CalcInput {
+  /** Members the centre expects in the programme once onboarding is complete. */
+  clients: number;
+  /** Euros per visit. */
+  ticket: number;
+}
+
+export interface CalcLine {
+  key: string;
+  label: string;
+  amount: number;
+}
+
+export interface CalcYear {
+  year: number;
+  avgMembers: number;
+  /** Members at the end of the year, by tier. */
+  byTier: Record<TierKey, number>;
+  generates: { total: number; lines: CalcLine[] };
+  costs: { total: number; lines: CalcLine[] };
+  net: number;
+  cumulativeNet: number;
+}
+
+export interface CalcResult {
+  input: CalcInput;
+  /** What the programme suggests, so the screen can offer to reset to it. */
+  defaults: CalcInput;
+  years: CalcYear[];
 }
 
 export interface RecalibrationAdvice {
@@ -269,3 +320,11 @@ export const swapMilestone = (
 
 export const getRecalibration = (clinicId: string) =>
   request<RecalibrationAdvice>(clinicId, "/recalibration");
+
+/** Five years of what the programme costs and brings in. Computed on the server, which holds the
+ *  costs; only yearly totals come back. Absent fields mean the programme's own defaults. */
+export const getCalculator = (clinicId: string, programId: string, input: Partial<CalcInput>) =>
+  request<CalcResult>(clinicId, `/programs/${encodeURIComponent(programId)}/calculator`, {
+    method: "POST",
+    ...json(input),
+  });
