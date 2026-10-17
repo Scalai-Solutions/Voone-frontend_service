@@ -291,15 +291,12 @@ export interface Clinic {
   template?: AdminClinicTemplate | null;
 }
 
-export type NotificationType = "BROADCAST" | "SEGMENT" | "SINGLE" | "POINTS" | "TIER";
+export type NotificationType =
+  "BROADCAST" | "SEGMENT" | "SINGLE" | "POINTS" | "TIER" | "BIRTHDAY";
 export type NotificationStatus =
-  | "QUEUED"
-  | "PROCESSING"
-  | "SENT"
-  | "PARTIAL_FAILED"
-  | "FAILED"
-  | "CANCELLED";
-export type NotificationDeliveryStatus = "QUEUED" | "SENT" | "DOWNGRADED" | "FAILED" | "SKIPPED";
+  "QUEUED" | "PROCESSING" | "SENT" | "PARTIAL_FAILED" | "FAILED" | "CANCELLED";
+export type NotificationDeliveryStatus =
+  "QUEUED" | "SENT" | "DOWNGRADED" | "FAILED" | "SKIPPED";
 export type NotifyOnCredit = "NEVER" | "MILESTONE_AND_TIER" | "ALWAYS";
 
 export interface NotificationMessageInput {
@@ -369,6 +366,10 @@ export interface NotificationQuotaResponse {
 export interface NotificationSettings {
   notifyOnCredit: NotifyOnCredit;
   marketingEnabled: boolean;
+  birthdayEnabled: boolean;
+  birthdayHeader: string;
+  birthdayBody: string;
+  birthdayNotify: boolean;
 }
 
 export interface ClinicGeoLocation {
@@ -679,7 +680,9 @@ export function broadcastNotification(
     {
       method: "POST",
       body: JSON.stringify(input),
-      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      headers: idempotencyKey
+        ? { "Idempotency-Key": idempotencyKey }
+        : undefined,
     },
   );
 }
@@ -694,7 +697,9 @@ export function sendSegmentNotification(
     {
       method: "POST",
       body: JSON.stringify(input),
-      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      headers: idempotencyKey
+        ? { "Idempotency-Key": idempotencyKey }
+        : undefined,
     },
   );
 }
@@ -709,14 +714,20 @@ export function sendMemberNotification(
     {
       method: "POST",
       body: JSON.stringify(input),
-      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      headers: idempotencyKey
+        ? { "Idempotency-Key": idempotencyKey }
+        : undefined,
     },
   );
 }
 
 export function getNotifications(
   clinicId: string,
-  filters: { status?: NotificationStatus; type?: NotificationType; cursor?: string } = {},
+  filters: {
+    status?: NotificationStatus;
+    type?: NotificationType;
+    cursor?: string;
+  } = {},
 ) {
   const params = new URLSearchParams();
 
@@ -740,9 +751,12 @@ export function getNotification(notificationId: string) {
 }
 
 export function deleteNotification(notificationId: string) {
-  return staffProxyFetch<void>(`/notifications/${encodeURIComponent(notificationId)}`, {
-    method: "DELETE",
-  });
+  return staffProxyFetch<void>(
+    `/notifications/${encodeURIComponent(notificationId)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function getMemberNotificationQuota(memberId: string) {
@@ -759,7 +773,10 @@ export function getNotificationSettings(clinicId: string) {
   );
 }
 
-export function saveNotificationSettings(clinicId: string, input: NotificationSettings) {
+export function saveNotificationSettings(
+  clinicId: string,
+  input: NotificationSettings,
+) {
   return staffProxyFetch<NotificationSettings>(
     `/clinics/${encodeURIComponent(clinicId)}/notification-settings`,
     { method: "PUT", body: JSON.stringify(input) },
@@ -773,7 +790,10 @@ export function getClinicGeoLocations(clinicId: string) {
   );
 }
 
-export function saveClinicGeoLocations(clinicId: string, locations: ClinicGeoLocation[]) {
+export function saveClinicGeoLocations(
+  clinicId: string,
+  locations: ClinicGeoLocation[],
+) {
   return staffProxyFetch<ClinicGeoLocationsResponse>(
     `/clinics/${encodeURIComponent(clinicId)}/geo-locations`,
     { method: "PUT", body: JSON.stringify({ locations }) },
@@ -789,15 +809,22 @@ export function getAdminMembers() {
 }
 
 export function getMember(memberId: string) {
-  return staffProxyFetch<Member[]>("/members", { method: "GET" }).then((members) => {
-    const member = members.find((item) => item.id === memberId);
+  return staffProxyFetch<Member[]>("/members", { method: "GET" }).then(
+    (members) => {
+      const member = members.find((item) => item.id === memberId);
 
-    if (!member) {
-      throw new ApiError("Member not found", 404, "MEMBER_NOT_FOUND", "Member not found");
-    }
+      if (!member) {
+        throw new ApiError(
+          "Member not found",
+          404,
+          "MEMBER_NOT_FOUND",
+          "Member not found",
+        );
+      }
 
-    return member;
-  });
+      return member;
+    },
+  );
 }
 
 export function createMember(input: CreateMemberInput) {
@@ -855,15 +882,18 @@ export function creditMember(
   label: string,
   options: { idempotencyKey: string; referralCode?: string },
 ) {
-  return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}/points`, {
-    method: "POST",
-    body: JSON.stringify({
-      points,
-      label,
-      referralCode: options.referralCode,
-      idempotencyKey: options.idempotencyKey,
-    }),
-  });
+  return staffProxyFetch<Member>(
+    `/members/${encodeURIComponent(memberId)}/points`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        points,
+        label,
+        referralCode: options.referralCode,
+        idempotencyKey: options.idempotencyKey,
+      }),
+    },
+  );
 }
 
 /** A key for one credit attempt. */
@@ -872,9 +902,12 @@ export function newIdempotencyKey(): string {
 }
 
 export function lookupMemberByWalletCode(code: string) {
-  return staffProxyFetch<Member>(`/members/lookup?code=${encodeURIComponent(code)}`, {
-    method: "GET",
-  });
+  return staffProxyFetch<Member>(
+    `/members/lookup?code=${encodeURIComponent(code)}`,
+    {
+      method: "GET",
+    },
+  );
 }
 
 export function getDashboardOverview() {

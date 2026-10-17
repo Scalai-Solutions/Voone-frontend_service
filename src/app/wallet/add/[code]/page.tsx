@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Mail, ShieldCheck, WalletCards } from "lucide-react";
+import { ChevronDown, ShieldCheck } from "lucide-react";
 
 import type { Member, MemberPassWallet } from "@/lib/api-client";
 
@@ -19,6 +19,13 @@ const resolveBaseUrl = (): string => {
   }
 
   return base.replace(/\/$/, "");
+};
+
+const formatBrandName = (clinicName: string): string => {
+  const trimmed = clinicName.trim();
+  const withoutClinicSuffix = trimmed.replace(/\s+(clinic|clínica)$/i, "").trim();
+
+  return (withoutClinicSuffix || trimmed).toUpperCase();
 };
 
 async function getWalletPass(code: string): Promise<WalletPassPagePayload> {
@@ -40,67 +47,66 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
   const payload = await getWalletPass(code);
   const googleUrl = payload.wallet.passes.google.url;
   const appleUrl = payload.wallet.passes.apple.url ?? `/api/wallet/passes/${encodeURIComponent(code)}/apple`;
+  const clinicName = payload.clinic.name.trim();
+  const brandName = formatBrandName(clinicName);
+  const displayBrandName = brandName.toLocaleLowerCase("es-ES").replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("es-ES"));
+  const currentYear = new Date().getFullYear();
 
   return (
-    <main className="min-h-svh bg-[#f5efe7] px-4 py-4 text-[#2b241f] sm:px-6">
-      <section className="mx-auto flex min-h-[calc(100svh-2rem)] max-w-[430px] flex-col overflow-hidden rounded-[30px] border border-[#e3d4c8] bg-[#fffaf4] shadow-[0_28px_80px_rgba(58,39,29,0.18)]">
-        <div className="relative min-h-[190px] overflow-hidden bg-[#ecd0bf] px-5 pb-5 pt-6 text-[#352821]">
-          <Image
-            src="/wallet/sapphira-hero.png"
-            alt=""
-            fill
-            priority
-            sizes="430px"
-            className="object-cover opacity-85"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,250,244,0.16),rgba(255,250,244,0.78)_74%,#fffaf4)]" />
-          <div className="relative flex items-center justify-between gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/55 bg-white/70 text-[#7a5846] shadow-sm backdrop-blur">
-              <WalletCards size={24} />
-            </span>
-            <span className="rounded-full border border-white/55 bg-white/72 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#6f5549] backdrop-blur">
-              Pase Wallet
-            </span>
-          </div>
+    <main className="min-h-svh bg-[#f5efe7] text-[#22201e]">
+      <section className="relative isolate mx-auto flex min-h-svh w-full max-w-none flex-col overflow-hidden px-6 pb-7 pt-12 sm:my-6 sm:min-h-[893px] sm:max-w-[390px] sm:rounded-[38px] sm:border sm:border-[#e7ded2] sm:shadow-[0_30px_90px_rgba(64,48,37,0.16)]">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_6%,rgba(226,202,170,0.28),transparent_24%),linear-gradient(180deg,#fbfaf7_0%,#f5efe7_48%,#f4eee6_100%)]" />
+        <div className="pointer-events-none absolute left-[-34px] top-[365px] h-[470px] w-[92px] rounded-full bg-[#efe3d4] blur-2xl" />
+        <div className="pointer-events-none absolute right-[-50px] top-[350px] h-[560px] w-[108px] rounded-full bg-[#d8c7b5] opacity-75 blur-2xl" />
+
+        <header className="text-center">
+          <p className="font-serif text-[1.65rem] font-semibold uppercase leading-none tracking-[0.09em] text-[#26231f]">
+            {brandName}
+          </p>
+          <p className="mt-5 text-[0.58rem] font-semibold uppercase tracking-[0.25em] text-[#8f877e]">
+            {clinicName} · Privé membership
+          </p>
+        </header>
+
+        <div className="mt-14 text-center">
+          <h1 className="font-serif text-[3.22rem] font-semibold leading-[0.94] tracking-[-0.055em] text-[#24211f]">
+            El privilegio de
+            <br />
+            cuidarte.
+          </h1>
+          <p className="mx-auto mt-6 max-w-[288px] text-[0.84rem] leading-6 tracking-[-0.01em] text-[#8b8379]">
+            Prioridad, privilegios y momentos extraordinarios. Todo lo que mereces, en un solo pase.
+          </p>
         </div>
 
-        <div className="-mt-10 flex flex-1 flex-col px-5 pb-5">
-          <div className="relative rounded-[26px] border border-[#eadbd0] bg-white/92 p-5 shadow-[0_18px_45px_rgba(70,47,34,0.12)] backdrop-blur">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#b48355]">{payload.clinic.name}</p>
-            <h1 className="mt-3 font-serif text-[2.35rem] font-semibold leading-none tracking-[-0.035em] text-[#2d211c]">
-              {payload.member.name}
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-[#7d695e]">
-              Añade tu pase al Wallet de este móvil para identificarte en recepción y recibir tus puntos.
-            </p>
+        <div className="relative mt-16 flex-1 rounded-[36px] border border-[#eee5da] bg-[#fffbf7]/86 px-7 pb-7 pt-19 shadow-[0_28px_70px_rgba(55,42,32,0.12)] backdrop-blur-xl">
+          <p className="absolute right-7 top-10 text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#9f958a]">
+            {currentYear} - {currentYear + 1}
+          </p>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-[#eadbd0] bg-[#fff8f1] p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a57a55]">Saldo</p>
-                <p className="mt-2 text-lg font-semibold">{payload.member.points.toLocaleString("es-ES")}</p>
-                <p className="text-xs text-[#8b7569]">puntos</p>
-              </div>
-              <div className="rounded-2xl border border-[#eadbd0] bg-[#fff8f1] p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a57a55]">Nivel</p>
-                <p className="mt-2 text-lg font-semibold">{payload.member.tier}</p>
-                <p className="text-xs text-[#8b7569]">miembro</p>
-              </div>
-            </div>
+          <div className="text-center">
+            <p className="text-[0.64rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">{clinicName}</p>
+            <h2 className="mt-7 font-serif text-[1.95rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
+              Tu pase está listo
+            </h2>
+            <p className="mx-auto mt-4 max-w-[286px] text-[0.86rem] leading-6 text-[#7d746b]">
+              Añádelo a tu Wallet para identificarte en recepción y empezar a disfrutar de tus privilegios.
+            </p>
           </div>
 
-          <div className="mt-5 rounded-[24px] border border-[#e8d9ce] bg-[#fffdf9] p-4">
-            <p className="mb-3 text-center text-sm font-semibold text-[#5a463d]">Guardar pase</p>
+          <div className="mt-8 text-center">
+            <p className="mb-4 text-[0.78rem] font-semibold text-[#403a35]">Guardar pase</p>
             <div className="flex flex-col items-center gap-3">
               {googleUrl ? (
-                <Link href={googleUrl} className="inline-flex min-h-[55px] items-center justify-center rounded-full transition duration-200 hover:scale-[1.01] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#1a73e8]" rel="noopener noreferrer">
-                  <Image src="/wallet/add-to-google-wallet-es.svg" alt="Añadir a Google Wallet" width={199} height={55} priority className="h-[55px] w-auto" />
+                <Link href={googleUrl} className="inline-flex min-h-[45px] items-center justify-center rounded-[14px] transition duration-200 hover:scale-[1.01] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#1a73e8]" rel="noopener noreferrer">
+                  <Image src="/wallet/add-to-google-wallet-es.svg" alt="Añadir a Google Wallet" width={199} height={55} priority className="h-[45px] w-auto" />
                 </Link>
               ) : (
                 <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">Google Wallet no está disponible para este pase.</div>
               )}
 
-              {payload.wallet.passes.apple.available ? (
-                <Link href={appleUrl} className="inline-flex min-h-[48px] items-center justify-center rounded-xl transition duration-200 hover:scale-[1.01] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#0a84ff]" rel="noopener noreferrer">
+              {appleUrl ? (
+                <Link href={appleUrl} className="inline-flex min-h-[48px] items-center justify-center rounded-[12px] transition duration-200 hover:scale-[1.01] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#0a84ff]" rel="noopener noreferrer">
                   <Image src="/wallet/ES_Add_to_Apple_Wallet_RGB_101921.svg" alt="Añadir a Apple Wallet" width={133} height={35} className="h-[44px] w-auto" />
                 </Link>
               ) : (
@@ -109,16 +115,40 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
             </div>
           </div>
 
-          <div className="mt-auto pt-5">
-            <div className="rounded-2xl border border-[#eadfd8] bg-[#fff7ef] p-4 text-sm leading-6 text-[#735f55]">
-              <Mail className="mr-2 inline h-4 w-4 text-[#b7874a]" />
-              Abre este enlace desde el teléfono donde quieres guardar el pase.
-            </div>
-            <p className="mt-3 flex items-center justify-center gap-2 text-xs font-medium text-[#8b7569]">
-              <ShieldCheck className="h-4 w-4 text-[#9f7654]" /> Enlace seguro y personal
-            </p>
-          </div>
+          <details className="group mx-auto mt-9 max-w-[248px] text-left">
+            <summary className="flex cursor-pointer list-none items-start gap-3 text-[#2d2824] outline-none transition hover:text-[#8a6f4f] focus-visible:rounded-2xl focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#c5a26e] [&::-webkit-details-marker]:hidden">
+              <span className="flex-1 text-center">
+                <span className="block text-[0.86rem] font-semibold">Ver mi pase completo</span>
+                <span className="mt-1 block text-[0.6rem] leading-4 text-[#9a9086]">Consulta tus datos y beneficios</span>
+              </span>
+              <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-[#958779] transition group-open:rotate-180" aria-hidden />
+            </summary>
+            <dl className="mt-4 grid grid-cols-2 gap-3 rounded-[22px] border border-[#eee4d9] bg-[#fffaf4] p-3 text-center shadow-[inset_0_1px_rgba(255,255,255,0.85)]">
+              <div className="col-span-2 rounded-2xl bg-[#f7efe6] px-3 py-2">
+                <dt className="text-[0.58rem] font-bold uppercase tracking-[0.18em] text-[#a09688]">Miembro</dt>
+                <dd className="mt-1 font-serif text-lg leading-tight text-[#2e2924]">{payload.member.name}</dd>
+              </div>
+              <div className="rounded-2xl bg-[#f7efe6] px-3 py-2">
+                <dt className="text-[0.56rem] font-bold uppercase tracking-[0.16em] text-[#a09688]">Puntos</dt>
+                <dd className="mt-1 text-sm font-semibold text-[#2e2924]">{payload.member.points.toLocaleString("es-ES")}</dd>
+              </div>
+              <div className="rounded-2xl bg-[#f7efe6] px-3 py-2">
+                <dt className="text-[0.56rem] font-bold uppercase tracking-[0.16em] text-[#a09688]">Nivel</dt>
+                <dd className="mt-1 text-sm font-semibold text-[#2e2924]">{payload.member.tier}</dd>
+              </div>
+            </dl>
+          </details>
+
+          <p className="mt-8 flex items-center justify-center gap-2 text-[0.82rem] font-semibold text-[#3e3934]">
+            <ShieldCheck className="h-4 w-4 text-[#9f8b69]" aria-hidden />
+            Acceso privado y seguro
+          </p>
+          <p className="mt-2 text-center text-[0.72rem] text-[#9a9086]">Tu información está protegida</p>
         </div>
+
+        <p className="mt-7 text-center text-[0.78rem] text-[#9a9086]">
+          Una experiencia {displayBrandName}, diseñada para ti.
+        </p>
       </section>
     </main>
   );

@@ -7,15 +7,17 @@ import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import {
   ApiError,
   broadcastNotification,
+  getNotificationSettings,
+  saveNotificationSettings,
   sendSegmentNotification,
+  type NotificationSettings,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
-const automaticMessages = [
-  "Después de una visita",
-  "Recuperación",
-  "Cumpleaños",
-];
+const automaticMessages = ["Después de una visita", "Recuperación"];
+const defaultBirthdayHeader = "¡Feliz cumpleaños!";
+const defaultBirthdayBody =
+  "¡Feliz cumpleaños! Disfruta de un 10% de descuento en nuestros servicios. Esperamos verte pronto.";
 const manualQuotaLowThreshold = 5;
 
 export function CommunicationsPageClient() {
@@ -34,6 +36,21 @@ export function CommunicationsPageClient() {
     "idle" | "sending" | "sent" | "error"
   >("idle");
   const [sendMessage, setSendMessage] = React.useState<string | null>(null);
+  const [settings, setSettings] = React.useState<NotificationSettings | null>(
+    null,
+  );
+  const [settingsState, setSettingsState] = React.useState<
+    "idle" | "loading" | "saving" | "saved" | "error"
+  >("idle");
+  const [settingsMessage, setSettingsMessage] = React.useState<string | null>(
+    null,
+  );
+  const [birthdayHeader, setBirthdayHeader] = React.useState(
+    defaultBirthdayHeader,
+  );
+  const [birthdayBody, setBirthdayBody] = React.useState(defaultBirthdayBody);
+  const [birthdayEnabled, setBirthdayEnabled] = React.useState(true);
+  const [birthdayNotify, setBirthdayNotify] = React.useState(true);
   const maxLength = 180;
   const manualQuotaTotal = currentClinic.data?.notificationsMonthlyQuota ?? 0;
   const manualQuotaRemaining =
@@ -45,6 +62,69 @@ export function CommunicationsPageClient() {
         )
       : 0;
   const manualQuotaIsLow = manualQuotaRemaining < manualQuotaLowThreshold;
+
+  React.useEffect(() => {
+    if (!currentClinic.data) return;
+
+    let cancelled = false;
+
+    void getNotificationSettings(currentClinic.data.id)
+      .then((value) => {
+        if (cancelled) return;
+        setSettings(value);
+        setBirthdayHeader(value.birthdayHeader || defaultBirthdayHeader);
+        setBirthdayBody(value.birthdayBody || defaultBirthdayBody);
+        setBirthdayEnabled(value.birthdayEnabled);
+        setBirthdayNotify(value.birthdayNotify);
+        setSettingsState("idle");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setSettingsState("error");
+        setSettingsMessage(
+          error instanceof ApiError && error.detail
+            ? error.detail
+            : "No se pudieron cargar las automatizaciones.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentClinic.data]);
+
+  const saveBirthdayAutomation = async () => {
+    if (!currentClinic.data) {
+      setSettingsState("error");
+      setSettingsMessage("No se pudo resolver la clínica actual.");
+      return;
+    }
+
+    setSettingsState("saving");
+    setSettingsMessage(null);
+
+    try {
+      const saved = await saveNotificationSettings(currentClinic.data.id, {
+        notifyOnCredit: settings?.notifyOnCredit ?? "MILESTONE_AND_TIER",
+        marketingEnabled: settings?.marketingEnabled ?? true,
+        birthdayEnabled,
+        birthdayHeader: birthdayHeader.trim(),
+        birthdayBody: birthdayBody.trim(),
+        birthdayNotify,
+      });
+
+      setSettings(saved);
+      setSettingsState("saved");
+      setSettingsMessage("Automatización de cumpleaños guardada.");
+    } catch (error) {
+      setSettingsState("error");
+      setSettingsMessage(
+        error instanceof ApiError && error.detail
+          ? error.detail
+          : "No se pudo guardar la automatización de cumpleaños.",
+      );
+    }
+  };
 
   const sendCommunication = async () => {
     if (!currentClinic.data) {
@@ -166,6 +246,20 @@ export function CommunicationsPageClient() {
         </div>
       ) : null}
 
+      {settingsMessage ? (
+        <div
+          className={cn(
+            "mt-4 max-w-[940px] rounded-2xl px-4 py-3 text-sm font-semibold",
+            settingsState === "error"
+              ? "border border-[#d86d5e]/40 bg-[#fff7f5] text-[#8f3f35]"
+              : "border border-[#86b37e]/40 bg-[#f3fbf1] text-[#456f3f]",
+          )}
+          role="status"
+        >
+          {settingsMessage}
+        </div>
+      ) : null}
+
       <div className="mt-6 flex gap-1 overflow-x-auto rounded-2xl border border-[#e2d5cc] bg-white/60 p-1 no-scrollbar">
         <button
           onClick={() => setNoticeTab("manuales")}
@@ -255,14 +349,87 @@ export function CommunicationsPageClient() {
               </button>
             </>
           ) : (
-            <div className="mt-5 space-y-3">
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">Cumpleaños</p>
+                    <p className="mt-1 text-sm leading-6 text-[#927e72]">
+                      Se envía cada día a las 9:00 en España a clientes con
+                      cumpleaños y pase Wallet activo.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-[#806d63]">
+                    <input
+                      type="checkbox"
+                      checked={birthdayEnabled}
+                      onChange={(event) =>
+                        setBirthdayEnabled(event.target.checked)
+                      }
+                      className="h-4 w-4 accent-[#b8864b]"
+                    />
+                    Activo
+                  </label>
+                </div>
+
+                <label className="mt-4 block text-sm font-semibold">
+                  Título
+                  <input
+                    value={birthdayHeader}
+                    onChange={(event) =>
+                      setBirthdayHeader(event.target.value.slice(0, 60))
+                    }
+                    maxLength={60}
+                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
+                  />
+                </label>
+                <label className="mt-4 block text-sm font-semibold">
+                  Mensaje de cumpleaños
+                  <textarea
+                    value={birthdayBody}
+                    onChange={(event) =>
+                      setBirthdayBody(event.target.value.slice(0, 500))
+                    }
+                    rows={4}
+                    className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
+                  />
+                  <span className="mt-1 block text-right text-xs text-[#927e72]">
+                    {birthdayBody.length}/500
+                  </span>
+                </label>
+                <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#806d63]">
+                  <input
+                    type="checkbox"
+                    checked={birthdayNotify}
+                    onChange={(event) =>
+                      setBirthdayNotify(event.target.checked)
+                    }
+                    className="h-4 w-4 accent-[#b8864b]"
+                  />
+                  Enviar como notificación push si el Wallet lo permite
+                </label>
+                <button
+                  onClick={() => void saveBirthdayAutomation()}
+                  disabled={
+                    settingsState === "saving" ||
+                    !birthdayHeader.trim() ||
+                    !birthdayBody.trim()
+                  }
+                  className="mt-4 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {settingsState === "saving"
+                    ? "Guardando..."
+                    : "Guardar cumpleaños"}
+                </button>
+              </div>
+
               {automaticMessages.map((message) => (
                 <div
                   key={message}
                   className="flex items-center justify-between rounded-2xl border border-[#eadfd8] p-4"
                 >
                   <span className="font-semibold">{message}</span>
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#6b9a72]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#c9b9a8]" />
                 </div>
               ))}
             </div>
