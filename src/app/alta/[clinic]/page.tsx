@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ApiError, getPublicClinic, type PublicClinic } from "@/lib/api-client";
-import { readableInkOn } from "@/lib/contrast";
-
 import { SignupForm } from "./signup-form";
 
 /**
@@ -52,38 +50,52 @@ export async function generateMetadata({
   }
 }
 
+const formatBrandName = (clinicName: string): string => {
+  const trimmed = clinicName.trim();
+  const withoutClinicSuffix = trimmed.replace(/\s+(clinic|clínica)$/i, "").trim();
+
+  return (withoutClinicSuffix || trimmed).toUpperCase();
+};
+
 export default async function ClinicSignupPage({ params }: PageProps<"/alta/[clinic]">) {
   const { clinic: slug } = await params;
   const clinic = await loadClinic(slug);
-  const { template } = clinic;
-  const ink = readableInkOn(template.hexBackgroundColor);
+  const brandName = formatBrandName(clinic.name);
+  const displayBrandName = brandName.toLocaleLowerCase("es-ES").replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("es-ES"));
 
   return (
-    <main className="flex min-h-dvh flex-col items-center bg-background">
-      {/* The clinic's own colour, with an ink guaranteed to clear AA against it — a fixed
-          brand ink drops to 3.98:1 on mid-tone backgrounds. */}
-      <header
-        className="w-full px-6 pt-12 pb-16 text-center"
-        style={{ backgroundColor: template.hexBackgroundColor, color: ink }}
-      >
-        {template.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={template.logoUrl}
-            alt={clinic.name}
-            className="mx-auto mb-4 h-12 w-auto object-contain"
-          />
-        ) : null}
-        <p className="text-[10px] tracking-[0.25em] uppercase opacity-70">{clinic.name}</p>
-        <h1 className="mt-2 font-serif text-3xl">{template.programName}</h1>
-        <p className="mx-auto mt-3 max-w-sm text-sm opacity-80">{template.benefitsText}</p>
-      </header>
+    <main className="min-h-dvh bg-[#f5efe7] text-[#22201e]">
+      <section className="relative isolate mx-auto flex min-h-dvh w-full max-w-none flex-col overflow-hidden bg-[#f7f1e9] px-6 pb-7 pt-12 sm:min-h-[893px] sm:max-w-[390px]">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_6%,rgba(226,202,170,0.3),transparent_24%),linear-gradient(180deg,#fbfaf7_0%,#f5efe7_48%,#f4eee6_100%)]" />
+        <div className="pointer-events-none absolute left-[-36px] top-[365px] h-[470px] w-[92px] rounded-full bg-[#efe3d4] blur-2xl" />
+        <div className="pointer-events-none absolute right-[-54px] top-[350px] h-[560px] w-[108px] rounded-full bg-[#d8c7b5] opacity-75 blur-2xl" />
 
-      <div className="w-full max-w-md px-4 pb-16">
-        <div className="-mt-10 rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SignupForm clinic={clinic} />
+        <header className="text-center">
+          <p className="font-serif text-[1.55rem] font-semibold uppercase leading-none tracking-[0.09em] text-[#26231f]">
+            {brandName}
+          </p>
+          <p className="mt-5 text-[0.56rem] font-semibold uppercase tracking-[0.24em] text-[#8f877e]">
+            {clinic.name} · Privé membership
+          </p>
+        </header>
+
+        <div className="mt-14 text-center">
+          <h1 className="font-serif text-[3.05rem] font-semibold leading-[0.94] tracking-[-0.055em] text-[#24211f]">
+            El privilegio de
+            <br />
+            cuidarte.
+          </h1>
+          <p className="mx-auto mt-6 max-w-[288px] text-[0.82rem] leading-6 tracking-[-0.01em] text-[#8b8379]">
+            Prioridad, privilegios y momentos extraordinarios. Todo lo que mereces, en un solo pase.
+          </p>
         </div>
-      </div>
+
+        <SignupForm clinic={clinic} />
+
+        <p className="mt-7 text-center text-[0.76rem] text-[#9a9086]">
+          Una experiencia {displayBrandName}, diseñada para ti.
+        </p>
+      </section>
     </main>
   );
 }
