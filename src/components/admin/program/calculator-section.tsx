@@ -31,12 +31,12 @@ const TIERS: Array<{ key: TierKey; label: string; color: string }> = [
 ];
 
 const ASSUMPTIONS = [
-  "Durante el primer año las clientas se incorporan poco a poco, hasta llegar al número indicado. Desde el segundo año, cada clienta que se va se sustituye por una nueva, y siempre empiezan en Bronce.",
-  "El 52% de las nuevas clientas repiten (gastan ticket × visitas al año) y el 48% son ocasionales (gastan 1,3 veces el ticket al año).",
-  "Cada año siguen el 75% de las que repiten y el 50% de las ocasionales.",
-  "El nivel de cada clienta sale de lo que lleva gastado de verdad desde que entró.",
+  "Durante el primer año los clientes se incorporan poco a poco, hasta llegar al número indicado. Desde el segundo año, cada cliente que se va se sustituye por una nueva, y siempre empiezan en Bronce.",
+  "El 52% de las nuevos clientes repiten (gastan ticket × visitas al año) y el 48% son ocasionales (gastan 1,3 veces el ticket al año).",
+  "Cada año siguen el 75% de los que repiten y el 50% de las ocasionales.",
+  "El nivel de cada cliente sale de lo que lleva gastado de verdad desde que entró.",
   "Premios y ventajas se cuentan el mes en que se alcanzan, a lo que cuestan al centro, y solo se canjea el 75%.",
-  "Un 10% de los canjes trae una visita de pago que no habría existido. Las que repiten gastan un 5% más. Un 5% de clientas nuevas al año llega por recomendación.",
+  "Un 10% de los canjes trae una visita de pago que no habría existido. Los que repiten gastan un 5% más. Un 5% de clientes nuevos al año llega por recomendación.",
   "Estos porcentajes son estimaciones de los fundadores, no datos medidos. Se ajustarán con los primeros centros.",
 ];
 
@@ -116,7 +116,7 @@ export function CalculatorSection({
 
       <div className="flex flex-wrap items-start gap-6">
         <Field
-          label="Clientas en el programa"
+          label="Clientes en el programa"
           value={clientsText ?? (result ? String(result.input.clients) : "")}
           suggested={result?.defaults.clients}
           problem={clientsProblem}
@@ -355,7 +355,7 @@ function Key({ color, label, line }: { color: string; label: string; line?: bool
 function TierBars({ years }: { years: CalcYear[] }) {
   return (
     <figure className="grid gap-3">
-      <p className="text-sm font-semibold">Clientas por nivel al final de cada año</p>
+      <p className="text-sm font-semibold">Clientes por nivel al final de cada año</p>
       <div className="grid gap-2">
         {years.map((year) => {
           const total = TIERS.reduce((sum, t) => sum + year.byTier[t.key], 0) || 1;
@@ -396,7 +396,7 @@ function YearsTable({ result }: { result: CalcResult }) {
         <thead>
           <tr className="bg-secondary/60 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <th scope="col" className="px-4 py-2">Año</th>
-            <th scope="col" className="px-4 py-2 text-right">Clientas (media)</th>
+            <th scope="col" className="px-4 py-2 text-right">Clientes (media)</th>
             <th scope="col" className="px-4 py-2 text-right">Genera</th>
             <th scope="col" className="px-4 py-2 text-right">Cuesta</th>
             <th scope="col" className="px-4 py-2 text-right">Resultado</th>

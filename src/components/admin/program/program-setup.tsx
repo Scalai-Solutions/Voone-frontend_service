@@ -201,7 +201,6 @@ function ProgramSetupLoaded({
           </div>
         ) : (
           <QuestionsStep
-            clinicId={clinicId}
             estimates={estimates.data}
             answers={answers}
             onChange={setAnswers}
@@ -259,7 +258,6 @@ function ProgramSetupLoaded({
 
               <ProgramView
                 program={program.program}
-                internal={program.internal}
                 onSwap={
                   isDraft
                     ? (milestone, alternative) => swap.mutateAsync({ milestone, alternative })
@@ -299,7 +297,7 @@ function ProgramSetupLoaded({
                 <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
                   <p className="flex items-center gap-2 font-semibold">
                     <Check className="h-4 w-4 text-success" />{" "}
-                    <span>El programa está activo. Las clientas ya avanzan con él.</span>
+                    <span>El programa está activo. Los clientes ya avanzan con él.</span>
                   </p>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/admin/clinics/${encodeURIComponent(clinicId)}`}>

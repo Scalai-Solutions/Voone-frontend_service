@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
 import { type ApiError, type TemplatePreset, type VooneTemplate, type VooneTemplateButton, type VooneTemplateTextModule } from "@/lib/api-client";
 
-const steps = ["Owner", "Center", "Program", "Pass"];
+const steps = ["Owner", "Center", "Pass"];
 /**
  * A working ladder, not five names. A clinic that changes nothing still gets a
  * programme that ranks members — before this, tiers had no points and nothing could
@@ -330,11 +330,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Confirm the data processing consent before continuing.");
       return;
     }
-    if (step === 2 && !values.programName) {
-      setStatus("Add the loyalty program name to continue.");
-      return;
-    }
-    if (step === 3 && !values.vooneTemplateId) {
+    if (step === 2 && !values.vooneTemplateId) {
       setStatus("Choose a template design before creating the clinic.");
       return;
     }
@@ -399,8 +395,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         <div className="my-auto pt-10">
           {step === 0 ? <OwnerStep values={values} update={update} /> : null}
           {step === 1 ? <CenterStep values={values} update={update} /> : null}
-          {step === 2 ? <ProgramStep values={values} update={update} /> : null}
-          {step === 3 ? <PassStepEditor presets={presets} templates={templateOptions} selectedPreset={selectedPreset} selectedTemplate={selectedTemplate} templateEdited={templateEdited} values={values} update={update} selectTemplate={selectTemplate} /> : null}
+          {step === 2 ? <PassStepEditor presets={presets} templates={templateOptions} selectedPreset={selectedPreset} selectedTemplate={selectedTemplate} templateEdited={templateEdited} values={values} update={update} selectTemplate={selectTemplate} /> : null}
         </div>
 
         <div className="mt-8 border-t border-[#eadfd8] pt-5">
@@ -438,7 +433,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
 const sideCopy = [
   { title: "Welcome. Who will own this setup?", detail: "Start with the person accountable for the loyalty program and clinic launch." },
   { title: "Give the center a permanent home.", detail: "This information powers its public sign-up link and printed QR material." },
-  { title: "Shape the loyalty program.", detail: "Capture treatments and prices, then define tier and milestone rewards." },
   { title: "Choose and edit the first card direction.", detail: "Use a saved template design, then edit the clinic-specific Wallet details before creating the class." },
 ];
 
@@ -475,20 +469,6 @@ function CenterStep({ values, update }: { values: OnboardingValues; update: <Val
       </div>
     </StepContent>
   );
-}
-
-function ProgramStep({ values, update }: { values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void }) {
-  const updateTreatment = (index: number, treatment: TreatmentDraft) => {
-    update("treatments", values.treatments.map((item, itemIndex) => itemIndex === index ? treatment : item));
-  };
-  const updateTier = (index: number, tier: TierRewardDraft) => {
-    update("tierRewards", values.tierRewards.map((item, itemIndex) => itemIndex === index ? tier : item));
-  };
-  const updateMilestone = <Key extends keyof MilestoneRewardDraft>(key: Key, value: MilestoneRewardDraft[Key]) => {
-    update("milestoneRewards", { ...values.milestoneRewards, [key]: value });
-  };
-
-  return <StepContent title="Build the rewards program." detail="Capture the essentials now; the clinic can refine the complete catalog after launch."><div className="grid gap-6"><WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Aurea Beauty Club" /></WizardField><section className="grid gap-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Treatments and prices</p><Button type="button" variant="outline" onClick={() => update("treatments", [...values.treatments, { name: "", priceEuro: "" }])} className="h-9 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add option</Button></div><div className="grid gap-3">{values.treatments.map((treatment, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-[1fr_150px_auto]"><Input aria-label={`Treatment ${index + 1} name`} value={treatment.name} onChange={(event) => updateTreatment(index, { ...treatment, name: event.target.value })} placeholder="Spa" /><Input aria-label={`Treatment ${index + 1} price`} type="number" min="0" value={treatment.priceEuro} onChange={(event) => updateTreatment(index, { ...treatment, priceEuro: event.target.value })} placeholder="120 euro" /><Button type="button" variant="ghost" onClick={() => update("treatments", values.treatments.filter((_, itemIndex) => itemIndex !== index))} disabled={values.treatments.length === 1} aria-label={`Remove treatment ${index + 1}`} className="h-10 rounded-xl"><Trash2 className="h-4 w-4" /></Button></div>)}</div></section><section className="grid gap-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Tier rewards</p><Button type="button" variant="outline" onClick={() => update("tierRewards", [...values.tierRewards, { name: "", rewardText: "", minLifetimePoints: "", milestoneCount: "5", pointsToNextMilestone: "200" }])} className="h-9 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add tier</Button></div><div className="grid gap-3">{values.tierRewards.map((tier, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3"><div className="grid gap-3 sm:grid-cols-[150px_1fr_auto]"><Input aria-label={`Tier ${index + 1} name`} value={tier.name} onChange={(event) => updateTier(index, { ...tier, name: event.target.value })} placeholder="Bronze" /><Input aria-label={`Tier ${index + 1} reward`} value={tier.rewardText} onChange={(event) => updateTier(index, { ...tier, rewardText: event.target.value })} placeholder="Priority booking, birthday credit" /><Button type="button" variant="ghost" onClick={() => update("tierRewards", values.tierRewards.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove tier ${index + 1}`} className="h-10 rounded-xl"><Trash2 className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-3"><WizardField label="Reached at (lifetime points)"><Input aria-label={`Tier ${index + 1} points`} type="number" min="0" value={tier.minLifetimePoints} onChange={(event) => updateTier(index, { ...tier, minLifetimePoints: event.target.value })} placeholder="0" /></WizardField><WizardField label="Milestones in this tier"><Input aria-label={`Tier ${index + 1} milestones`} type="number" min="1" value={tier.milestoneCount} onChange={(event) => updateTier(index, { ...tier, milestoneCount: event.target.value })} /></WizardField><WizardField label="Points between milestones"><Input aria-label={`Tier ${index + 1} milestone spacing`} type="number" min="1" value={tier.pointsToNextMilestone} onChange={(event) => updateTier(index, { ...tier, pointsToNextMilestone: event.target.value })} /></WizardField></div></div>)}</div></section><section className="grid gap-3"><p className="text-sm font-semibold">Milestone rewards</p><div className="grid gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-3 sm:grid-cols-2"><WizardField label="Milestones"><Input type="number" min="1" value={values.milestoneRewards.milestoneCount} onChange={(event) => updateMilestone("milestoneCount", event.target.value)} /></WizardField><WizardField label="Points to next milestone"><Input type="number" min="1" value={values.milestoneRewards.pointsToNextMilestone} onChange={(event) => updateMilestone("pointsToNextMilestone", event.target.value)} /></WizardField><WizardField label="Price amount"><Input type="number" min="1" value={values.milestoneRewards.priceAmount} onChange={(event) => updateMilestone("priceAmount", event.target.value)} /></WizardField><WizardField label="Points awarded"><Input type="number" min="1" value={values.milestoneRewards.pointsAwarded} onChange={(event) => updateMilestone("pointsAwarded", event.target.value)} /></WizardField></div></section></div></StepContent>;
 }
 
 function PassStepEditor({ presets, templates, selectedPreset, selectedTemplate, templateEdited, values, update, selectTemplate }: { presets: TemplatePreset[]; templates: OnboardingTemplateOption[]; selectedPreset: TemplatePreset | undefined; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {

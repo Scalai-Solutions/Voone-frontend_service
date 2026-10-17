@@ -1,16 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRightLeft, Check, Crown, Gift, Sparkles, Stethoscope, TrendingUp, X } from "lucide-react";
+import { ArrowRightLeft, Check, Crown, Gift, Sparkles, Stethoscope, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
-import type {
-  InternalBlock,
-  PresentedMilestone,
-  PresentedProgram,
-} from "@/lib/onboarding-api";
+import type { PresentedMilestone, PresentedProgram } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
 import { formatEuro, formatProgress } from "./format";
 
@@ -19,8 +15,7 @@ import { formatEuro, formatProgress } from "./format";
  *
  * Built only from the presented programme, which the backend assembles WITHOUT any cost, so this
  * screen cannot show one however it is changed: the guide is explicit that costs and revenue are
- * internal. Voone's own figures live in `internal` and sit behind a toggle, off by default, so a
- * programme on screen during a call with a centre never carries them.
+ * internal. Voone's own figures are not on this screen at all.
  */
 
 const PERK_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -34,16 +29,12 @@ const ordinal = (n: number): string => (n === 1 || n === 3 ? `${n}.er` : `${n}.�
 
 export function ProgramView({
   program,
-  internal,
   onSwap,
 }: {
   program: PresentedProgram;
-  internal?: InternalBlock;
   /** Present only while the programme is a draft: an active one cannot be edited. */
   onSwap?: (milestone: number, alternative: number) => Promise<unknown>;
 }) {
-  const [showInternal, setShowInternal] = React.useState(false);
-
   const bands = [1, 2, 3, 4].map((band) => ({
     band,
     // A band is held while the client sits in the tier BEFORE the one it ends at.
@@ -83,7 +74,7 @@ export function ProgramView({
           label="Visitas al año"
           value={program.estimates.visitsPerYear.toLocaleString("es-ES")}
         />
-        <Fact label="Gasto anual de una clienta" value={formatEuro(program.estimates.annualSpend)} />
+        <Fact label="Gasto anual de un cliente" value={formatEuro(program.estimates.annualSpend)} />
       </dl>
 
       <section aria-labelledby="tiers-heading" className="grid gap-4">
@@ -123,11 +114,10 @@ export function ProgramView({
           <h3 id="ladder-heading" className="font-serif text-2xl font-semibold">
             La escalera de premios
           </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cada fila es algo que la clienta consigue. A la derecha, lo que la clienta ha gastado
-            cuando llega a ella.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Cada fila es algo que el cliente consigue.</p>
         </div>
+
+        <ColumnHeader>El cliente ha gastado</ColumnHeader>
 
         {bands.map(({ band, tier, milestones }) => (
           <div key={band} className="overflow-hidden rounded-lg border border-border bg-card">
@@ -146,7 +136,7 @@ export function ProgramView({
         <div className="rounded-lg border border-dashed border-border p-4 text-sm leading-6">
           <p className="font-semibold">Después de Diamante</p>
           <p className="mt-1 text-muted-foreground">
-            Por cada {formatProgress(program.recurring.every)} que gasta la clienta:{" "}
+            Por cada {formatProgress(program.recurring.every)} que gasta el cliente:{" "}
             {program.recurring.name}.
           </p>
         </div>
@@ -154,12 +144,13 @@ export function ProgramView({
 
       <section aria-labelledby="referrals-heading" className="grid gap-4">
         <h3 id="referrals-heading" className="font-serif text-2xl font-semibold">
-          Recomendar el centro
+          Programa de referidos
         </h3>
         <p className="text-sm text-muted-foreground">
           Una recomendación cuenta cuando la persona nueva paga su primer tratamiento. La persona
           recomendada empieza con {formatProgress(program.welcomeProgress)} ya conseguidos.
         </p>
+        <ColumnHeader>Has generado como mínimo</ColumnHeader>
         <ol className="overflow-hidden rounded-lg border border-border bg-card">
           {program.referrals.map((referral) => (
             <li
@@ -169,13 +160,8 @@ export function ProgramView({
               <span>
                 <strong>Al {ordinal(referral.n)} referido:</strong> {referral.name}
               </span>
-              <span className="shrink-0 text-right text-muted-foreground">
-                <span className="block text-[10px] font-semibold uppercase tracking-wider">
-                  Has generado como mínimo
-                </span>
-                <span className="font-semibold text-foreground">
-                  {formatProgress(referral.minRevenue)}
-                </span>
+              <span className="shrink-0 text-right font-semibold">
+                {formatProgress(referral.minRevenue)}
               </span>
             </li>
           ))}
@@ -209,47 +195,16 @@ export function ProgramView({
           {program.familyAndFriends.description}
         </p>
       </section>
-
-      {internal ? (
-        <section className="rounded-lg border border-dashed border-border p-4">
-          <button
-            type="button"
-            className="text-sm font-semibold underline-offset-4 hover:underline"
-            aria-expanded={showInternal}
-            onClick={() => setShowInternal((current) => !current)}
-          >
-            {showInternal ? "Ocultar datos internos de Voone" : "Mostrar datos internos de Voone"}
-          </button>
-
-          {showInternal ? (
-            <div className="mt-4 grid gap-3 text-sm">
-              <p className="text-xs text-muted-foreground">
-                Solo para Voone. Nunca se enseñan al centro.
-              </p>
-              <p>
-                Los premios y las ventajas cuestan el{" "}
-                <strong>{(internal.costPct * 100).toFixed(1).replace(".", ",")}%</strong> del gasto
-                de la clienta.
-              </p>
-              <ul className="grid gap-1.5">
-                {internal.guarantees.map((guarantee) => (
-                  <li key={guarantee.text} className="flex gap-2 text-xs leading-5">
-                    {guarantee.held ? (
-                      <Check className="mt-0.5 h-3 w-3 shrink-0 text-success" />
-                    ) : (
-                      <X className="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
-                    )}
-                    <span className={guarantee.held ? "" : "font-medium text-destructive"}>
-                      {guarantee.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
     </div>
+  );
+}
+
+/** A column's title, stated once above the list instead of on every row. */
+function ColumnHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="-mb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {children}
+    </p>
   );
 }
 
@@ -327,14 +282,7 @@ function MilestoneRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-right text-muted-foreground">
-            <span className="block text-[10px] font-semibold uppercase tracking-wider">
-              La clienta ha gastado
-            </span>
-            <span className="font-semibold text-foreground">
-              {formatProgress(milestone.realSpend)}
-            </span>
-          </span>
+          <span className="text-right font-semibold">{formatProgress(milestone.realSpend)}</span>
           {onSwap && alternatives.length > 0 ? (
             <Button
               type="button"
