@@ -1,11 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { usePreview } from "@/features/onboarding/api/useOnboarding";
-import { ApiError } from "@/lib/api-client";
 import type {
   Investment,
   MembersBucket,
@@ -15,13 +13,12 @@ import type {
   OnboardingEstimates,
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
-import { formatEuro, formatProgress } from "./format";
+import { formatEuro } from "./format";
 
 /**
- * The six questions, and a preview that follows the answers.
+ * The six questions.
  *
- * The guide asks for the programme to update live as answers change, and for the whole thing to
- * take under five minutes. Ticket and frequency arrive with one option already chosen — the
+ * The guide asks for the whole thing to take under five minutes. Ticket and frequency arrive with one option already chosen — the
  * engine's own estimate from the catalogue — so the common case is to confirm rather than to
  * answer.
  */
@@ -44,7 +41,7 @@ const OBJECTIVES: Array<{ id: Objective; label: string; sub: string }> = [
   },
   {
     id: "mas_clientes_nuevos",
-    label: "Más clientas nuevas",
+    label: "Más clientes nuevos",
     sub: "Premia más a quien recomienda el centro.",
   },
 ];
@@ -69,20 +66,7 @@ const MEMBERS: Array<{ id: MembersBucket; label: string }> = [
   { id: "m4", label: "Más de 800" },
 ];
 
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), ms);
-
-    return () => clearTimeout(id);
-  }, [value, ms]);
-
-  return debounced;
-}
-
 export function QuestionsStep({
-  clinicId,
   estimates,
   answers,
   onChange,
@@ -91,7 +75,6 @@ export function QuestionsStep({
   generating,
   error,
 }: {
-  clinicId: string;
   estimates: OnboardingEstimates;
   answers: OnboardingAnswers;
   onChange: (next: OnboardingAnswers) => void;
@@ -122,25 +105,22 @@ export function QuestionsStep({
       : recommendedTicket);
   const visitsNow = answers.visitsValue ?? visitsFromBucket(answers.freq, estimates) ?? recommendedVisits;
 
-  const debounced = useDebounced(answers, 500);
-  const preview = usePreview(clinicId, debounced);
-
   const ready = Boolean(answers.members);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="grid max-w-3xl gap-8">
       <div className="grid gap-8">
         <div>
           <h3 className="font-serif text-2xl font-semibold">Seis preguntas</h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             Ya hemos estimado el ticket y la frecuencia a partir del catálogo. Confirma o cambia lo
-            que no encaje; el programa de la derecha se actualiza solo.
+            que no encaje.
           </p>
         </div>
 
         <Question
           number={1}
-          title="¿Cuánto gasta una clienta en una visita normal?"
+          title="¿Cuánto gasta un cliente en una visita normal?"
           note={`Recomendado según tu catálogo: ${formatEuro(estimates.ticketEstimate)}. Puedes escribir tu cifra exacta: el programa entero se rehace con ella.`}
         >
           <Options
@@ -177,7 +157,7 @@ export function QuestionsStep({
 
         <Question
           number={2}
-          title="¿Cada cuánto vienen las clientas habituales?"
+          title="¿Cada cuánto vienen los clientes habituales?"
           note={`Recomendado según tu catálogo: unas ${estimates.visitsEstimate.toLocaleString("es-ES")} visitas al año. Puedes escribir tu cifra exacta.`}
         >
           <Options
@@ -221,7 +201,7 @@ export function QuestionsStep({
 
         <Question
           number={4}
-          title="¿Qué parte de lo que gasta una clienta quieres devolverle en premios?"
+          title="¿Qué parte de lo que gasta un cliente quieres devolverle en premios?"
           note="Calculado a lo que cuestan los premios al centro, no a su precio de venta."
         >
           <Options
@@ -247,11 +227,11 @@ export function QuestionsStep({
 
         <Question
           number={6}
-          title="¿Cuántas clientas activas tiene el centro al año?"
+          title="¿Cuántos clientes activos tiene el centro al año?"
           note="No cambia los premios ni los niveles. Sirve para dimensionar el centro."
         >
           <Options
-            label="Clientas al año"
+            label="Clientes al año"
             value={answers.members ?? ""}
             onSelect={(id) => set("members", id as MembersBucket)}
             options={MEMBERS}
@@ -280,9 +260,6 @@ export function QuestionsStep({
         ) : null}
       </div>
 
-      <aside className="lg:sticky lg:top-6 lg:self-start">
-        <LivePreview preview={preview} />
-      </aside>
     </div>
   );
 }
@@ -493,94 +470,6 @@ function Options({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function LivePreview({ preview }: { preview: ReturnType<typeof usePreview> }) {
-  if (preview.isError) {
-    const message =
-      preview.error instanceof ApiError && preview.error.detail
-        ? preview.error.detail
-        : "No se ha podido calcular el programa.";
-
-    return (
-      <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
-        <p className="flex items-center gap-2 font-semibold">
-          <AlertTriangle className="h-4 w-4 text-destructive" /> <span>No se puede montar el programa</span>
-        </p>
-        <p className="mt-2 text-muted-foreground">{message}</p>
-      </div>
-    );
-  }
-
-  if (!preview.data) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> <span>Calculando el programa…</span>
-      </div>
-    );
-  }
-
-  const { program } = preview.data;
-  const rewards = program.ladder.filter((m) => m.type === "premio");
-  const perks = program.ladder.filter((m) => m.type === "ventaja");
-
-  return (
-    <div
-      // Re-created for each fresh answer rather than patched in place. A browser that translates
-      // the page swaps React's text nodes for its own, and edits to the swapped nodes never show:
-      // the preview would keep the figures of an earlier answer, which is worse than no preview.
-      key={preview.dataUpdatedAt}
-      className={cn(
-        "grid gap-4 rounded-lg border border-border bg-card p-5 shadow-sm transition-opacity",
-        preview.isFetching && "opacity-70",
-      )}
-      aria-live="polite"
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#a47845]">
-          Así quedaría
-        </p>
-        {preview.isFetching ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /> : null}
-      </div>
-
-      <ol className="grid gap-2">
-        {program.tiers.map((tier) => (
-          <li key={tier.key} className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="font-semibold">{tier.label}</span>
-            <span className="text-muted-foreground">
-              {tier.threshold === 0 ? "al empezar" : `desde ${formatProgress(tier.threshold)} gastados`}
-              {tier.minTenureMonths ? ` · ${tier.minTenureMonths} meses` : ""}
-            </span>
-          </li>
-        ))}
-      </ol>
-
-      <p className="text-xs leading-5 text-muted-foreground">
-        {rewards.length} premios y {perks.length} ventajas hasta Diamante. El primero llega en la
-        primera visita.
-      </p>
-
-      <ul className="grid gap-1 border-t border-border pt-3 text-sm">
-        {rewards.slice(0, 3).map((m) => (
-          <li key={m.n} className="flex justify-between gap-3">
-            <span className="truncate">{m.reward?.name}</span>
-            <span className="shrink-0 text-muted-foreground">{formatProgress(m.realSpend)}</span>
-          </li>
-        ))}
-      </ul>
-
-      {program.review.map((note) => (
-        <p key={note} role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs">
-          {note}
-        </p>
-      ))}
-      {program.adaptations.map((note) => (
-        <p key={note} className="rounded-md bg-secondary/60 p-3 text-xs leading-5 text-muted-foreground">
-          {note}
-        </p>
-      ))}
     </div>
   );
 }
