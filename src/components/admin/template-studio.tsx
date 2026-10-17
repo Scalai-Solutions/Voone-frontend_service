@@ -35,6 +35,8 @@ type DesignOption = {
   pointsLabel: string;
   tierLabel: string;
   detail: string;
+  logoUrl?: string;
+  heroImageUrl?: string;
 };
 
 function designOptions(templates: VooneTemplate[]): DesignOption[] {
@@ -187,6 +189,7 @@ export function AdminTemplateEditor({
     "#b98a4f",
   ]);
   const [saved, setSaved] = React.useState(false);
+  const [wallet, setWallet] = React.useState<"apple" | "google">("apple");
   const [status, setStatus] = React.useState<string | null>(null);
   const designName = template?.name ?? selectedPreset?.name ?? "New template";
   const saveMutation = useSaveAdminTemplate(template?.id, {
@@ -267,11 +270,28 @@ export function AdminTemplateEditor({
 
       <section className="grid gap-5 lg:grid-cols-[370px_minmax(0,1fr)]">
         <div className="rounded-[22px] bg-[#201715] p-6 text-[#fff8f2] shadow-[0_18px_38px_rgba(67,48,43,0.18)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#e8cf9a]">
-            Live preview
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#e8cf9a]">
+              Live preview
+            </p>
+            <div role="tablist" aria-label="Wallet" className="flex rounded-full bg-white/10 p-0.5 text-xs font-semibold">
+              {(["apple", "google"] as const).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  aria-selected={wallet === item}
+                  onClick={() => setWallet(item)}
+                  className={`rounded-full px-3 py-1 ${wallet === item ? "bg-[#fff8f2] text-[#201715]" : "text-[#dbcac1]"}`}
+                >
+                  {item === "apple" ? "Apple Wallet" : "Google Wallet"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mt-5">
             <TemplatePassPreview
+              wallet={wallet}
               option={{
                 id: "preview",
                 href: "#",
@@ -281,9 +301,16 @@ export function AdminTemplateEditor({
                 pointsLabel,
                 tierLabel,
                 detail: description,
+                logoUrl,
+                heroImageUrl,
               }}
             />
           </div>
+          <p className="mt-3 text-xs leading-5 text-[#dbcac1]">
+            {wallet === "apple"
+              ? "Apple shows the logo top left and the hero image as a strip behind the points. The strip is cropped to a wide, short shape."
+              : "Google shows the logo in a circle and the hero image as a wide banner. It also shows the message below."}
+          </p>
           <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.06] p-4 text-sm text-[#dbcac1]">
             <p className="font-semibold text-white">Pass message</p>
             <p className="mt-2 leading-6">{description}</p>
@@ -377,7 +404,7 @@ export function AdminTemplateEditor({
                 className="rounded-xl bg-[#fffaf6]"
               />
             </EditorField>
-            <EditorField label="Logo URL">
+            <EditorField label="Logo URL" hint="Shown on Apple and Google. Use a square or wide PNG with a transparent background. Apple fits it into 160 × 50.">
               <Input
                 value={logoUrl}
                 onChange={(event) => {
@@ -388,7 +415,7 @@ export function AdminTemplateEditor({
                 className="rounded-xl bg-[#fffaf6]"
               />
             </EditorField>
-            <EditorField label="Hero image URL">
+            <EditorField label="Hero image URL" hint="Google shows it as a banner (1032 × 336). Apple crops it to a strip (375 × 98), so keep the subject in the middle.">
               <Input
                 value={heroImageUrl}
                 onChange={(event) => {
@@ -629,15 +656,20 @@ export function AdminTemplateEditor({
 
 function EditorField({
   label,
+  hint,
   children,
 }: {
   label: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="grid gap-2 text-sm font-semibold">
       {label}
       {children}
+      {hint ? (
+        <span className="text-xs font-normal leading-5 text-[#806d63]">{hint}</span>
+      ) : null}
     </label>
   );
 }
@@ -645,10 +677,82 @@ function EditorField({
 function TemplatePassPreview({
   option,
   compact = false,
+  wallet,
 }: {
   option: DesignOption;
   compact?: boolean;
+  /** Present in the editor, where the two wallets draw the same template differently. */
+  wallet?: "apple" | "google";
 }) {
+  const ink = option.color === "#2f343a" ? "#fff8f2" : "#2e2421";
+  const [broken, setBroken] = React.useState<string | null>(null);
+  const logo = option.logoUrl && broken !== option.logoUrl ? option.logoUrl : null;
+  const hero = option.heroImageUrl && broken !== option.heroImageUrl ? option.heroImageUrl : null;
+
+  if (wallet === "apple") {
+    // A storeCard: logo and clinic name on top, the strip behind the points, a QR code below.
+    return (
+      <div
+        className="relative overflow-hidden rounded-[18px] border border-white/45 shadow-[0_16px_32px_rgba(0,0,0,0.16)]"
+        style={{ backgroundColor: option.color, color: ink }}
+      >
+        <div className="flex items-center gap-3 p-4">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt="" onError={() => setBroken(logo)} className="h-[50px] max-w-[160px] object-contain" />
+          ) : (
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">VOONE</p>
+          )}
+          <p className="ml-auto text-right text-[10px] font-semibold uppercase opacity-70">
+            {option.tierLabel}
+          </p>
+        </div>
+        <div className="relative flex aspect-[375/98] items-end bg-black/10 px-4 pb-2">
+          {hero ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={hero} alt="" onError={() => setBroken(hero)} className="absolute inset-0 h-full w-full object-cover" />
+          ) : null}
+          <div className="relative">
+            <p className="text-[9px] uppercase opacity-80">{option.pointsLabel}</p>
+            <p className="text-2xl font-semibold leading-none">1,250</p>
+          </div>
+        </div>
+        <div className="grid place-items-center p-4">
+          <div className="h-24 w-24 rounded-md bg-white/90" aria-hidden="true" />
+        </div>
+      </div>
+    );
+  }
+
+  if (wallet === "google") {
+    return (
+      <div className="overflow-hidden rounded-[18px] border border-white/45 shadow-[0_16px_32px_rgba(0,0,0,0.16)]" style={{ backgroundColor: option.color, color: ink }}>
+        <div className="flex items-center gap-3 p-4">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt="" onError={() => setBroken(logo)} className="h-9 w-9 rounded-full bg-white/80 object-contain" />
+          ) : (
+            <span className="h-9 w-9 rounded-full bg-white/60" aria-hidden="true" />
+          )}
+          <p className="text-sm font-semibold">{option.programName}</p>
+        </div>
+        <div className="px-4">
+          <p className="text-[9px] uppercase opacity-80">{option.pointsLabel}</p>
+          <p className="text-2xl font-semibold leading-none">1,250</p>
+        </div>
+        <div className="mt-4 aspect-[1032/336] bg-black/10">
+          {hero ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={hero} alt="" onError={() => setBroken(hero)} className="h-full w-full object-cover" />
+          ) : null}
+        </div>
+        <div className="grid place-items-center p-4">
+          <div className="h-24 w-24 rounded-md bg-white/90" aria-hidden="true" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative overflow-hidden rounded-[18px] border border-white/45 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.16)] ${compact ? "min-h-52" : "min-h-72"}`}
