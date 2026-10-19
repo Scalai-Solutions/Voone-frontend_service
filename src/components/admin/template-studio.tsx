@@ -25,6 +25,18 @@ import {
   type VooneTemplateTextModule,
   type TemplatePreset,
 } from "@/lib/api-client";
+import {
+  DEFAULT_WALLET_BACKGROUND_COLOR,
+  DEFAULT_WALLET_BUTTONS,
+  DEFAULT_WALLET_HERO_IMAGE_URL,
+  DEFAULT_WALLET_LOGO_URL,
+  DEFAULT_WALLET_POINTS_LABEL,
+  DEFAULT_WALLET_PROGRAM_NAME,
+  DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
+  DEFAULT_WALLET_TEMPLATE_NAME,
+  DEFAULT_WALLET_TEXT_MODULES,
+  DEFAULT_WALLET_TIER_LABEL,
+} from "@/lib/default-wallet-template";
 
 type DesignOption = {
   id: string;
@@ -49,6 +61,8 @@ function designOptions(templates: VooneTemplate[]): DesignOption[] {
     pointsLabel: template.pointsLabel,
     tierLabel: template.tierLabel,
     detail: template.description ?? "Reusable Voone Wallet design.",
+    logoUrl: template.logoUrl ?? undefined,
+    heroImageUrl: template.heroImageUrl ?? undefined,
   }));
 }
 
@@ -130,61 +144,40 @@ export function AdminTemplateEditor({
     template?.presetId ?? selectedPreset?.id ?? "",
   );
   const [description, setDescription] = React.useState(
-    template?.description ?? "Reusable Voone Wallet design.",
+    template?.description ?? DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
   );
   const [name, setName] = React.useState(
-    template?.name ??
-      (selectedPreset ? `${selectedPreset.name} Club` : "Signature Rewards"),
+    template?.name ?? DEFAULT_WALLET_TEMPLATE_NAME,
   );
   const [programName, setProgramName] = React.useState(
-    template?.programName ??
-      (selectedPreset ? `${selectedPreset.name} Club` : "Signature Rewards"),
+    template?.programName ?? DEFAULT_WALLET_PROGRAM_NAME,
   );
   const [pointsLabel, setPointsLabel] = React.useState(
-    template?.pointsLabel ?? "Points balance",
+    template?.pointsLabel ?? DEFAULT_WALLET_POINTS_LABEL,
   );
   const [tierLabel, setTierLabel] = React.useState(
-    template?.tierLabel ?? "Member tier",
+    template?.tierLabel ?? DEFAULT_WALLET_TIER_LABEL,
   );
-  const [logoUrl, setLogoUrl] = React.useState(template?.logoUrl ?? "");
+  const [logoUrl, setLogoUrl] = React.useState(
+    template?.logoUrl ?? DEFAULT_WALLET_LOGO_URL,
+  );
   const [heroImageUrl, setHeroImageUrl] = React.useState(
-    template?.heroImageUrl ?? "",
+    template?.heroImageUrl ?? DEFAULT_WALLET_HERO_IMAGE_URL,
   );
   const [buttons, setButtons] = React.useState<VooneTemplateButton[]>(
-    template?.buttons ?? [
-      {
-        label: "Website",
-        url: "https://voone.app",
-        description: "Website",
-        primary: false,
-      },
-      {
-        label: "Schedule Appointment",
-        url: "https://voone.app/alta/sapphira-prive",
-        description: "Schedule an appointment",
-        primary: true,
-      },
-    ],
+    template?.buttons ??
+      DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
   );
   const [textModules, setTextModules] = React.useState<
     VooneTemplateTextModule[]
   >(
-    template?.textModules ?? [
-      { label: "Clinic", value: "Sapphira Privé" },
-      {
-        label: "Benefits",
-        value: "10% off facial treatments and birthday surprises.",
-      },
-      {
-        label: "Information",
-        value: "This membership card is personal and non-transferable.",
-      },
-    ],
+    template?.textModules ??
+      DEFAULT_WALLET_TEXT_MODULES.map((module) => ({ ...module })),
   );
   const [colors, setColors] = React.useState([
     template?.hexBackgroundColor ??
       selectedPreset?.hexBackgroundColor ??
-      "#ead0bd",
+      DEFAULT_WALLET_BACKGROUND_COLOR,
     "#201715",
     "#b98a4f",
   ]);
@@ -684,13 +677,14 @@ function TemplatePassPreview({
   /** Present in the editor, where the two wallets draw the same template differently. */
   wallet?: "apple" | "google";
 }) {
-  const ink = option.color === "#2f343a" ? "#fff8f2" : "#2e2421";
+  const normalizedColor = option.color.toLowerCase();
+  const isDark = ["#30221f", "#2a2e35", "#2f343a"].includes(normalizedColor);
+  const ink = isDark ? "#fff8f2" : "#2e2421";
   const [broken, setBroken] = React.useState<string | null>(null);
   const logo = option.logoUrl && broken !== option.logoUrl ? option.logoUrl : null;
   const hero = option.heroImageUrl && broken !== option.heroImageUrl ? option.heroImageUrl : null;
 
   if (wallet === "apple") {
-    // A storeCard: logo and clinic name on top, the strip behind the points, a QR code below.
     return (
       <div
         className="relative overflow-hidden rounded-[18px] border border-white/45 shadow-[0_16px_32px_rgba(0,0,0,0.16)]"
@@ -758,10 +752,18 @@ function TemplatePassPreview({
       className={`relative overflow-hidden rounded-[18px] border border-white/45 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.16)] ${compact ? "min-h-52" : "min-h-72"}`}
       style={{
         backgroundColor: option.color,
-        color: option.color === "#2f343a" ? "#fff8f2" : "#2e2421",
+        color: isDark ? "#fff8f2" : "#2e2421",
       }}
     >
       <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/20 blur-2xl" />
+      {option.heroImageUrl ? (
+        <div
+          className="absolute inset-x-0 bottom-0 h-20 bg-cover bg-center opacity-80"
+          style={{
+            backgroundImage: `linear-gradient(180deg, rgba(48,34,31,0), rgba(48,34,31,0.7)), url(${option.heroImageUrl})`,
+          }}
+        />
+      ) : null}
       <div className="relative flex items-start justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">

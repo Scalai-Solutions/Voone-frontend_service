@@ -3,13 +3,27 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
 import { type ApiError, type TemplatePreset, type VooneTemplate, type VooneTemplateButton, type VooneTemplateTextModule } from "@/lib/api-client";
+import {
+  DEFAULT_WALLET_BACKGROUND_COLOR,
+  DEFAULT_WALLET_BENEFITS_TEXT,
+  DEFAULT_WALLET_BUTTONS,
+  DEFAULT_WALLET_HERO_IMAGE_URL,
+  DEFAULT_WALLET_INFO_TEXT,
+  DEFAULT_WALLET_LOGO_URL,
+  DEFAULT_WALLET_POINTS_LABEL,
+  DEFAULT_WALLET_PROGRAM_NAME,
+  DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
+  DEFAULT_WALLET_TEMPLATE_NAME,
+  DEFAULT_WALLET_TEXT_MODULES,
+  DEFAULT_WALLET_TIER_LABEL,
+} from "@/lib/default-wallet-template";
 
 const steps = ["Owner", "Center", "Pass"];
 /**
@@ -96,10 +110,10 @@ const initialValues: OnboardingValues = {
   centerEmail: "",
   addressLine: "",
   pincode: "",
-  logo: "",
-  colors: ["#ead0bd", "#201715", "#b98a4f"],
+  logo: DEFAULT_WALLET_LOGO_URL,
+  colors: [DEFAULT_WALLET_BACKGROUND_COLOR, "#201715", "#b98a4f"],
   dataConsent: false,
-  programName: "",
+  programName: DEFAULT_WALLET_PROGRAM_NAME,
   treatments: [{ name: "", priceEuro: "" }],
   tierRewards: defaultTiers.map((tier) => ({ ...tier })),
   milestoneRewards: {
@@ -110,24 +124,17 @@ const initialValues: OnboardingValues = {
   },
   vooneTemplateId: "",
   presetId: "",
-  heroImageUrl: "",
+  heroImageUrl: DEFAULT_WALLET_HERO_IMAGE_URL,
   websiteUrl: "",
   appointmentUrl: "",
   appLinkText: "Schedule Appointment",
   appLinkDescription: "Schedule an appointment",
-  buttons: [
-    { label: "Website", url: "https://voone.ai", description: "Website", primary: false },
-    { label: "Schedule Appointment", url: "https://voone.app", description: "Schedule an appointment", primary: true },
-  ],
-  textModules: [
-    { label: "Clinic", value: "Clinic details" },
-    { label: "Benefits", value: "Priority booking, surprise rewards and a birthday credit for loyal members." },
-    { label: "Information", value: "Show this pass at reception before payment." },
-  ],
-  pointsLabel: "Points balance",
-  tierLabel: "Member tier",
-  benefitsText: "Priority booking, surprise rewards and a birthday credit for loyal members.",
-  infoText: "Show this pass at reception before payment.",
+  buttons: DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
+  textModules: DEFAULT_WALLET_TEXT_MODULES.map((module) => ({ ...module })),
+  pointsLabel: DEFAULT_WALLET_POINTS_LABEL,
+  tierLabel: DEFAULT_WALLET_TIER_LABEL,
+  benefitsText: DEFAULT_WALLET_BENEFITS_TEXT,
+  infoText: DEFAULT_WALLET_INFO_TEXT,
 };
 
 type OnboardingTemplateOption = Pick<VooneTemplate, "id" | "presetId" | "preset" | "name" | "description" | "programName" | "hexBackgroundColor" | "logoUrl" | "heroImageUrl" | "pointsLabel" | "tierLabel" | "benefitsText" | "infoText" | "buttons">;
@@ -137,28 +144,21 @@ const templateOptionsFor = (presets: TemplatePreset[], templates: VooneTemplate[
     return templates;
   }
 
-  return presets.map((preset) => ({
+  return presets.map((preset, index) => ({
     id: preset.id,
     presetId: preset.id,
     preset,
-    name: preset.name,
-    description: "Preset starting design",
-    programName: `${preset.name} Club`,
-    hexBackgroundColor: preset.hexBackgroundColor,
-    logoUrl: "",
-    heroImageUrl: preset.previewImageUrl ?? "",
+    name: index === 0 ? DEFAULT_WALLET_TEMPLATE_NAME : preset.name,
+    description: index === 0 ? DEFAULT_WALLET_TEMPLATE_DESCRIPTION : "Preset starting design",
+    programName: index === 0 ? DEFAULT_WALLET_PROGRAM_NAME : `${preset.name} Club`,
+    hexBackgroundColor: index === 0 ? DEFAULT_WALLET_BACKGROUND_COLOR : preset.hexBackgroundColor,
+    logoUrl: DEFAULT_WALLET_LOGO_URL,
+    heroImageUrl: DEFAULT_WALLET_HERO_IMAGE_URL,
     pointsLabel: initialValues.pointsLabel,
     tierLabel: initialValues.tierLabel,
     benefitsText: initialValues.benefitsText,
     infoText: initialValues.infoText,
-    buttons: [
-      {
-        label: "Schedule Appointment",
-        url: "https://voone.app",
-        description: "Schedule an appointment",
-        primary: true,
-      },
-    ],
+    buttons: DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
   }));
 };
 
@@ -177,13 +177,13 @@ const firstTemplateValues = (presets: TemplatePreset[], templates: OnboardingTem
     vooneTemplateId: template.id,
     presetId: template.presetId ?? template.preset?.id ?? presets[0]?.id ?? "",
     programName: template.programName,
-    logo: template.logoUrl ?? "",
-    heroImageUrl: template.heroImageUrl ?? "",
+    logo: template.logoUrl ?? DEFAULT_WALLET_LOGO_URL,
+    heroImageUrl: template.heroImageUrl ?? DEFAULT_WALLET_HERO_IMAGE_URL,
     websiteUrl: websiteButton?.url ?? "",
     appointmentUrl: primaryButton?.url ?? "",
     appLinkText: primaryButton?.label ?? "Schedule Appointment",
     appLinkDescription: primaryButton?.description ?? "Schedule an appointment",
-    buttons: template.buttons,
+    buttons: template.buttons.length ? template.buttons : DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
     textModules: [
       { label: "Benefits", value: template.benefitsText ?? initialValues.benefitsText },
       { label: "Information", value: template.infoText ?? initialValues.infoText },
@@ -297,13 +297,13 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       vooneTemplateId: template.id,
       presetId: template.presetId ?? template.preset?.id ?? current.presetId,
       programName: template.programName,
-      logo: template.logoUrl ?? "",
-      heroImageUrl: template.heroImageUrl ?? "",
+      logo: template.logoUrl ?? DEFAULT_WALLET_LOGO_URL,
+      heroImageUrl: template.heroImageUrl ?? DEFAULT_WALLET_HERO_IMAGE_URL,
       websiteUrl: websiteButton?.url ?? "",
       appointmentUrl: primaryButton?.url ?? "",
       appLinkText: primaryButton?.label ?? "Schedule Appointment",
       appLinkDescription: primaryButton?.description ?? "Schedule an appointment",
-      buttons: template.buttons,
+      buttons: template.buttons.length ? template.buttons : DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
       textModules: [
         { label: "Benefits", value: template.benefitsText ?? initialValues.benefitsText },
         { label: "Information", value: template.infoText ?? initialValues.infoText },
@@ -387,7 +387,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   const setupUrl = provisionMutation.data?.onboardingCredentials?.setupUrl;
 
   return (
-    <section className="mx-auto min-h-[650px] max-w-[1180px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] lg:grid lg:grid-cols-[1.02fr_0.98fr]">
+    <section className="mx-auto min-h-[650px] max-w-[900px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)]">
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
         <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {steps.length}</span></div>
         <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
@@ -416,25 +416,9 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         </div>
       </div>
 
-      <aside className="relative hidden overflow-hidden bg-[#f5f2f0] p-12 lg:block">
-        <p className="text-sm font-semibold text-[#201715]">{steps[step]} setup</p>
-        <h2 className="mt-3 max-w-md text-3xl font-semibold tracking-tight text-[#201715]">{sideCopy[step].title}</h2>
-        <p className="mt-3 max-w-md text-sm leading-6 text-[#806d63]">{sideCopy[step].detail}</p>
-        <div className="mt-7 flex items-center gap-2">{steps.map((item, index) => <span key={item} className={`h-2.5 rounded-full transition-all ${index === step ? "w-8 bg-[#201715]" : "w-2.5 bg-[#d9cec7]"}`} />)}</div>
-        <div className="absolute bottom-16 left-12 right-12 rounded-[20px] border border-white bg-white p-6 shadow-[0_18px_44px_rgba(67,48,43,0.08)]">
-          <div className="flex items-center justify-between"><div className="flex gap-1">{["#d9b252", "#75b69d", "#6987cf"].map((color) => <span key={color} className="h-7 w-7 rounded-full border-2 border-white" style={{ backgroundColor: color }} />)}</div><span className="grid h-8 w-8 place-items-center rounded-full bg-[#f5ede8] text-[#704f40]"><Sparkles className="h-4 w-4" /></span></div>
-          <div className="mt-8 rounded-2xl p-5" style={{ backgroundColor: values.colors[0], color: values.colors[1] }}><p className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-65">VOONE PASS</p><p className="mt-3 font-serif text-2xl">{values.programName || "Your loyalty program"}</p><div className="mt-8 flex justify-between text-xs"><span>{values.centerName || "Center name"}</span><span>Gold member</span></div></div>
-        </div>
-      </aside>
     </section>
   );
 }
-
-const sideCopy = [
-  { title: "Welcome. Who will own this setup?", detail: "Start with the person accountable for the loyalty program and clinic launch." },
-  { title: "Give the center a permanent home.", detail: "This information powers its public sign-up link and printed QR material." },
-  { title: "Choose and edit the first card direction.", detail: "Use a saved template design, then edit the clinic-specific Wallet details before creating the class." },
-];
 
 function OwnerStep({ values, update }: { values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void }) {
   return <StepContent title="Welcome. Who is leading this clinic?" detail="We’ll use these details for clinic ownership and implementation communication."><div className="grid gap-4 sm:grid-cols-2"><WizardField label="Owner name"><Input value={values.ownerName} onChange={(event) => update("ownerName", event.target.value)} placeholder="Ana Lopez" /></WizardField><WizardField label="Owner mobile"><Input value={values.ownerMobile} onChange={(event) => update("ownerMobile", event.target.value)} placeholder="+34 600 000 000" /></WizardField><WizardField label="Owner email" className="sm:col-span-2"><Input type="email" value={values.ownerEmail} onChange={(event) => update("ownerEmail", event.target.value)} placeholder="ana@clinic.com" /></WizardField><WizardField label="Primary contact name"><Input value={values.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Main setup contact" /></WizardField><WizardField label="Primary contact mobile"><Input value={values.mobile} onChange={(event) => update("mobile", event.target.value)} placeholder="+34 600 000 000" /></WizardField></div></StepContent>;
@@ -478,7 +462,7 @@ function PassStepEditor({ presets, templates, selectedPreset, selectedTemplate, 
         <div className="grid gap-3 sm:grid-cols-3">
           {templates.map((template) => (
             <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`overflow-hidden rounded-[20px] border bg-white p-3 text-left shadow-[0_12px_28px_rgba(67,48,43,0.08)] transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}>
-              <span className="block h-28 rounded-lg p-3" style={{ backgroundColor: template.hexBackgroundColor, color: template.hexBackgroundColor === "#2a2e35" ? "#fff8f2" : "#2e2421" }}>
+              <span className="block h-28 rounded-lg p-3" style={{ backgroundColor: template.hexBackgroundColor, color: ["#30221f", "#2a2e35", "#2f343a"].includes(template.hexBackgroundColor.toLowerCase()) ? "#fff8f2" : "#2e2421" }}>
                 <span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">VOONE PASS</span>
                 <span className="mt-6 block font-serif text-lg">{template.programName}</span>
               </span>
@@ -561,7 +545,7 @@ function PassStepEditor({ presets, templates, selectedPreset, selectedTemplate, 
 }
 
 function PassStep({ templates, selectedPreset, selectedTemplate, templateEdited, values, update, selectTemplate }: { templates: OnboardingTemplateOption[]; selectedPreset: TemplatePreset | undefined; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {
-  return <StepContent title="Choose the first card design." detail="Select a saved Voone template, then keep it as-is or edit the copy that will become this clinic’s Wallet class."><div className="grid gap-5"><div className="grid gap-3 sm:grid-cols-3">{templates.map((template) => <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`overflow-hidden rounded-xl border p-3 text-left transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}><span className="block h-28 rounded-lg p-3" style={{ backgroundColor: template.hexBackgroundColor, color: template.hexBackgroundColor === "#2a2e35" ? "#fff8f2" : "#2e2421" }}><span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">VOONE PASS</span><span className="mt-6 block font-serif text-lg">{template.programName}</span></span><span className="mt-3 block text-sm font-semibold">{template.name}</span><span className="mt-1 line-clamp-2 block text-xs text-[#806d63]">{template.description ?? "Ready to copy into a clinic pass."}</span></button>)}</div>{templates.length === 0 ? <p className="rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm text-[#806d63]">Create a Template Design before onboarding a clinic.</p> : null}{selectedTemplate ? <div className="grid gap-4 rounded-2xl border border-[#ded2cb] bg-[#fffaf6] p-4 sm:grid-cols-2"><WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} /></WizardField><WizardField label="Background color"><Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} /></WizardField><WizardField label="Logo URL"><Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" /></WizardField><WizardField label="Hero image URL"><Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.png" /></WizardField><WizardField label="Website URL"><Input value={values.websiteUrl} onChange={(event) => update("websiteUrl", event.target.value)} placeholder="https://clinic.com" /></WizardField><WizardField label="Appointment URL"><Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/book" /></WizardField><WizardField label="Wallet button text"><Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} /></WizardField><WizardField label="Wallet button description"><Input value={values.appLinkDescription} onChange={(event) => update("appLinkDescription", event.target.value)} /></WizardField><WizardField label="Points label"><Input value={values.pointsLabel} onChange={(event) => update("pointsLabel", event.target.value)} /></WizardField><WizardField label="Tier label"><Input value={values.tierLabel} onChange={(event) => update("tierLabel", event.target.value)} /></WizardField><WizardField label="Benefits" className="sm:col-span-2"><Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", event.target.value)} /></WizardField><WizardField label="Pass information" className="sm:col-span-2"><Textarea value={values.infoText} onChange={(event) => update("infoText", event.target.value)} /></WizardField></div> : null}<p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `${selectedTemplate.name} ${templateEdited ? "edited for this clinic" : "will be copied as-is"}` : "No template selected"}{selectedPreset ? ` with ${selectedPreset.name}` : ""}</p></div></StepContent>;
+  return <StepContent title="Choose the first card design." detail="Select a saved Voone template, then keep it as-is or edit the copy that will become this clinic’s Wallet class."><div className="grid gap-5"><div className="grid gap-3 sm:grid-cols-3">{templates.map((template) => <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`overflow-hidden rounded-xl border p-3 text-left transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}><span className="block h-28 rounded-lg p-3" style={{ backgroundColor: template.hexBackgroundColor, color: ["#30221f", "#2a2e35", "#2f343a"].includes(template.hexBackgroundColor.toLowerCase()) ? "#fff8f2" : "#2e2421" }}><span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">VOONE PASS</span><span className="mt-6 block font-serif text-lg">{template.programName}</span></span><span className="mt-3 block text-sm font-semibold">{template.name}</span><span className="mt-1 line-clamp-2 block text-xs text-[#806d63]">{template.description ?? "Ready to copy into a clinic pass."}</span></button>)}</div>{templates.length === 0 ? <p className="rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm text-[#806d63]">Create a Template Design before onboarding a clinic.</p> : null}{selectedTemplate ? <div className="grid gap-4 rounded-2xl border border-[#ded2cb] bg-[#fffaf6] p-4 sm:grid-cols-2"><WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} /></WizardField><WizardField label="Background color"><Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} /></WizardField><WizardField label="Logo URL"><Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" /></WizardField><WizardField label="Hero image URL"><Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.png" /></WizardField><WizardField label="Website URL"><Input value={values.websiteUrl} onChange={(event) => update("websiteUrl", event.target.value)} placeholder="https://clinic.com" /></WizardField><WizardField label="Appointment URL"><Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/book" /></WizardField><WizardField label="Wallet button text"><Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} /></WizardField><WizardField label="Wallet button description"><Input value={values.appLinkDescription} onChange={(event) => update("appLinkDescription", event.target.value)} /></WizardField><WizardField label="Points label"><Input value={values.pointsLabel} onChange={(event) => update("pointsLabel", event.target.value)} /></WizardField><WizardField label="Tier label"><Input value={values.tierLabel} onChange={(event) => update("tierLabel", event.target.value)} /></WizardField><WizardField label="Benefits" className="sm:col-span-2"><Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", event.target.value)} /></WizardField><WizardField label="Pass information" className="sm:col-span-2"><Textarea value={values.infoText} onChange={(event) => update("infoText", event.target.value)} /></WizardField></div> : null}<p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `${selectedTemplate.name} ${templateEdited ? "edited for this clinic" : "will be copied as-is"}` : "No template selected"}{selectedPreset ? ` with ${selectedPreset.name}` : ""}</p></div></StepContent>;
 }
 
 function StepContent({ title, detail, children }: { title: string; detail: string; children: React.ReactNode }) {
