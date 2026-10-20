@@ -29,7 +29,7 @@ export type VisitInput =
     }
   | {
       kind: "BONO_SESSION";
-      package: { priceEuro: number; sessions: number };
+      package: { name?: string; priceEuro: number; sessions: number };
       idempotencyKey: string;
     };
 

@@ -53,15 +53,16 @@ const withFrontendPassLink = (payload: unknown, request: Request): unknown => {
   };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const guard = await requirePermission(PERMISSIONS.membersManage);
 
   if ("response" in guard) {
     return guard.response;
   }
 
+  const url = new URL(request.url);
   const response = await staffFetch(
-    `/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/members`,
+    `/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/members${url.search}`,
     { method: "GET" }
   );
 

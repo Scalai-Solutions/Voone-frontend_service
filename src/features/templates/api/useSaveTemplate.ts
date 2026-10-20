@@ -22,6 +22,8 @@ export function useSaveTemplate(
     onSuccess: (data, variables, onMutateResult, context) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.templates() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.treatments() });
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });

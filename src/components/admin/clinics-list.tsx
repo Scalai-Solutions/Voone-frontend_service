@@ -3,34 +3,56 @@
 import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, Building2, ListFilter, MapPin, MoreHorizontal, Search, Users } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 
 import { EmptyState } from "@/components/shared/page-kit";
+import { LuxuryLoading } from "@/components/shared/luxury-loading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useClinics } from "@/features/clinics/api/useClinics";
+import { useInfiniteClinics } from "@/features/clinics/api/useClinics";
+import type { VoonePlan } from "@/lib/api-client";
 
 const ownerLabel = (clinic: { users: Array<{ email: string; role: string }> }) =>
   clinic.users.find((user) => user.role === "OWNER")?.email ?? clinic.users[0]?.email ?? "Sin usuario";
 
 export function ClinicsList() {
   const [search, setSearch] = React.useState("");
-  const reducedMotion = useReducedMotion();
-  const clinics = useClinics();
-  const filtered = clinics.data?.filter((clinic) => `${clinic.name} ${clinic.addressLine} ${clinic.pincode} ${clinic.voonePlan} ${ownerLabel(clinic)}`.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "setup">("all");
+  const [planFilter, setPlanFilter] = React.useState<"all" | VoonePlan>("all");
+  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
+  const clinics = useInfiniteClinics(search, {
+    status: statusFilter === "all" ? undefined : statusFilter,
+    plan: planFilter === "all" ? undefined : planFilter,
+  });
+  const filtered = React.useMemo(() => clinics.data?.pages.flat() ?? [], [clinics.data]);
 
-  if (clinics.isLoading) return <Skeleton className="h-72 w-full" />;
+  React.useEffect(() => {
+    const node = loadMoreRef.current;
+
+    if (!node) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && clinics.hasNextPage && !clinics.isFetchingNextPage) {
+        void clinics.fetchNextPage();
+      }
+    });
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [clinics]);
+
+  if (clinics.isLoading) return <LuxuryLoading label="Loading clinic portfolio" />;
   if (clinics.error) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar las clínicas.</div>;
 
   return (
     <div className="space-y-5">
       <section className="grid gap-4 lg:grid-cols-3">
-        <ClinicSummary label="Active clinics" value={(clinics.data?.filter((clinic) => clinic.status === "active").length ?? 0).toLocaleString()} details={["With template"]} />
-        <ClinicSummary label="Total clinics" value={(clinics.data?.length ?? 0).toLocaleString()} details={["Active + setup"]} />
-        <ClinicSummary label="Total members" value={(clinics.data?.reduce((total, clinic) => total + clinic.members, 0) ?? 0).toLocaleString()} details={["Across programs"]} />
+        <ClinicSummary label="Active clinics loaded" value={filtered.filter((clinic) => clinic.status === "active").length.toLocaleString()} details={["Loaded results"]} />
+        <ClinicSummary label="Clinics loaded" value={filtered.length.toLocaleString()} details={["10 per page"]} />
+        <ClinicSummary label="Loaded members" value={filtered.reduce((total, clinic) => total + clinic.members, 0).toLocaleString()} details={["Visible clinics"]} />
       </section>
 
       <div className="flex flex-col gap-3 border-b border-[#ded2cb] pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -38,20 +60,33 @@ export function ClinicsList() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar clínicas o planes" className="h-11 rounded-2xl border-[#d9c9b6] bg-[#fffaf3]/86 pl-9 shadow-sm" />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="rounded-2xl"><ListFilter className="mr-2 h-4 w-4" /> Filter</Button>
+        <div className="relative flex flex-wrap gap-2">
+          <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setFiltersOpen((open) => !open)}><ListFilter className="mr-2 h-4 w-4" /> Filter</Button>
+          {filtersOpen ? (
+            <div className="absolute right-0 top-12 z-20 w-72 rounded-2xl border border-[#ded1c8] bg-[#fffaf6] p-4 text-sm shadow-xl">
+              <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#b7874a]" htmlFor="clinic-status-filter">Status</label>
+              <select id="clinic-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
+                <option value="all">All statuses</option>
+                <option value="active">Accepted</option>
+                <option value="setup">Pending</option>
+              </select>
+              <label className="mt-4 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#b7874a]" htmlFor="clinic-plan-filter">Plan</label>
+              <select id="clinic-plan-filter" value={planFilter} onChange={(event) => setPlanFilter(event.target.value as typeof planFilter)} className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
+                <option value="all">All plans</option>
+                <option value="starter">Starter</option>
+                <option value="medium">Medium</option>
+                <option value="pro">Pro</option>
+              </select>
+              <button type="button" onClick={() => { setStatusFilter("all"); setPlanFilter("all"); }} className="mt-4 text-xs font-semibold text-[#754b36]">Clear filters</button>
+            </div>
+          ) : null}
           <Button asChild className="rounded-2xl">
             <Link href="/admin/onboarding">Start onboarding</Link>
           </Button>
         </div>
       </div>
       {filtered.length ? (
-        <motion.div
-          className="overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white/78 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl"
-          initial={reducedMotion ? false : "hidden"}
-          animate={reducedMotion ? undefined : "visible"}
-          variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
-        >
+        <div className="overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white/78 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
           <div className="hidden grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_110px_120px_150px_120px] items-center gap-4 border-b border-[#e7ddd7] bg-[#fffaf6]/82 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8c7870] lg:grid">
             <span />
             <span>Profile</span>
@@ -62,7 +97,7 @@ export function ClinicsList() {
             <span />
           </div>
           {filtered.map((clinic) => (
-            <motion.div key={clinic.id} variants={{ hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0, transition: { duration: 0.52, ease: [0.16, 1, 0.3, 1] } } }}>
+            <div key={clinic.id}>
               <Link href={`/admin/clinics/${clinic.id}`} className="grid gap-4 border-b border-[#ede4de] px-5 py-4 text-sm transition last:border-b-0 hover:bg-[#f5efeb] lg:grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_110px_120px_150px_120px] lg:items-center">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#201715] text-[#f1d6bd]"><Building2 className="h-4 w-4" /></span>
                 <span>
@@ -78,12 +113,15 @@ export function ClinicsList() {
                 <span className="font-semibold">{clinic.templates.toLocaleString()} designs</span>
                 <span className="flex items-center gap-3 text-[#8c7870]"><Users className="h-4 w-4" /> {clinic.members}<MoreHorizontal className="ml-auto h-4 w-4" /><ArrowUpRight className="h-4 w-4" /></span>
               </Link>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       ) : (
         <EmptyState title="No se encontraron clínicas" message="Prueba otra búsqueda o da de alta la siguiente clínica." action={{ href: "/admin/clinics/new", label: "Dar de alta clínica" }} />
       )}
+      <div ref={loadMoreRef} className="py-4 text-center text-sm font-semibold text-[#806d63]">
+        {clinics.isFetchingNextPage ? "Loading 10 more clinics..." : clinics.hasNextPage ? "Scroll for more clinics" : filtered.length > 0 ? "All matching clinics loaded" : ""}
+      </div>
     </div>
   );
 }

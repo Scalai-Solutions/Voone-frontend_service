@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { MemberDetail } from "@/components/dashboard/member-detail";
@@ -17,6 +18,9 @@ export default async function MemberDetailPage({ params }: PageProps<"/dashboard
 
   return (
     <div className="space-y-6">
+      <Link href="/dashboard/members" className="inline-flex text-sm font-semibold text-[#754b36] hover:text-[#2e2421]">
+        ← Back to members
+      </Link>
       <PageHeader eyebrow="Miembros" title="Detalle del miembro" description="Saldo actual, estado Wallet e historial reciente de puntos." />
       <MemberDetail memberId={memberId} />
     </div>

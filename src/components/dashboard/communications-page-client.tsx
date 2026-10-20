@@ -7,14 +7,23 @@ import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import {
   ApiError,
   broadcastNotification,
+  getNotification,
   getNotificationSettings,
   saveNotificationSettings,
   sendSegmentNotification,
   type NotificationSettings,
+  type NotificationStatus,
+  type NotifyOnCredit,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
-const automaticMessages = ["Después de una visita", "Recuperación"];
+const allMembersAudience = "all";
+const finalNotificationStatuses = new Set<NotificationStatus>([
+  "SENT",
+  "PARTIAL_FAILED",
+  "FAILED",
+  "CANCELLED",
+]);
 const defaultBirthdayHeader = "¡Feliz cumpleaños!";
 const defaultBirthdayBody =
   "¡Feliz cumpleaños! Disfruta de un 10% de descuento en nuestros servicios. Esperamos verte pronto.";
@@ -26,17 +35,16 @@ export function CommunicationsPageClient() {
   const [noticeTab, setNoticeTab] = React.useState<"manuales" | "automaticos">(
     "manuales",
   );
-  const [title, setTitle] = React.useState("Tu próxima recompensa está cerca");
-  const [body, setBody] = React.useState(
-    "Reserva tu próxima visita esta semana y añade puntos extra a tu pase.",
-  );
-  const [audience, setAudience] = React.useState("Todos los miembros activos");
-  const [sendWhen, setSendWhen] = React.useState("Ahora");
+  const [title, setTitle] = React.useState("");
+  const [body, setBody] = React.useState("");
+  const [audience, setAudience] = React.useState(allMembersAudience);
+  const [sendWhen, setSendWhen] = React.useState<"now" | "scheduled">("now");
+  const [scheduledAt, setScheduledAt] = React.useState("");
   const [sendState, setSendState] = React.useState<
     "idle" | "sending" | "sent" | "error"
   >("idle");
   const [sendMessage, setSendMessage] = React.useState<string | null>(null);
-  const [settings, setSettings] = React.useState<NotificationSettings | null>(
+  const [, setSettings] = React.useState<NotificationSettings | null>(
     null,
   );
   const [settingsState, setSettingsState] = React.useState<
@@ -51,6 +59,8 @@ export function CommunicationsPageClient() {
   const [birthdayBody, setBirthdayBody] = React.useState(defaultBirthdayBody);
   const [birthdayEnabled, setBirthdayEnabled] = React.useState(true);
   const [birthdayNotify, setBirthdayNotify] = React.useState(true);
+  const [notifyOnCredit, setNotifyOnCredit] = React.useState<NotifyOnCredit>("MILESTONE_AND_TIER");
+  const [marketingEnabled, setMarketingEnabled] = React.useState(true);
   const maxLength = 180;
   const manualQuotaTotal = currentClinic.data?.notificationsMonthlyQuota ?? 0;
   const manualQuotaRemaining =
@@ -76,6 +86,8 @@ export function CommunicationsPageClient() {
         setBirthdayBody(value.birthdayBody || defaultBirthdayBody);
         setBirthdayEnabled(value.birthdayEnabled);
         setBirthdayNotify(value.birthdayNotify);
+        setNotifyOnCredit(value.notifyOnCredit);
+        setMarketingEnabled(value.marketingEnabled);
         setSettingsState("idle");
       })
       .catch((error) => {
@@ -93,43 +105,98 @@ export function CommunicationsPageClient() {
     };
   }, [currentClinic.data]);
 
-  const saveBirthdayAutomation = async () => {
+  const selectedSchedule = () => {
+    if (sendWhen === "now") return undefined;
+
+    const date = new Date(scheduledAt);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const waitForFinalStatus = async (notificationId: string) => {
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      const status = await getNotification(notificationId);
+
+      if (finalNotificationStatuses.has(status.notification.status)) {
+        return status.notification.status;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    return "QUEUED" as NotificationStatus;
+  };
+
+  const saveAutomationSettings = async (message: string, patch: Partial<NotificationSettings>) => {
     if (!currentClinic.data) {
       setSettingsState("error");
       setSettingsMessage("No se pudo resolver la clínica actual.");
       return;
     }
 
+    const next: NotificationSettings = {
+      notifyOnCredit,
+      marketingEnabled,
+      birthdayEnabled,
+      birthdayHeader: birthdayHeader.trim(),
+      birthdayBody: birthdayBody.trim(),
+      birthdayNotify,
+      ...patch,
+    };
+
     setSettingsState("saving");
     setSettingsMessage(null);
 
     try {
-      const saved = await saveNotificationSettings(currentClinic.data.id, {
-        notifyOnCredit: settings?.notifyOnCredit ?? "MILESTONE_AND_TIER",
-        marketingEnabled: settings?.marketingEnabled ?? true,
-        birthdayEnabled,
-        birthdayHeader: birthdayHeader.trim(),
-        birthdayBody: birthdayBody.trim(),
-        birthdayNotify,
-      });
+      const saved = await saveNotificationSettings(currentClinic.data.id, next);
 
       setSettings(saved);
+      setNotifyOnCredit(saved.notifyOnCredit);
+      setMarketingEnabled(saved.marketingEnabled);
+      setBirthdayEnabled(saved.birthdayEnabled);
+      setBirthdayHeader(saved.birthdayHeader || defaultBirthdayHeader);
+      setBirthdayBody(saved.birthdayBody || defaultBirthdayBody);
+      setBirthdayNotify(saved.birthdayNotify);
       setSettingsState("saved");
-      setSettingsMessage("Automatización de cumpleaños guardada.");
+      setSettingsMessage(message);
     } catch (error) {
       setSettingsState("error");
       setSettingsMessage(
         error instanceof ApiError && error.detail
           ? error.detail
-          : "No se pudo guardar la automatización de cumpleaños.",
+          : "No se pudieron guardar las automatizaciones.",
       );
     }
+  };
+
+  const saveBirthdayAutomation = async () => {
+    await saveAutomationSettings("Automatización de cumpleaños guardada.", {
+      birthdayEnabled,
+      birthdayHeader: birthdayHeader.trim(),
+      birthdayBody: birthdayBody.trim(),
+      birthdayNotify,
+    });
+  };
+
+  const saveVisitAutomation = async () => {
+    await saveAutomationSettings("Automatización después de visita guardada.", {
+      notifyOnCredit,
+      marketingEnabled,
+    });
   };
 
   const sendCommunication = async () => {
     if (!currentClinic.data) {
       setSendState("error");
       setSendMessage("No se pudo resolver la clínica actual.");
+      return;
+    }
+
+    const scheduledDate = selectedSchedule();
+
+    if (scheduledDate === null) {
+      setSendState("error");
+      setSendMessage("Elige una fecha y hora válidas para programar la comunicación.");
       return;
     }
 
@@ -142,23 +209,39 @@ export function CommunicationsPageClient() {
         header: title.trim(),
         body: body.trim(),
         notify: true,
+        ...(scheduledDate ? { scheduledAt: scheduledDate.toISOString() } : {}),
       };
       const response =
-        audience === "Clientes Gold"
-          ? await sendSegmentNotification(
-              currentClinic.data.id,
-              { ...input, segment: { tier: "Gold" } },
-              idempotencyKey,
-            )
-          : await broadcastNotification(
+        audience === allMembersAudience
+          ? await broadcastNotification(
               currentClinic.data.id,
               input,
               idempotencyKey,
+            )
+          : await sendSegmentNotification(
+              currentClinic.data.id,
+              { ...input, segment: { tier: audience } },
+              idempotencyKey,
             );
 
-      setSendState("sent");
-      setSendMessage(`Comunicación enviada. Estado: ${response.status}.`);
+      if (scheduledDate) {
+        setSendState("sent");
+        setSendMessage(`Comunicación programada para ${scheduledDate.toLocaleString("es-ES")}.`);
+        setComposeOpen(false);
+        void currentClinic.refetch();
+        return;
+      }
+
+      const finalStatus = await waitForFinalStatus(response.notificationId);
+
+      setSendState(finalStatus === "FAILED" || finalStatus === "CANCELLED" ? "error" : "sent");
+      setSendMessage(
+        finalStatus === "QUEUED" || finalStatus === "PROCESSING"
+          ? "Comunicación guardada y pendiente de entrega."
+          : `Comunicación finalizada. Estado: ${finalStatus}.`,
+      );
       setComposeOpen(false);
+      void currentClinic.refetch();
     } catch (error) {
       setSendState("error");
       setSendMessage(
@@ -217,8 +300,10 @@ export function CommunicationsPageClient() {
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">
             Estado de envíos
           </p>
-          <p className="mt-3 font-serif text-4xl font-semibold">1.248</p>
-          <p className="mt-2 text-sm text-[#927e72]">Envíos este mes</p>
+          <p className="mt-3 font-serif text-4xl font-semibold">
+            {currentClinic.isLoading ? "..." : currentClinic.data?.notificationsUsedThisMonth ?? 0}
+          </p>
+          <p className="mt-2 text-sm text-[#927e72]">Envíos reales este mes</p>
         </div>
       </div>
 
@@ -285,7 +370,7 @@ export function CommunicationsPageClient() {
           )}
         >
           Automáticos{" "}
-          <span className="ml-1 text-xs opacity-70">8 restantes</span>
+          <span className="ml-1 text-xs opacity-70">2 activos</span>
         </button>
       </div>
 
@@ -307,7 +392,7 @@ export function CommunicationsPageClient() {
             <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">
               {noticeTab === "manuales"
                 ? `${manualQuotaRemaining} disponibles`
-                : "8 disponibles"}
+                : "2 automatizaciones"}
             </span>
           </div>
 
@@ -319,6 +404,7 @@ export function CommunicationsPageClient() {
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   maxLength={60}
+                  placeholder="Título del mensaje"
                   className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
                 />
                 <span className="mt-1 block text-xs font-normal text-[#927e72]">
@@ -335,6 +421,7 @@ export function CommunicationsPageClient() {
                     setBody(event.target.value.slice(0, maxLength))
                   }
                   rows={4}
+                  placeholder="Escribe el contenido del mensaje"
                   className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
                 />
                 <span className="mt-1 block text-right text-xs text-[#927e72]">
@@ -423,15 +510,44 @@ export function CommunicationsPageClient() {
                 </button>
               </div>
 
-              {automaticMessages.map((message) => (
-                <div
-                  key={message}
-                  className="flex items-center justify-between rounded-2xl border border-[#eadfd8] p-4"
-                >
-                  <span className="font-semibold">{message}</span>
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#c9b9a8]" />
+              <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">Después de una visita</p>
+                    <p className="mt-1 text-sm leading-6 text-[#927e72]">
+                      Actualiza el pase cuando se registran puntos y decide cuándo enviar push.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-[#806d63]">
+                    <input
+                      type="checkbox"
+                      checked={marketingEnabled}
+                      onChange={(event) => setMarketingEnabled(event.target.checked)}
+                      className="h-4 w-4 accent-[#b8864b]"
+                    />
+                    Marketing activo
+                  </label>
                 </div>
-              ))}
+                <label className="mt-4 block text-sm font-semibold">
+                  Notificación push
+                  <select
+                    value={notifyOnCredit}
+                    onChange={(event) => setNotifyOnCredit(event.target.value as NotifyOnCredit)}
+                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
+                  >
+                    <option value="NEVER">Nunca, solo actualizar puntos</option>
+                    <option value="MILESTONE_AND_TIER">Solo hitos y cambios de nivel</option>
+                    <option value="ALWAYS">Después de cada visita</option>
+                  </select>
+                </label>
+                <button
+                  onClick={() => void saveVisitAutomation()}
+                  disabled={settingsState === "saving"}
+                  className="mt-4 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {settingsState === "saving" ? "Guardando..." : "Guardar después de visita"}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -440,7 +556,7 @@ export function CommunicationsPageClient() {
 
       {composeOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1513]/70 p-5 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#1d1513]/70 p-5 pt-[128px] backdrop-blur-sm md:pt-[144px]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="compose-title"
@@ -472,32 +588,41 @@ export function CommunicationsPageClient() {
                   <select
                     value={audience}
                     onChange={(event) => setAudience(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"
+                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white py-3 pl-3 pr-10 font-normal"
                   >
-                    <option>Todos los miembros activos</option>
-                    <option>Clientes Gold</option>
-                    <option>Mujeres · 25-40 · Madrid</option>
+                    <option value={allMembersAudience}>Todos los miembros activos</option>
                   </select>
                 </label>
                 <label className="text-sm font-semibold">
                   Cuándo
                   <select
                     value={sendWhen}
-                    onChange={(event) => setSendWhen(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"
+                    onChange={(event) => setSendWhen(event.target.value as "now" | "scheduled")}
+                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white py-3 pl-3 pr-10 font-normal"
                   >
-                    <option>Ahora</option>
-                    <option>Programar para mañana</option>
-                    <option>Programar fecha y hora</option>
+                    <option value="now">Ahora</option>
+                    <option value="scheduled">Programar fecha y hora</option>
                   </select>
                 </label>
               </div>
+              {sendWhen === "scheduled" ? (
+                <label className="mt-4 block text-sm font-semibold">
+                  Fecha y hora de envío
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(event) => setScheduledAt(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"
+                  />
+                </label>
+              ) : null}
               <label className="mt-4 block text-sm font-semibold">
                 Header / título de Google Wallet
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   maxLength={60}
+                  placeholder="Título del mensaje"
                   className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"
                 />
                 <span className="mt-1 block text-xs font-normal text-[#927e72]">
@@ -513,6 +638,7 @@ export function CommunicationsPageClient() {
                     setBody(event.target.value.slice(0, maxLength))
                   }
                   rows={5}
+                  placeholder="Escribe el contenido del mensaje"
                   className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"
                 />
                 <span className="mt-1 block text-right text-xs text-[#927e72]">
@@ -522,13 +648,16 @@ export function CommunicationsPageClient() {
               <button
                 onClick={() => void sendCommunication()}
                 disabled={
-                  sendState === "sending" || !title.trim() || !body.trim()
+                  sendState === "sending" ||
+                  !title.trim() ||
+                  !body.trim() ||
+                  (sendWhen === "scheduled" && !scheduledAt)
                 }
                 className="mt-4 w-full rounded-full bg-[#b8864b] py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {sendState === "sending"
                   ? "Enviando..."
-                  : sendWhen === "Ahora"
+                  : sendWhen === "now"
                     ? "Enviar ahora"
                     : "Programar comunicación"}
               </button>

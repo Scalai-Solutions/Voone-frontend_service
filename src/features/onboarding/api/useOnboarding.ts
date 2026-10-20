@@ -45,8 +45,10 @@ export function useReplaceCatalog(clinicId: string) {
       // The cache is what the editor starts from when it is opened again. Left at the rows
       // first loaded, going back a step would show the catalogue as it was before every edit.
       queryClient.setQueryData(queryKeys.onboarding.catalog(clinicId), items);
-      // The estimates are derived from the catalogue, so they are stale the moment it moves.
+      // The estimates and clinic treatment list are derived from the catalogue.
       void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.estimates(clinicId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.treatments() });
     },
   });
 }
@@ -59,6 +61,8 @@ export function useImportCatalog(clinicId: string) {
     onSuccess: (result) => {
       queryClient.setQueryData(queryKeys.onboarding.catalog(clinicId), result.items);
       void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.estimates(clinicId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.treatments() });
     },
   });
 }
@@ -146,6 +150,8 @@ export function usePublishProgram(clinicId: string) {
       queryClient.setQueryData(queryKeys.onboarding.program(clinicId, live.id), live);
       void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.programs(clinicId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.recalibration(clinicId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.staffProgram() });
     },
   });
 }

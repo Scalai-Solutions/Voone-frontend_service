@@ -121,7 +121,7 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
         <button type="button" onClick={() => setTab("informacion")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "informacion" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Información del centro</button>
       </div>
 
-      {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={canEdit} isLoading={currentClinic.isPending} /> : null}
+      {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
       {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
       {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
 

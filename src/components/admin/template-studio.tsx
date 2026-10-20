@@ -728,7 +728,7 @@ function TemplatePassPreview({
           ) : (
             <span className="h-9 w-9 rounded-full bg-white/60" aria-hidden="true" />
           )}
-          <p className="text-sm font-semibold">{option.programName}</p>
+          <p className="font-serif text-base font-semibold tracking-wide">{option.programName}</p>
         </div>
         <div className="px-4">
           <p className="text-[9px] uppercase opacity-80">{option.pointsLabel}</p>

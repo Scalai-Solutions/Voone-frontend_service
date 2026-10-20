@@ -7,6 +7,9 @@ export function useTreatments(options?: { initialData?: Treatment[] }) {
   return useQuery({
     queryKey: queryKeys.treatments(),
     queryFn: getTreatments,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     ...options,
   });
 }

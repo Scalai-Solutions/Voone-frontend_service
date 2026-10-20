@@ -1,8 +1,7 @@
-import { AlertTriangle, Bell, Building2, CreditCard, Download, KeyRound, LifeBuoy, MailCheck, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
+import { AlertTriangle, Bell, Building2, CreditCard, Download, LifeBuoy, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 
+import { DeactivationRequest, MembersCsvExport, NotificationSettingsToggle, PasswordChangeForm } from "@/components/dashboard/settings-actions";
 import { RolePermissionsManager } from "@/components/dashboard/role-permissions-manager";
-import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
-import { getClinicSignupUrl } from "@/lib/app-url";
 import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
 import { formatRole } from "@/lib/roles";
@@ -14,7 +13,6 @@ const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
 export default async function SettingsPage() {
   const [session, clinic] = await Promise.all([getCurrentSession(), getCurrentStaffClinic()]);
-  const signupUrl = await getClinicSignupUrl(clinic.id);
   const owner = ownerFor(clinic);
   const accountFields = [
     { label: "Nombre", value: session?.name ?? owner?.email ?? "Sin nombre guardado" },
@@ -51,25 +49,18 @@ export default async function SettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               {accountFields.map((field) => <InfoField key={field.label} label={field.label} value={field.value} />)}
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar perfil</button>
-              <button className="inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><MailCheck className="h-4 w-4" /> Verificar email</button>
-            </div>
+            <p className="mt-5 rounded-2xl bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">Los cambios de perfil se gestionan desde soporte para mantener el acceso seguro.</p>
           </SettingsSection>
 
           <SettingsSection eyebrow="Seguridad" title="Acceso y contraseña" icon={ShieldCheck}>
-            <div className="grid gap-3 md:grid-cols-3">
-              <ActionTile icon={KeyRound} title="Cambiar contraseña" text="Actualiza la clave de acceso del operador." action="Cambiar" />
-              <ActionTile icon={MailCheck} title="Email verificado" text="Confirma el correo para alertas críticas." action="Reenviar" />
-              <ActionTile icon={ShieldCheck} title="Sesiones" text="Revisa dispositivos y cierra sesiones antiguas." action="Revisar" />
-            </div>
+            <PasswordChangeForm />
           </SettingsSection>
 
           <SettingsSection eyebrow="Negocio" title="Perfil de clínica" icon={Building2}>
             <div className="grid gap-4 sm:grid-cols-2">
               {clinicFields.map((field) => <InfoField key={field.label} label={field.label} value={field.value} />)}
             </div>
-            <button className="mt-5 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar información del centro</button>
+            <p className="mt-5 rounded-2xl bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">La edición de datos del centro se mantiene en onboarding/soporte hasta que el formulario esté disponible aquí.</p>
           </SettingsSection>
 
           {canManageTeam ? (
@@ -81,27 +72,17 @@ export default async function SettingsPage() {
           <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSection eyebrow="Facturación" title="Plan y pagos" icon={CreditCard}>
               <p className="text-sm leading-6 text-[#806d63]">Plan {clinic.voonePlan} activo. {formatNumber(clinic.notificationsRemainingThisMonth)} mensajes manuales disponibles de {formatNumber(clinic.notificationsMonthlyQuota)} este mes.</p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Gestionar plan</button>
-                <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Método de pago</button>
-              </div>
+              <p className="mt-4 rounded-2xl bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">Los cambios de plan y pago se gestionan desde soporte.</p>
             </SettingsSection>
 
             <SettingsSection eyebrow="Preferencias" title="Notificaciones" icon={Bell}>
-              <div className="space-y-3 text-sm">
-                <ToggleRow label="Alertas de envíos fallidos" enabled />
-                <ToggleRow label="Resumen semanal por email" enabled />
-                <ToggleRow label="Avisos de saldo bajo" />
-              </div>
+              <NotificationSettingsToggle clinicId={clinic.id} />
             </SettingsSection>
           </div>
 
           <SettingsSection eyebrow="Datos" title="Exportación y privacidad" icon={Download}>
             <p className="text-sm leading-6 text-[#806d63]">Exporta miembros, actividad de puntos y consentimientos para auditoría interna.</p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button className="inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><Download className="h-4 w-4" /> Exportar datos</button>
-              <button className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Ver consentimientos</button>
-            </div>
+            <MembersCsvExport />
           </SettingsSection>
 
           <section className="rounded-3xl border border-[#d86d5e]/35 bg-[#fff7f5] p-5">
@@ -109,16 +90,15 @@ export default async function SettingsPage() {
               <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#b94135] text-white"><AlertTriangle className="h-5 w-5" /></span>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b94135]">Zona de riesgo</p>
-                <h2 className="mt-2 font-serif text-2xl font-semibold">Eliminar cuenta</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#806d63]">Solicita la eliminación del centro, usuarios asociados y datos operativos. Esta acción debe confirmarse por soporte antes de ejecutarse.</p>
-                <button className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#b94135] px-4 py-2 text-sm font-semibold text-white"><Trash2 className="h-4 w-4" /> Solicitar eliminación</button>
+                <h2 className="mt-2 font-serif text-2xl font-semibold">Desactivar centro</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#806d63]">Solicita a soporte la desactivación del centro, usuarios asociados y datos operativos.</p>
+                <DeactivationRequest clinicName={clinic.name} />
               </div>
             </div>
           </section>
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
-          {signupUrl ? <SignupQrPanel signupUrl={signupUrl} /> : null}
           <section className="rounded-3xl bg-[#2d211e] p-5 text-white">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Soporte</p>
             <h2 className="mt-2 font-serif text-2xl font-semibold">Necesitas ayuda?</h2>
@@ -152,24 +132,3 @@ function InfoField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ActionTile({ icon: Icon, title, text, action }: { icon: React.ComponentType<{ className?: string }>; title: string; text: string; action: string }) {
-  return (
-    <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
-      <Icon className="h-5 w-5 text-[#b8864b]" />
-      <p className="mt-3 font-semibold">{title}</p>
-      <p className="mt-2 min-h-10 text-sm leading-5 text-[#806d63]">{text}</p>
-      <button className="mt-3 rounded-full border border-[#cdb9aa] px-3 py-1.5 text-xs font-semibold text-[#754b36]">{action}</button>
-    </div>
-  );
-}
-
-function ToggleRow({ label, enabled = false }: { label: string; enabled?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3">
-      <span className="font-medium">{label}</span>
-      <span className={enabled ? "h-6 w-11 rounded-full bg-[#6b9a72] p-1" : "h-6 w-11 rounded-full bg-[#d8ccc4] p-1"}>
-        <span className={enabled ? "block h-4 w-4 translate-x-5 rounded-full bg-white" : "block h-4 w-4 rounded-full bg-white"} />
-      </span>
-    </div>
-  );
-}
