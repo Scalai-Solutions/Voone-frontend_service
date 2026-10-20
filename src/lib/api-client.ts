@@ -800,8 +800,14 @@ export function saveClinicGeoLocations(
   );
 }
 
-export function getMembers() {
-  return staffProxyFetch<Member[]>("/members", { method: "GET" });
+export function getMembers(params: { q?: string; limit?: number; offset?: number } = {}) {
+  const query = new URLSearchParams();
+
+  if (params.q) query.set("q", params.q);
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.offset !== undefined) query.set("offset", String(params.offset));
+
+  return staffProxyFetch<Member[]>(`/members${query.toString() ? `?${query}` : ""}`, { method: "GET" });
 }
 
 export function getAdminMembers() {
@@ -912,18 +918,10 @@ export function lookupMemberByWalletCode(code: string) {
 
 export function getDashboardOverview() {
   const fallback: DashboardOverview = {
-    activeMembers: 355,
-    pointsIssuedThisMonth: 18840,
-    walletAdds: 302,
-    recentActivity: [
-      { id: "a1", label: "Verónica ganó 120 puntos", date: "Hoy" },
-      { id: "a2", label: "Mateo se unió a Diamond Skin Plan", date: "Ayer" },
-      {
-        id: "a3",
-        label: "Plantilla Gold Beauty Club actualizada",
-        date: "2 sep",
-      },
-    ],
+    activeMembers: 0,
+    pointsIssuedThisMonth: 0,
+    walletAdds: 0,
+    recentActivity: [],
   };
 
   return withMockFallback(
@@ -932,8 +930,16 @@ export function getDashboardOverview() {
   );
 }
 
-export function getClinics() {
-  return adminProxyFetch<Clinic[]>("/clinics");
+export function getClinics(params: { q?: string; limit?: number; offset?: number; status?: "active" | "setup"; plan?: VoonePlan } = {}) {
+  const query = new URLSearchParams();
+
+  if (params.q) query.set("q", params.q);
+  if (params.status) query.set("status", params.status);
+  if (params.plan) query.set("plan", params.plan);
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.offset !== undefined) query.set("offset", String(params.offset));
+
+  return adminProxyFetch<Clinic[]>(`/clinics${query.toString() ? `?${query}` : ""}`);
 }
 
 export function getCurrentClinic() {

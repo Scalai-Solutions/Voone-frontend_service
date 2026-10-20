@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, Gift, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Gift, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { CATEGORY_LABELS, SELECTABLE_CATEGORIES } from "@/components/admin/program/categories";
 import { formatProgress } from "@/components/admin/program/format";
@@ -74,6 +74,7 @@ export function ProgramVisitPanel({ memberId }: { memberId: string }) {
   const [lines, setLines] = React.useState<LineDraft[]>([{ key: 1, category: "", amount: "" }]);
   const nextKey = React.useRef(2);
   const [discounted, setDiscounted] = React.useState("");
+  const [packageName, setPackageName] = React.useState("");
   const [packagePrice, setPackagePrice] = React.useState("");
   const [packageSessions, setPackageSessions] = React.useState("");
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -112,6 +113,7 @@ export function ProgramVisitPanel({ memberId }: { memberId: string }) {
       storeVisit(memberId, result.visitId);
       setLines([{ key: nextKey.current++, category: "", amount: "" }]);
       setDiscounted("");
+      setPackageName("");
       setPackagePrice("");
       setPackageSessions("");
     };
@@ -125,13 +127,18 @@ export function ProgramVisitPanel({ memberId }: { memberId: string }) {
       const priceEuro = parseAmount(packagePrice);
       const sessions = Number(packageSessions);
 
+      if (!packageName.trim()) {
+        setNotice("Indica el nombre del bono.");
+        return;
+      }
+
       if (!(priceEuro > 0) || !Number.isInteger(sessions) || sessions < 1) {
         setNotice("Indica el precio del bono y cuántas sesiones tiene.");
         return;
       }
 
       record.mutate(
-        { kind: "BONO_SESSION", package: { priceEuro, sessions }, idempotencyKey },
+        { kind: "BONO_SESSION", package: { name: packageName.trim(), priceEuro, sessions }, idempotencyKey },
         { onSuccess, onError },
       );
       return;
@@ -169,6 +176,11 @@ export function ProgramVisitPanel({ memberId }: { memberId: string }) {
   return (
     <div className="grid gap-4">
       <form onSubmit={submit} className="rounded-lg border border-border bg-background/70 p-4">
+        <div className="mb-3">
+          <Button type="button" variant="ghost" size="sm" onClick={() => window.history.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+          </Button>
+        </div>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold">Registrar una visita</p>
           <div role="group" aria-label="Tipo de visita" className="flex gap-1 text-xs">
@@ -270,6 +282,18 @@ export function ProgramVisitPanel({ memberId }: { memberId: string }) {
           </div>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-medium text-muted-foreground sm:col-span-2">
+              Nombre del bono
+              <input
+                value={packageName}
+                onChange={(event) => {
+                  setPackageName(event.target.value);
+                  setNotice(null);
+                }}
+                placeholder="Bono facial 5 sesiones"
+                className={inputClass}
+              />
+            </label>
             <label className="text-xs font-medium text-muted-foreground">
               Precio del bono (€)
               <input

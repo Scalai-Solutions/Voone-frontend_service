@@ -7,6 +7,9 @@ export function useCurrentClinic(options?: { initialData?: Clinic }) {
   return useQuery({
     queryKey: queryKeys.currentClinic(),
     queryFn: getCurrentClinic,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     ...options,
   });
 }

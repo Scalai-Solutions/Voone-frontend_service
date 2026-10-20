@@ -3,25 +3,22 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy } from "lucide-react";
 
+import { QrCode } from "@/components/shared/qr-code";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
-import { type ApiError, type TemplatePreset, type VooneTemplate, type VooneTemplateButton, type VooneTemplateTextModule } from "@/lib/api-client";
+import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
-  DEFAULT_WALLET_BENEFITS_TEXT,
-  DEFAULT_WALLET_BUTTONS,
   DEFAULT_WALLET_HERO_IMAGE_URL,
-  DEFAULT_WALLET_INFO_TEXT,
   DEFAULT_WALLET_LOGO_URL,
   DEFAULT_WALLET_POINTS_LABEL,
   DEFAULT_WALLET_PROGRAM_NAME,
   DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
   DEFAULT_WALLET_TEMPLATE_NAME,
-  DEFAULT_WALLET_TEXT_MODULES,
   DEFAULT_WALLET_TIER_LABEL,
 } from "@/lib/default-wallet-template";
 
@@ -89,8 +86,6 @@ type OnboardingValues = {
   appointmentUrl: string;
   appLinkText: string;
   appLinkDescription: string;
-  buttons: VooneTemplateButton[];
-  textModules: VooneTemplateTextModule[];
   pointsLabel: string;
   tierLabel: string;
   benefitsText: string;
@@ -110,10 +105,10 @@ const initialValues: OnboardingValues = {
   centerEmail: "",
   addressLine: "",
   pincode: "",
-  logo: DEFAULT_WALLET_LOGO_URL,
+  logo: "",
   colors: [DEFAULT_WALLET_BACKGROUND_COLOR, "#201715", "#b98a4f"],
   dataConsent: false,
-  programName: DEFAULT_WALLET_PROGRAM_NAME,
+  programName: "",
   treatments: [{ name: "", priceEuro: "" }],
   tierRewards: defaultTiers.map((tier) => ({ ...tier })),
   milestoneRewards: {
@@ -124,17 +119,15 @@ const initialValues: OnboardingValues = {
   },
   vooneTemplateId: "",
   presetId: "",
-  heroImageUrl: DEFAULT_WALLET_HERO_IMAGE_URL,
+  heroImageUrl: "",
   websiteUrl: "",
   appointmentUrl: "",
-  appLinkText: "Schedule Appointment",
-  appLinkDescription: "Schedule an appointment",
-  buttons: DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
-  textModules: DEFAULT_WALLET_TEXT_MODULES.map((module) => ({ ...module })),
+  appLinkText: "",
+  appLinkDescription: "",
   pointsLabel: DEFAULT_WALLET_POINTS_LABEL,
   tierLabel: DEFAULT_WALLET_TIER_LABEL,
-  benefitsText: DEFAULT_WALLET_BENEFITS_TEXT,
-  infoText: DEFAULT_WALLET_INFO_TEXT,
+  benefitsText: "",
+  infoText: "",
 };
 
 type OnboardingTemplateOption = Pick<VooneTemplate, "id" | "presetId" | "preset" | "name" | "description" | "programName" | "hexBackgroundColor" | "logoUrl" | "heroImageUrl" | "pointsLabel" | "tierLabel" | "benefitsText" | "infoText" | "buttons">;
@@ -158,42 +151,8 @@ const templateOptionsFor = (presets: TemplatePreset[], templates: VooneTemplate[
     tierLabel: initialValues.tierLabel,
     benefitsText: initialValues.benefitsText,
     infoText: initialValues.infoText,
-    buttons: DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
+    buttons: [],
   }));
-};
-
-const firstTemplateValues = (presets: TemplatePreset[], templates: OnboardingTemplateOption[]): OnboardingValues => {
-  const template = templates[0];
-
-  if (!template) {
-    return { ...initialValues, presetId: presets[0]?.id ?? "" };
-  }
-
-  const primaryButton = template.buttons.find((button) => button.primary);
-  const websiteButton = template.buttons.find((button) => !button.primary);
-
-  return {
-    ...initialValues,
-    vooneTemplateId: template.id,
-    presetId: template.presetId ?? template.preset?.id ?? presets[0]?.id ?? "",
-    programName: template.programName,
-    logo: template.logoUrl ?? DEFAULT_WALLET_LOGO_URL,
-    heroImageUrl: template.heroImageUrl ?? DEFAULT_WALLET_HERO_IMAGE_URL,
-    websiteUrl: websiteButton?.url ?? "",
-    appointmentUrl: primaryButton?.url ?? "",
-    appLinkText: primaryButton?.label ?? "Schedule Appointment",
-    appLinkDescription: primaryButton?.description ?? "Schedule an appointment",
-    buttons: template.buttons.length ? template.buttons : DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
-    textModules: [
-      { label: "Benefits", value: template.benefitsText ?? initialValues.benefitsText },
-      { label: "Information", value: template.infoText ?? initialValues.infoText },
-    ],
-    colors: [template.hexBackgroundColor, initialValues.colors[1], initialValues.colors[2]],
-    pointsLabel: template.pointsLabel,
-    tierLabel: template.tierLabel,
-    benefitsText: template.benefitsText ?? initialValues.benefitsText,
-    infoText: template.infoText ?? initialValues.infoText,
-  };
 };
 
 const intOrDefault = (value: string, fallback: number) => {
@@ -230,9 +189,7 @@ const treatmentsPayload = (values: OnboardingValues) => {
       pointsAllotted: pointsForPrice(treatment.priceEuro),
     }));
 
-  return treatments.length > 0
-    ? treatments
-    : [{ name: "Spa", priceEuro: 120, pointsAllotted: pointsForPrice(120) }];
+  return treatments;
 };
 
 const tierRewardsPayload = (values: OnboardingValues) =>
@@ -255,21 +212,23 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   const router = useRouter();
   const templateOptions = templateOptionsFor(presets, templates);
   const [step, setStep] = React.useState(0);
-  const [values, setValues] = React.useState<OnboardingValues>(() => firstTemplateValues(presets, templateOptions));
+  const [values, setValues] = React.useState<OnboardingValues>(() => ({
+    ...initialValues,
+    presetId: presets[0]?.id ?? "",
+  }));
   const [status, setStatus] = React.useState<string | null>(null);
   const [setupLinkCopied, setSetupLinkCopied] = React.useState(false);
   const selectedTemplate = templateOptions.find((template) => template.id === values.vooneTemplateId);
-  const selectedPreset = presets.find((preset) => preset.id === values.presetId) ?? presets[0];
   const templateEdited = Boolean(
     selectedTemplate &&
-      (values.programName !== selectedTemplate.programName ||
-        values.colors[0] !== selectedTemplate.hexBackgroundColor ||
-        values.logo !== (selectedTemplate.logoUrl ?? "") ||
-        values.heroImageUrl !== (selectedTemplate.heroImageUrl ?? "") ||
-        values.pointsLabel !== selectedTemplate.pointsLabel ||
-        values.tierLabel !== selectedTemplate.tierLabel ||
-        values.benefitsText !== (selectedTemplate.benefitsText ?? initialValues.benefitsText) ||
-        values.infoText !== (selectedTemplate.infoText ?? initialValues.infoText)),
+      (values.colors[0] !== selectedTemplate.hexBackgroundColor ||
+        values.programName.trim().length > 0 ||
+        values.logo.trim().length > 0 ||
+        values.heroImageUrl.trim().length > 0 ||
+        values.appointmentUrl.trim().length > 0 ||
+        values.appLinkText.trim().length > 0 ||
+        values.benefitsText.trim().length > 0 ||
+        values.infoText.trim().length > 0),
   );
   const provisionMutation = useProvisionClinic({
     onSuccess: (provisionedClinic) => {
@@ -289,30 +248,11 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   }
 
   function selectTemplate(template: OnboardingTemplateOption) {
-    const primaryButton = template.buttons.find((button) => button.primary);
-    const websiteButton = template.buttons.find((button) => !button.primary);
-
     setValues((current) => ({
       ...current,
       vooneTemplateId: template.id,
       presetId: template.presetId ?? template.preset?.id ?? current.presetId,
-      programName: template.programName,
-      logo: template.logoUrl ?? DEFAULT_WALLET_LOGO_URL,
-      heroImageUrl: template.heroImageUrl ?? DEFAULT_WALLET_HERO_IMAGE_URL,
-      websiteUrl: websiteButton?.url ?? "",
-      appointmentUrl: primaryButton?.url ?? "",
-      appLinkText: primaryButton?.label ?? "Schedule Appointment",
-      appLinkDescription: primaryButton?.description ?? "Schedule an appointment",
-      buttons: template.buttons.length ? template.buttons : DEFAULT_WALLET_BUTTONS.map((button) => ({ ...button })),
-      textModules: [
-        { label: "Benefits", value: template.benefitsText ?? initialValues.benefitsText },
-        { label: "Information", value: template.infoText ?? initialValues.infoText },
-      ],
       colors: [template.hexBackgroundColor, current.colors[1], current.colors[2]],
-      pointsLabel: template.pointsLabel,
-      tierLabel: template.tierLabel,
-      benefitsText: template.benefitsText ?? initialValues.benefitsText,
-      infoText: template.infoText ?? initialValues.infoText,
     }));
     setStatus(null);
   }
@@ -334,6 +274,10 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Choose a template design before creating the clinic.");
       return;
     }
+    if (step === 2 && !values.programName.trim()) {
+      setStatus("Add the program or club name before creating the clinic.");
+      return;
+    }
     setStep((current) => Math.min(current + 1, steps.length - 1));
   }
 
@@ -342,13 +286,14 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Choose a template design before creating the clinic.");
       return;
     }
+    if (!values.programName.trim()) {
+      setStatus("Add the program or club name before creating the clinic.");
+      return;
+    }
     if (templateEdited && !window.confirm("Save this edited template for the clinic and create its Google Wallet class?")) {
       return;
     }
     setStatus(null);
-    const primaryButton = values.buttons.find((button) => button.primary) ?? values.buttons[0];
-    const benefitsModule = values.textModules.find((module) => module.label.toLowerCase().includes("benefit"));
-    const infoModule = values.textModules.find((module) => module.label.toLowerCase().includes("info"));
 
     provisionMutation.mutate({
       name: values.centerName,
@@ -357,18 +302,18 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       ownerName: values.ownerName,
       ownerEmail: values.ownerEmail,
       presetId: values.presetId,
-      programName: values.programName,
+      programName: values.programName.trim(),
       hexBackgroundColor: values.colors[0],
-      logoUrl: values.logo,
-      heroImageUrl: values.heroImageUrl,
-      websiteUrl: values.websiteUrl,
-      appointmentUrl: primaryButton?.url ?? values.appointmentUrl,
-      appLinkText: primaryButton?.label ?? values.appLinkText,
-      appLinkDescription: primaryButton?.description ?? values.appLinkDescription,
-      pointsLabel: values.pointsLabel,
-      tierLabel: values.tierLabel,
-      benefitsText: benefitsModule?.value || values.benefitsText,
-      infoText: infoModule?.value || values.infoText,
+      logoUrl: values.logo.trim(),
+      heroImageUrl: values.heroImageUrl.trim(),
+      websiteUrl: "",
+      appointmentUrl: values.appointmentUrl.trim(),
+      appLinkText: values.appLinkText.trim(),
+      appLinkDescription: values.appLinkText.trim(),
+      pointsLabel: DEFAULT_WALLET_POINTS_LABEL,
+      tierLabel: DEFAULT_WALLET_TIER_LABEL,
+      benefitsText: values.benefitsText,
+      infoText: values.infoText,
       treatments: treatmentsPayload(values),
       tierRewards: tierRewardsPayload(values),
       milestoneRewards: milestonePayload(values),
@@ -387,7 +332,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   const setupUrl = provisionMutation.data?.onboardingCredentials?.setupUrl;
 
   return (
-    <section className="mx-auto min-h-[650px] max-w-[900px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)]">
+    <section className={`mx-auto min-h-[650px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] ${step === 2 ? "max-w-[1180px]" : "max-w-[900px]"}`}>
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
         <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {steps.length}</span></div>
         <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
@@ -395,7 +340,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         <div className="my-auto pt-10">
           {step === 0 ? <OwnerStep values={values} update={update} /> : null}
           {step === 1 ? <CenterStep values={values} update={update} /> : null}
-          {step === 2 ? <PassStepEditor presets={presets} templates={templateOptions} selectedPreset={selectedPreset} selectedTemplate={selectedTemplate} templateEdited={templateEdited} values={values} update={update} selectTemplate={selectTemplate} /> : null}
+          {step === 2 ? <PassStepEditor templates={templateOptions} selectedTemplate={selectedTemplate} templateEdited={templateEdited} values={values} update={update} selectTemplate={selectTemplate} /> : null}
         </div>
 
         <div className="mt-8 border-t border-[#eadfd8] pt-5">
@@ -455,19 +400,17 @@ function CenterStep({ values, update }: { values: OnboardingValues; update: <Val
   );
 }
 
-function PassStepEditor({ presets, templates, selectedPreset, selectedTemplate, templateEdited, values, update, selectTemplate }: { presets: TemplatePreset[]; templates: OnboardingTemplateOption[]; selectedPreset: TemplatePreset | undefined; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {
+function PassStepEditor({ templates, selectedTemplate, templateEdited, values, update, selectTemplate }: { templates: OnboardingTemplateOption[]; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {
+  const cardName = values.centerName.trim() || "Center name";
+
   return (
-    <StepContent title="Choose and edit the clinic template." detail="Select a saved Voone design, then edit the same fields used in Template Designs before creating this clinic’s Wallet class.">
+    <StepContent title="Customize the wallet card." detail="Choose a design and fill only the fields shown on the member card.">
       <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {templates.map((template) => (
-            <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`overflow-hidden rounded-[20px] border bg-white p-3 text-left shadow-[0_12px_28px_rgba(67,48,43,0.08)] transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}>
-              <span className="block h-28 rounded-lg p-3" style={{ backgroundColor: template.hexBackgroundColor, color: ["#30221f", "#2a2e35", "#2f343a"].includes(template.hexBackgroundColor.toLowerCase()) ? "#fff8f2" : "#2e2421" }}>
-                <span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">VOONE PASS</span>
-                <span className="mt-6 block font-serif text-lg">{template.programName}</span>
-              </span>
-              <span className="mt-3 block text-sm font-semibold">{template.name}</span>
-              <span className="mt-1 line-clamp-2 block text-xs text-[#806d63]">{template.description ?? "Ready to copy into a clinic pass."}</span>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {templates.map((template, index) => (
+            <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-left text-sm transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}>
+              <span className="h-6 w-6 rounded-full border border-[#ded2cb]" style={{ backgroundColor: template.hexBackgroundColor }} />
+              <span className="font-semibold">Design {index + 1}</span>
             </button>
           ))}
         </div>
@@ -475,77 +418,106 @@ function PassStepEditor({ presets, templates, selectedPreset, selectedTemplate, 
         {templates.length === 0 ? <p className="rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm text-[#806d63]">Create a Template Design before onboarding a clinic.</p> : null}
 
         {selectedTemplate ? (
-          <form className="rounded-[22px] border border-[#ded2cb] bg-white p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
-            <div className="flex items-start justify-between gap-4">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <form className="rounded-[22px] border border-[#ded2cb] bg-white p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Template editor</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight">{selectedTemplate.name}</h1>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Wallet card fields</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{cardName}</h2>
+                <p className="mt-1 text-xs text-[#806d63]">Template name is set from the center name; the club name appears on the wallet card.</p>
               </div>
-              <CreditCard className="h-5 w-5 text-[#a47845]" />
-            </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <WizardField label="Template name"><Input value={selectedTemplate.name} readOnly className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Template description"><Input value={selectedTemplate.description ?? "Reusable Voone Wallet design."} readOnly className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Preset"><select value={values.presetId} onChange={(event) => update("presetId", event.target.value)} className="h-10 rounded-xl border border-input bg-[#fffaf6] px-3 text-sm">{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}</select></WizardField>
-              <WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Points label"><Input value={values.pointsLabel} onChange={(event) => update("pointsLabel", event.target.value)} className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Tier label"><Input value={values.tierLabel} onChange={(event) => update("tierLabel", event.target.value)} className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Logo URL"><Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Hero image URL"><Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.png" className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Website URL"><Input value={values.websiteUrl} onChange={(event) => update("websiteUrl", event.target.value)} placeholder="https://clinic.com" className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Schedule appointment URL"><Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/book" className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Wallet button text"><Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} className="rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Wallet button description"><Input value={values.appLinkDescription} onChange={(event) => update("appLinkDescription", event.target.value)} className="rounded-xl bg-[#fffaf6]" /></WizardField>
-            </div>
-            <div className="mt-5">
-              <p className="text-sm font-semibold">Brand colors</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                {values.colors.map((color, index) => <label key={index} className="flex items-center gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] px-3 py-2 text-sm"><input aria-label={`Brand color ${index + 1}`} type="color" value={color} onChange={(event) => update("colors", values.colors.map((item, itemIndex) => itemIndex === index ? event.target.value : item) as OnboardingValues["colors"])} className="h-7 w-7 cursor-pointer rounded-full border-0 bg-transparent p-0" /><span>{color}</span></label>)}
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <WizardField label="Card color">
+                  <Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} className="h-10 rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Logo URL">
+                  <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Program / club name" className="sm:col-span-2">
+                  <Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Club Diamante" className="rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Hero image URL (optional)" className="sm:col-span-2">
+                  <Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.jpg" className="rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Wallet button text">
+                  <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Ver beneficios" className="rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Button URL">
+                  <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/benefits" className="rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Member benefits" className="sm:col-span-2">
+                  <Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", event.target.value)} className="min-h-20 rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Pass information" className="sm:col-span-2">
+                  <Textarea value={values.infoText} onChange={(event) => update("infoText", event.target.value)} className="min-h-20 rounded-xl bg-[#fffaf6]" />
+                </WizardField>
               </div>
-            </div>
-            <section className="mt-6 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Wallet buttons</p>
-                  <p className="mt-1 text-xs text-[#927e72]">Add zero, one, or multiple links. Mark one as the primary CTA.</p>
-                </div>
-                <Button type="button" variant="outline" className="rounded-xl" onClick={() => update("buttons", [...values.buttons, { label: "New button", url: "https://", description: "", primary: false }])}>
-                  <Plus className="mr-2 h-4 w-4" /> Add button
-                </Button>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {values.buttons.map((button, index) => <div key={`${index}-${button.label}`} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-white p-3 sm:grid-cols-[1fr_1.5fr_1fr_auto]"><Input value={button.label} maxLength={30} placeholder="Button label" onChange={(event) => update("buttons", values.buttons.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} /><Input value={button.url} placeholder="https://..." onChange={(event) => update("buttons", values.buttons.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} /><Input value={button.description ?? ""} placeholder="Description" onChange={(event) => update("buttons", values.buttons.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))} /><div className="flex items-center gap-2"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={button.primary} onChange={(event) => update("buttons", values.buttons.map((item, itemIndex) => ({ ...item, primary: itemIndex === index ? event.target.checked : false })))} /> Primary</label><Button type="button" variant="ghost" onClick={() => update("buttons", values.buttons.filter((_, itemIndex) => itemIndex !== index))}>×</Button></div></div>)}
-              </div>
-            </section>
-            <section className="mt-6 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Wallet text modules</p>
-                  <p className="mt-1 text-xs text-[#927e72]">Labels and copy shown in the card details section.</p>
-                </div>
-                <Button type="button" variant="outline" className="rounded-xl" onClick={() => update("textModules", [...values.textModules, { label: "New label", value: "" }])}>
-                  <Plus className="mr-2 h-4 w-4" /> Add text
-                </Button>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {values.textModules.map((module, index) => <div key={`${index}-${module.label}`} className="grid gap-3 rounded-xl border border-[#ded2cb] bg-white p-3 sm:grid-cols-[180px_1fr_auto]"><Input value={module.label} placeholder="Label" onChange={(event) => update("textModules", values.textModules.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} /><Textarea value={module.value} placeholder="Text shown on the pass" onChange={(event) => update("textModules", values.textModules.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item))} /><Button type="button" variant="ghost" onClick={() => update("textModules", values.textModules.filter((_, itemIndex) => itemIndex !== index))}>×</Button></div>)}
-              </div>
-            </section>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <WizardField label="Member benefits"><Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", event.target.value)} className="min-h-24 rounded-xl bg-[#fffaf6]" /></WizardField>
-              <WizardField label="Pass information"><Textarea value={values.infoText} onChange={(event) => update("infoText", event.target.value)} className="min-h-24 rounded-xl bg-[#fffaf6]" /></WizardField>
-            </div>
-          </form>
+            </form>
+
+            <WalletCardPreview
+              centerName={cardName}
+              color={values.colors[0]}
+              logoUrl={values.logo}
+              programName={values.programName}
+              heroImageUrl={values.heroImageUrl}
+              buttonText={values.appLinkText}
+              benefitsText={values.benefitsText}
+              infoText={values.infoText}
+            />
+          </div>
         ) : null}
 
-        <p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `${selectedTemplate.name} ${templateEdited ? "edited for this clinic" : "will be copied as-is"}` : "No template selected"}{selectedPreset ? ` with ${selectedPreset.name}` : ""}</p>
+        <p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `Design ${templateEdited ? "edited for this clinic" : "will be copied as-is"}` : "No design selected"}</p>
       </div>
     </StepContent>
   );
 }
 
-function PassStep({ templates, selectedPreset, selectedTemplate, templateEdited, values, update, selectTemplate }: { templates: OnboardingTemplateOption[]; selectedPreset: TemplatePreset | undefined; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {
-  return <StepContent title="Choose the first card design." detail="Select a saved Voone template, then keep it as-is or edit the copy that will become this clinic’s Wallet class."><div className="grid gap-5"><div className="grid gap-3 sm:grid-cols-3">{templates.map((template) => <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`overflow-hidden rounded-xl border p-3 text-left transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}><span className="block h-28 rounded-lg p-3" style={{ backgroundColor: template.hexBackgroundColor, color: ["#30221f", "#2a2e35", "#2f343a"].includes(template.hexBackgroundColor.toLowerCase()) ? "#fff8f2" : "#2e2421" }}><span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">VOONE PASS</span><span className="mt-6 block font-serif text-lg">{template.programName}</span></span><span className="mt-3 block text-sm font-semibold">{template.name}</span><span className="mt-1 line-clamp-2 block text-xs text-[#806d63]">{template.description ?? "Ready to copy into a clinic pass."}</span></button>)}</div>{templates.length === 0 ? <p className="rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm text-[#806d63]">Create a Template Design before onboarding a clinic.</p> : null}{selectedTemplate ? <div className="grid gap-4 rounded-2xl border border-[#ded2cb] bg-[#fffaf6] p-4 sm:grid-cols-2"><WizardField label="Program name"><Input value={values.programName} onChange={(event) => update("programName", event.target.value)} /></WizardField><WizardField label="Background color"><Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} /></WizardField><WizardField label="Logo URL"><Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" /></WizardField><WizardField label="Hero image URL"><Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.png" /></WizardField><WizardField label="Website URL"><Input value={values.websiteUrl} onChange={(event) => update("websiteUrl", event.target.value)} placeholder="https://clinic.com" /></WizardField><WizardField label="Appointment URL"><Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/book" /></WizardField><WizardField label="Wallet button text"><Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} /></WizardField><WizardField label="Wallet button description"><Input value={values.appLinkDescription} onChange={(event) => update("appLinkDescription", event.target.value)} /></WizardField><WizardField label="Points label"><Input value={values.pointsLabel} onChange={(event) => update("pointsLabel", event.target.value)} /></WizardField><WizardField label="Tier label"><Input value={values.tierLabel} onChange={(event) => update("tierLabel", event.target.value)} /></WizardField><WizardField label="Benefits" className="sm:col-span-2"><Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", event.target.value)} /></WizardField><WizardField label="Pass information" className="sm:col-span-2"><Textarea value={values.infoText} onChange={(event) => update("infoText", event.target.value)} /></WizardField></div> : null}<p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `${selectedTemplate.name} ${templateEdited ? "edited for this clinic" : "will be copied as-is"}` : "No template selected"}{selectedPreset ? ` with ${selectedPreset.name}` : ""}</p></div></StepContent>;
+function WalletCardPreview({ centerName, color, logoUrl, programName, heroImageUrl, buttonText, benefitsText, infoText }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; buttonText: string; benefitsText: string; infoText: string }) {
+  const clubName = programName.trim() || "Club Diamante";
+  const cta = buttonText.trim() || "Ver beneficios";
+
+  return (
+    <aside className="rounded-[22px] border border-[#ded2cb] bg-[#fffaf6] p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Live preview</p>
+      <div className="mt-4 mx-auto w-[260px] rounded-[30px] border-[7px] border-[#161616] bg-[#f7f7f7] p-2 shadow-[0_22px_48px_rgba(0,0,0,0.35)]">
+        <div className="rounded-[24px] bg-white px-3 pb-3 pt-2">
+          <div className="flex items-center justify-between px-1 text-[10px] font-semibold text-[#1e1e1e]"><span>9:30</span><span>5G ▰</span></div>
+          <div className="mt-4 text-lg leading-none text-[#1e1e1e]">‹</div>
+          <div className="mt-3 overflow-hidden rounded-[22px] text-white shadow-lg" style={{ backgroundColor: color }}>
+            <div className="border-b border-white/20 px-4 py-3">
+              <div className="flex items-center gap-3">
+                {logoUrl ? <span aria-label="Logo preview" className="h-8 w-16 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${logoUrl})` }} /> : <span className="h-8 w-16 shrink-0 rounded bg-white/10" />}
+                <p className="truncate text-[11px] font-bold">{centerName}</p>
+              </div>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-[10px] font-semibold">Club de fidelización</p>
+              <h3 className="mt-1 font-serif text-[26px] leading-none">{clubName}</h3>
+              <div className="mt-5 grid grid-cols-[1fr_auto] gap-3 border-b border-white/20 pb-3">
+                <div><p className="text-[9px] opacity-70">Nombre de socia</p><p className="text-[11px] font-bold">Nombre de la clienta</p></div>
+                <div className="text-right"><p className="text-[9px] opacity-70">Puntos</p><p className="text-[11px] font-bold">250</p></div>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
+                <div><p className="opacity-70">N.º de socia</p><p className="mt-1 font-bold">SOCIO-123</p></div>
+                <div className="text-center"><p className="opacity-70">Nivel</p><p className="mt-1 font-bold">Diamante</p></div>
+                <div className="text-right"><p className="opacity-70">Beneficio</p><p className="mt-1 font-bold">{cta}</p></div>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <QrCode value="https://voone.example/member/SOCIO-123" size={92} className="rounded-xl p-2" title="Preview QR" />
+              </div>
+            </div>
+            <div className="h-28 bg-[#c9a88f]/40 bg-cover bg-center" style={heroImageUrl ? { backgroundImage: `linear-gradient(90deg,rgba(46,36,33,0.45),rgba(46,36,33,0.12)),url(${heroImageUrl})` } : undefined} />
+          </div>
+          <button type="button" className="mt-3 h-8 w-full rounded-full border border-[#bfb7b2] text-[11px] font-semibold text-[#1d5fd1]">Detalles</button>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2 text-xs text-[#806d63]">
+        <p><span className="font-semibold text-[#2e2421]">Benefits:</span> {benefitsText || "Member benefits appear in pass details."}</p>
+        <p><span className="font-semibold text-[#2e2421]">Info:</span> {infoText || "Pass information appears in pass details."}</p>
+      </div>
+    </aside>
+  );
 }
 
 function StepContent({ title, detail, children }: { title: string; detail: string; children: React.ReactNode }) {

@@ -42,6 +42,7 @@ export function ScanToCredit() {
   const [selectedTreatmentIds, setSelectedTreatmentIds] = React.useState<string[]>([]);
   const [treatmentSearch, setTreatmentSearch] = React.useState("");
   const [manualMemberId, setManualMemberId] = React.useState("");
+  const [matchingMembers, setMatchingMembers] = React.useState<Member[]>([]);
   const [referralCode, setReferralCode] = React.useState("");
   const [scanMessage, setScanMessage] = React.useState("Escanea el pase del cliente para empezar");
   const [notice, setNotice] = React.useState("");
@@ -80,12 +81,30 @@ export function ScanToCredit() {
     },
   });
 
-  const findMember = React.useCallback(
+  const findExactMember = React.useCallback(
     (value: string) => {
       const normalizedValue = value.trim().toLowerCase();
-      return members.data?.find((member) => {
-        return member.code?.toLowerCase() === normalizedValue || member.id.toLowerCase() === normalizedValue || member.identity.toLowerCase() === normalizedValue || member.name.toLowerCase().includes(normalizedValue);
-      });
+      return members.data?.find((member) =>
+        member.code?.toLowerCase() === normalizedValue ||
+        member.id.toLowerCase() === normalizedValue ||
+        member.identity.toLowerCase() === normalizedValue ||
+        member.email?.toLowerCase() === normalizedValue
+      );
+    },
+    [members.data]
+  );
+
+  const findMatchingMembers = React.useCallback(
+    (value: string) => {
+      const normalizedValue = value.trim().toLowerCase();
+      if (!normalizedValue) return [];
+
+      return (members.data ?? []).filter((member) =>
+        member.name.toLowerCase().includes(normalizedValue) ||
+        member.identity.toLowerCase().includes(normalizedValue) ||
+        (member.email ?? "").toLowerCase().includes(normalizedValue) ||
+        (member.code ?? "").toLowerCase().includes(normalizedValue)
+      );
     },
     [members.data]
   );
@@ -98,6 +117,7 @@ export function ScanToCredit() {
       scannerControlsRef.current = null;
       setSelectedMember(member);
       setScannerOpen(false);
+      setMatchingMembers([]);
       setManualMemberId(member.name);
       setScanMessage(message);
     }, 0);
@@ -112,6 +132,7 @@ export function ScanToCredit() {
     setSelectedMember(null);
     setSelectedTreatmentIds([]);
     setTreatmentSearch("");
+    setMatchingMembers([]);
     setNotice(completionNotice);
     setScanMessage("Escanea el pase del cliente para empezar");
     setScannerOpen(true);
@@ -132,7 +153,7 @@ export function ScanToCredit() {
       if (!normalizedValue || normalizedValue === lastScanRef.current) return;
 
       lastScanRef.current = normalizedValue;
-      const localMember = findMember(normalizedValue);
+      const localMember = findExactMember(normalizedValue);
 
       if (localMember) {
         selectMember(localMember, "Miembro encontrado. Selecciona un tratamiento.");
@@ -148,7 +169,7 @@ export function ScanToCredit() {
         setScanMessage("Ningún miembro coincide con este código. Busca por nombre, móvil o email.");
       }
     },
-    [findMember, selectMember]
+    [findExactMember, selectMember]
   );
 
   React.useEffect(() => {
@@ -194,19 +215,32 @@ export function ScanToCredit() {
   }, [resolveScan, scannerOpen, selectedMember]);
 
   async function handleManualSearch() {
-    const member = findMember(manualMemberId);
-    if (member) {
-      selectMember(member, "Miembro encontrado. Selecciona un tratamiento.");
-      setNotice(`Miembro encontrado: ${member.name}`);
-    } else {
-      try {
-        const walletMember = await lookupMemberByWalletCode(walletCodeFromScan(manualMemberId));
+    const exactMember = findExactMember(manualMemberId);
 
-        selectMember(walletMember, "Pase Wallet reconocido. Selecciona un tratamiento.");
-        setNotice(`Miembro encontrado: ${walletMember.name}`);
-      } catch {
-        setNotice("Escribe un nombre, móvil, email o código Wallet válido para buscar.");
-      }
+    if (exactMember) {
+      setMatchingMembers([]);
+      selectMember(exactMember, "Miembro encontrado. Selecciona un tratamiento.");
+      setNotice(`Miembro encontrado: ${exactMember.name}`);
+      return;
+    }
+
+    const matches = findMatchingMembers(manualMemberId);
+
+    if (matches.length > 0) {
+      setMatchingMembers(matches);
+      setNotice(`${matches.length} coincidencia${matches.length === 1 ? "" : "s"}. Elige un miembro.`);
+      return;
+    }
+
+    try {
+      const walletMember = await lookupMemberByWalletCode(walletCodeFromScan(manualMemberId));
+
+      setMatchingMembers([]);
+      selectMember(walletMember, "Pase Wallet reconocido. Selecciona un tratamiento.");
+      setNotice(`Miembro encontrado: ${walletMember.name}`);
+    } catch {
+      setMatchingMembers([]);
+      setNotice("Escribe un nombre, móvil, email o código Wallet válido para buscar.");
     }
   }
 
@@ -355,6 +389,7 @@ export function ScanToCredit() {
                     );
                   })}
                 </div>
+                {!treatments.isLoading && !treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">Este centro todavía no tiene tratamientos guardados.</p> : null}
                 {treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">No hay tratamientos que coincidan con esa búsqueda.</p> : null}
                 {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total</p> : null}
               </div>
@@ -384,9 +419,19 @@ export function ScanToCredit() {
               <Search className="text-[#b8864b]" />
             </div>
             <div className="mt-4 flex gap-2">
-              <input value={manualMemberId} onChange={(event) => setManualMemberId(event.target.value)} placeholder="Nombre, móvil o MEM-1048" className="min-w-0 flex-1 rounded-xl border border-[#ded1c8] bg-white px-3 py-3 text-sm outline-none focus:border-[#b8864b]" />
+              <input value={manualMemberId} onChange={(event) => { setManualMemberId(event.target.value); setMatchingMembers([]); }} placeholder="Nombre, móvil o email" className="min-w-0 flex-1 rounded-xl border border-[#ded1c8] bg-white px-3 py-3 text-sm outline-none focus:border-[#b8864b]" />
               <button type="button" onClick={handleManualSearch} className="rounded-xl bg-[#2d211e] px-4 text-sm font-semibold text-white">Buscar</button>
             </div>
+            {matchingMembers.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {matchingMembers.map((member) => (
+                  <button key={member.id} type="button" onClick={() => selectMember(member, "Miembro seleccionado. Selecciona un tratamiento.")} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#ded1c8] bg-white px-4 py-3 text-left text-sm hover:border-[#b8864b]">
+                    <span><span className="block font-semibold">{member.name}</span><span className="mt-1 block text-xs text-[#927e72]">{member.identity}{member.email ? ` · ${member.email}` : ""}</span></span>
+                    <span className="text-xs font-semibold text-[#9b633e]">Elegir</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5 text-sm leading-6 text-[#806d63]">
             Escanea un QR o busca una persona para abrir la acreditación de puntos.

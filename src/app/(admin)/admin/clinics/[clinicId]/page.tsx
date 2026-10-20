@@ -6,7 +6,7 @@ import { ClinicAccountActions, ClinicCredentialsActions } from "@/components/adm
 import { PageHeader } from "@/components/shared/page-kit";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
-import { getAdminClinic } from "@/lib/admin-api";
+import { getAdminClinic, getAdminClinicPrograms } from "@/lib/admin-api";
 import { ApiError, type MilestoneRewardsInput } from "@/lib/api-client";
 
 const ownerLabel = (clinic: Awaited<ReturnType<typeof getAdminClinic>>) =>
@@ -21,6 +21,10 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
 
     throw error;
   });
+  const programs = await getAdminClinicPrograms(clinic.id);
+  const activeProgram = programs.find((program) => program.status === "ACTIVO");
+  const draftProgram = programs.find((program) => program.status === "BORRADOR");
+  const programActionLabel = activeProgram ? "View live program" : draftProgram ? "Continue program" : "Set up program";
   const template = clinic.template;
   const tierRewards = Array.isArray(template?.tierRewards) ? template.tierRewards : [];
   const milestoneRewards = template?.milestoneRewards;
@@ -112,10 +116,10 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f1e2d6] text-[#704f40]"><Gift className="h-4 w-4" /></span>
             <div>
               <h2 className="font-serif text-2xl font-semibold tracking-tight">Loyalty program</h2>
-              <p className="mt-1 max-w-xl text-sm text-[#806d63]">Upload the price list, answer six questions and review the tiers and rewards the engine proposes. Activating it moves this clinic to the new program.</p>
+              <p className="mt-1 max-w-xl text-sm text-[#806d63]">{activeProgram ? `Live version ${activeProgram.version} is active for visits, treatments and rewards.` : "Upload the price list, answer six questions and review the tiers and rewards the engine proposes."}</p>
             </div>
           </div>
-          <Button asChild className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/program`}>Set up program <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
+          <Button asChild className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/program`}>{programActionLabel} <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
         <SetupPanel icon={WalletCards} title="Treatments" description="Clinic dashboard treatment catalog and points setup.">
           {(clinic.treatments ?? []).length > 0 ? (clinic.treatments ?? []).map((treatment) => <SetupRow key={treatment.id} name={treatment.name} detail={treatment.priceEuro ? `${treatment.priceEuro} euro` : "No price set"} value={`${treatment.points} points`} />) : <EmptySetupRow label="No treatments saved" />}

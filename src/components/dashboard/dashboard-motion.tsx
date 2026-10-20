@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { CircleHelp, QrCode, ScanLine, Sparkles, WalletCards } from "lucide-react";
 
+import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import type { Clinic, DashboardOverview } from "@/lib/api-client";
 
 const reveal = {
@@ -20,11 +21,10 @@ function getTimeGreeting() {
   return "Buenas noches";
 }
 
-export function DashboardMotion({ overview, clinic }: { overview: DashboardOverview; clinic: Clinic }) {
+export function DashboardMotion({ overview, clinic, signupUrl }: { overview: DashboardOverview; clinic: Clinic; signupUrl?: string | null }) {
   const reducedMotion = useReducedMotion();
   const transition = reducedMotion ? { duration: 0 } : { duration: 0.62, ease: [0.16, 1, 0.3, 1] as const };
   const greeting = React.useMemo(() => getTimeGreeting(), []);
-  const firstClinicName = clinic.name.split(/\s+/)[0] ?? clinic.name;
   const templateName = clinic.template?.programName ?? "Voone Club";
 
   return (
@@ -35,20 +35,21 @@ export function DashboardMotion({ overview, clinic }: { overview: DashboardOverv
           <p className="mb-6 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#d6a979]"><span className="h-px w-8 bg-[#d6a979]" /> Tu club, más cerca</p>
           <h1 className="max-w-[640px] font-serif text-5xl font-semibold leading-[0.98] tracking-[-0.03em] text-[#fff9f5] sm:text-6xl lg:text-[62px]">
             {greeting},<br />
-            <span className="text-[#dfb88c]">{firstClinicName}.</span> Bienvenida<br />
+            <span className="text-[#dfb88c]">{clinic.name}</span> Te damos la bienvenida<br />
             de nuevo.
           </h1>
           <p className="mt-6 max-w-[540px] text-base leading-7 text-[#c9bbb3]">Gestiona la comunidad de {clinic.name} con una experiencia que se siente tan especial como tu marca.</p>
 
           <div className="mt-7 grid max-w-[500px] grid-cols-1 gap-3 sm:grid-cols-2">
             <Metric label="Miembros activos" value={overview.activeMembers.toLocaleString("es-ES")} detail="Registrados en backend" />
-            <Metric label="Ingresos generados" value={`$${overview.pointsIssuedThisMonth.toLocaleString("es-ES")}`} detail="Valor provisional" />
+            <Metric label="Ingresos generados" value={`${overview.pointsIssuedThisMonth.toLocaleString("es-ES")} €`} detail="Actividad real registrada" />
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link href="/dashboard/scan" className="inline-flex items-center gap-3 rounded-full border border-[#a2765d] bg-[#6f4d3f]/40 px-5 py-3 text-sm font-semibold text-[#fff6ed] transition hover:bg-[#8a604b]">
               <ScanLine size={17} /> Escanear QR
             </Link>
+            {signupUrl ? <SignupQrPanel signupUrl={signupUrl} /> : null}
           </div>
         </div>
 
@@ -66,7 +67,9 @@ export function DashboardMotion({ overview, clinic }: { overview: DashboardOverv
           <PhoneWallet clinicName={clinic.name} templateName={templateName} />
         </div>
       </div>
-      <Link href="/dashboard/scan" className="absolute left-1/2 top-1/2 hidden h-[88px] w-[88px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[5px] border-[#211918] bg-[#f1d6bd] text-[#402d26] shadow-[0_10px_34px_rgba(241,214,189,0.32)] transition hover:scale-110 lg:flex" aria-label="Escanear código QR">
+      <Link href="/dashboard/scan" className="absolute left-1/2 top-1/2 z-10 hidden h-[88px] w-[88px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[5px] border-[#211918] bg-[#f1d6bd] text-[#402d26] shadow-[0_10px_34px_rgba(241,214,189,0.32)] transition hover:scale-110 lg:flex" aria-label="Escanear código QR">
+        <span className="absolute inset-[-12px] -z-10 animate-ping rounded-full bg-[#f1d6bd]/35" />
+        <span className="absolute inset-[-24px] -z-10 animate-pulse rounded-full border border-[#f1d6bd]/35 bg-[#f1d6bd]/10" />
         <QrCode size={40} strokeWidth={1.8} />
       </Link>
     </motion.section>

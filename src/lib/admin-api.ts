@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ApiError, type Clinic, type Member, type WalletInfrastructure } from "@/lib/api-client";
+import type { ProgramListItem } from "@/lib/onboarding-api";
 import { staffFetch } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -54,4 +55,10 @@ export function getAdminMembers() {
 
 export function getAdminWalletInfrastructure() {
   return adminFetch<WalletInfrastructure>("/v1/admin/wallet");
+}
+
+export function getAdminClinicPrograms(clinicId: string) {
+  return adminFetch<{ programs: ProgramListItem[] }>(
+    `/v1/admin/clinics/${encodeURIComponent(clinicId)}/onboarding/programs`
+  ).then((response) => response.programs);
 }
