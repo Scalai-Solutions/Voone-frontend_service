@@ -15,6 +15,7 @@ import {
   usePrograms,
   usePublishProgram,
   useRecalibration,
+  useSetTierBenefits,
   useSwapMilestone,
 } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
@@ -46,6 +47,8 @@ const DEFAULT_ANSWERS: OnboardingAnswers = {
   objective: "equilibrado",
   investment: "equilibrado",
   occupancy: "o2",
+  // 300 clients in the calculator by default (founders' E2E item 30); the centre can change it.
+  members: "m3",
 };
 
 const messageOf = (error: unknown, fallback: string): string =>
@@ -130,6 +133,7 @@ function ProgramSetupLoaded({
   const createDraft = useCreateDraft(clinicId);
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
+  const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
 
   const estimates = useEstimates(clinicId, step === 1);
   const recalibration = useRecalibration(clinicId, Boolean(active));
@@ -314,6 +318,11 @@ function ProgramSetupLoaded({
                   isDraft
                     ? (milestone, alternative) =>
                         swap.mutateAsync({ milestone, alternative })
+                    : undefined
+                }
+                onSetBenefits={
+                  isDraft
+                    ? (tier, benefits) => tierBenefits.mutateAsync({ tier, benefits })
                     : undefined
                 }
               />
