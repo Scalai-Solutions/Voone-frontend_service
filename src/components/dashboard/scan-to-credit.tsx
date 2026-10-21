@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMembers } from "@/features/members/api/useMembers";
+import { useRecordVisit, useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { useTreatments } from "@/features/treatments/api/useTreatments";
 import { ApiError, lookupMemberByWalletCode, type Member } from "@/lib/api-client";
 
@@ -36,6 +37,10 @@ export function ScanToCredit() {
   const selectedMemberRef = React.useRef<Member | null>(null);
   const lastScanRef = React.useRef("");
   const members = useMembers();
+  const staffProgram = useStaffProgram();
+  // A centre with a live programme records visits with their amount; the backend refuses
+  // points added by hand there, because only a visit applies tiers, perks and rewards.
+  const visitBased = Boolean(staffProgram.data);
   const treatments = useTreatments();
   const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
   const [scannerOpen, setScannerOpen] = React.useState(true);
@@ -56,6 +61,8 @@ export function ScanToCredit() {
     [selectedTreatmentIds, treatments.data]
   );
   const selectedTreatmentPoints = selectedTreatments.reduce((total, treatment) => total + treatment.points, 0);
+  const selectedTreatmentAmount = selectedTreatments.reduce((total, treatment) => total + (treatment.priceEuro ?? 0), 0);
+  const unpricedSelected = selectedTreatments.filter((treatment) => !(typeof treatment.priceEuro === "number" && treatment.priceEuro > 0));
   const filteredTreatments = React.useMemo(() => {
     const normalizedSearch = treatmentSearch.trim().toLowerCase();
 
@@ -80,6 +87,8 @@ export function ScanToCredit() {
       resetScan(`Puntos añadidos a ${member.name}. Nuevo saldo: ${member.points.toLocaleString("es-ES")} puntos.`);
     },
   });
+
+  const visitMutation = useRecordVisit(selectedMember?.id ?? "");
 
   const findExactMember = React.useCallback(
     (value: string) => {
@@ -244,7 +253,51 @@ export function ScanToCredit() {
     }
   }
 
+  function handleVisit() {
+    if (!selectedMember || selectedTreatments.length === 0) {
+      setNotice("Selecciona un miembro y al menos un tratamiento antes de registrar la visita.");
+      return;
+    }
+
+    if (unpricedSelected.length > 0) {
+      setNotice(`Falta el precio de: ${unpricedSelected.map((treatment) => treatment.name).join(", ")}. Añádelo en la configuración del centro.`);
+      return;
+    }
+
+    // Same rule as the points path: one key per attempt, reused on every retry.
+    creditKeyRef.current ??= newIdempotencyKey();
+
+    const member = selectedMember;
+
+    visitMutation.mutate(
+      {
+        kind: "PAYMENT",
+        lines: selectedTreatments.map((treatment) => ({ amountEuro: treatment.priceEuro as number })),
+        idempotencyKey: creditKeyRef.current,
+      },
+      {
+        onError: (error) => {
+          setNotice(
+            error instanceof ApiError && error.detail
+              ? `No se registró la visita: ${error.detail}`
+              : "No se registró la visita. Inténtalo una vez más antes de que el miembro se vaya."
+          );
+        },
+        onSuccess: (outcome) => {
+          const rewards = outcome.issued.length > 0 ? ` Premio: ${outcome.issued.map((reward) => reward.title).join(", ")}.` : "";
+
+          resetScan(`Visita registrada para ${member.name}: ${selectedTreatmentAmount.toLocaleString("es-ES")} euro.${rewards}`);
+        },
+      }
+    );
+  }
+
   function handleCredit() {
+    if (visitBased) {
+      handleVisit();
+      return;
+    }
+
     if (!selectedMember || selectedTreatments.length === 0) {
       setNotice("Selecciona un miembro y al menos un tratamiento antes de canjear.");
       return;
@@ -318,7 +371,7 @@ export function ScanToCredit() {
           </div>
           <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-[#c9bbb3]">
             <span>{selectedMember ? `${selectedMember.name} · ${selectedMember.points.toLocaleString("es-ES")} puntos` : scanMessage}</span>
-            <span className="font-semibold text-[#d6a979]">{confirmMutation.isPending ? "Guardando" : "Listo"}</span>
+            <span className="font-semibold text-[#d6a979]">{confirmMutation.isPending || visitMutation.isPending ? "Guardando" : "Listo"}</span>
           </div>
         </div>
 
@@ -362,7 +415,7 @@ export function ScanToCredit() {
 
               <div className="mt-5 rounded-[26px] border border-[#e2d5cc] bg-white/90 p-5 shadow-[0_18px_55px_rgba(65,43,32,0.08)] sm:p-6">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Tratamiento</p>
-                <h2 className="mt-2 font-serif text-3xl font-semibold">Acreditar visita</h2>
+                <h2 className="mt-2 font-serif text-3xl font-semibold">{visitBased ? "Registrar visita" : "Acreditar visita"}</h2>
                 <label className="mt-5 flex items-center gap-3 rounded-2xl border border-[#ded1c8] bg-white px-3 py-3 text-[#927e72]">
                   <Search size={17} />
                   <span className="sr-only">Buscar tratamiento</span>
@@ -391,7 +444,7 @@ export function ScanToCredit() {
                 </div>
                 {!treatments.isLoading && !treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">Este centro todavía no tiene tratamientos guardados.</p> : null}
                 {treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">No hay tratamientos que coincidan con esa búsqueda.</p> : null}
-                {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total</p> : null}
+                {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {visitBased ? `${selectedTreatmentAmount.toLocaleString("es-ES")} euro en total` : `${selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total`}</p> : null}
               </div>
 
               <div className="mt-5 rounded-[26px] border border-[#e2d5cc] bg-white/90 p-5 sm:p-6">
@@ -405,8 +458,10 @@ export function ScanToCredit() {
 
               {selectedTreatments.length > 0 ? (
                 <div className="mt-auto pt-5">
-                  <button type="button" onClick={handleCredit} disabled={confirmMutation.isPending} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#161211] px-5 py-4 text-sm font-bold text-white shadow-[0_18px_44px_rgba(22,18,17,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55">
-                    <CheckCircle2 size={18} /> {confirmMutation.isPending ? "Guardando puntos..." : `Añadir ${selectedTreatmentPoints.toLocaleString("es-ES")} puntos`}
+                  <button type="button" onClick={handleCredit} disabled={confirmMutation.isPending || visitMutation.isPending} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#161211] px-5 py-4 text-sm font-bold text-white shadow-[0_18px_44px_rgba(22,18,17,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55">
+                    <CheckCircle2 size={18} /> {visitBased
+                      ? visitMutation.isPending ? "Registrando visita..." : `Registrar visita de ${selectedTreatmentAmount.toLocaleString("es-ES")} euro`
+                      : confirmMutation.isPending ? "Guardando puntos..." : `Añadir ${selectedTreatmentPoints.toLocaleString("es-ES")} puntos`}
                   </button>
                 </div>
               ) : null}
