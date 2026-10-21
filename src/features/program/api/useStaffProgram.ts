@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
   getMemberRewards,
+  getStaffCatalog,
   getStaffProgram,
   recordVisit,
   redeemReward,
@@ -15,6 +16,14 @@ export function useStaffProgram() {
     queryKey: queryKeys.staffProgram(),
     queryFn: getStaffProgram,
     // A programme changes when someone activates a new one, not minute to minute.
+    staleTime: 60_000,
+  });
+}
+
+export function useStaffCatalog() {
+  return useQuery({
+    queryKey: queryKeys.staffCatalog(),
+    queryFn: getStaffCatalog,
     staleTime: 60_000,
   });
 }

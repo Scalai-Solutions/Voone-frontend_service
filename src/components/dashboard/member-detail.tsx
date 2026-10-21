@@ -109,7 +109,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             <p className="text-lg font-semibold tracking-widest">{member.data.code ?? member.data.id}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{hasProgram ? "Progreso (€ pagados)" : "Puntos actuales"}</p>
+            <p className="text-sm text-muted-foreground">Puntos actuales</p>
             <p className="text-3xl font-semibold tracking-tight">{member.data.points.toLocaleString()}</p>
           </div>
           <div>

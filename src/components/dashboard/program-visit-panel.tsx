@@ -1,15 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, CheckCircle2, Gift, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Gift,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
-import { CATEGORY_LABELS, SELECTABLE_CATEGORIES } from "@/components/admin/program/categories";
-import { formatProgress } from "@/components/admin/program/format";
+import {
+  CATEGORY_LABELS,
+  SELECTABLE_CATEGORIES,
+} from "@/components/admin/program/categories";
 import { Button } from "@/components/ui/button";
 import {
   useMemberRewards,
   useRecordVisit,
   useRedeemReward,
+  useStaffCatalog,
 } from "@/features/program/api/useStaffProgram";
 import { ApiError, newIdempotencyKey } from "@/lib/api-client";
 import type { CategoryCode } from "@/lib/onboarding-api";
@@ -34,7 +44,8 @@ interface LineDraft {
 }
 
 /** "12,50" and "12.50" both mean twelve euros fifty; people in Spain type the first. */
-const parseAmount = (value: string): number => Number(value.trim().replace(",", "."));
+const parseAmount = (value: string): number =>
+  Number(value.trim().replace(",", "."));
 
 const messageOf = (error: unknown, fallback: string): string =>
   error instanceof ApiError && error.detail ? error.detail : fallback;
@@ -78,7 +89,9 @@ export function ProgramVisitPanel({
   onBack?: () => void;
 }) {
   const [mode, setMode] = React.useState<"PAYMENT" | "BONO_SESSION">("PAYMENT");
-  const [lines, setLines] = React.useState<LineDraft[]>([{ key: 1, category: "", amount: "" }]);
+  const [lines, setLines] = React.useState<LineDraft[]>([
+    { key: 1, category: "", amount: "" },
+  ]);
   const nextKey = React.useRef(2);
   const [discounted, setDiscounted] = React.useState("");
   const [packageName, setPackageName] = React.useState("");
@@ -101,12 +114,15 @@ export function ProgramVisitPanel({
   // client twice. Retired once the visit lands, so the next visit is a new one.
   const visitKeyRef = React.useRef<string | null>(null);
 
+  const catalog = useStaffCatalog();
   const record = useRecordVisit(memberId);
   const rewards = useMemberRewards(memberId, true);
 
   const updateLine = (key: number, patch: Partial<LineDraft>) => {
     setNotice(null);
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
+    setLines((current) =>
+      current.map((line) => (line.key === key ? { ...line, ...patch } : line)),
+    );
   };
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -125,7 +141,12 @@ export function ProgramVisitPanel({
       setPackageSessions("");
     };
     const onError = (error: unknown) =>
-      setNotice(messageOf(error, "No se ha podido registrar la visita. Inténtalo de nuevo."));
+      setNotice(
+        messageOf(
+          error,
+          "No se ha podido registrar la visita. Inténtalo de nuevo.",
+        ),
+      );
 
     visitKeyRef.current ??= newIdempotencyKey();
     const idempotencyKey = visitKeyRef.current;
@@ -145,7 +166,11 @@ export function ProgramVisitPanel({
       }
 
       record.mutate(
-        { kind: "BONO_SESSION", package: { name: packageName.trim(), priceEuro, sessions }, idempotencyKey },
+        {
+          kind: "BONO_SESSION",
+          package: { name: packageName.trim(), priceEuro, sessions },
+          idempotencyKey,
+        },
         { onSuccess, onError },
       );
       return;
@@ -157,7 +182,12 @@ export function ProgramVisitPanel({
       ...(line.category ? { category: line.category } : {}),
     }));
 
-    if (parsed.length === 0 || parsed.some((line) => !Number.isFinite(line.amountEuro) || line.amountEuro < 0)) {
+    if (
+      parsed.length === 0 ||
+      parsed.some(
+        (line) => !Number.isFinite(line.amountEuro) || line.amountEuro < 0,
+      )
+    ) {
       setNotice("Indica lo que ha pagado la clienta, con al menos un importe.");
       return;
     }
@@ -167,9 +197,13 @@ export function ProgramVisitPanel({
       return;
     }
 
-    const discountedProducts = discounted.trim() === "" ? undefined : Number(discounted);
+    const discountedProducts =
+      discounted.trim() === "" ? undefined : Number(discounted);
 
-    if (discountedProducts !== undefined && (!Number.isInteger(discountedProducts) || discountedProducts < 0)) {
+    if (
+      discountedProducts !== undefined &&
+      (!Number.isInteger(discountedProducts) || discountedProducts < 0)
+    ) {
       setNotice("Los productos con descuento tienen que ser un número entero.");
       return;
     }
@@ -182,15 +216,27 @@ export function ProgramVisitPanel({
 
   return (
     <div className="grid gap-4">
-      <form onSubmit={submit} className="rounded-lg border border-border bg-background/70 p-4">
+      <form
+        onSubmit={submit}
+        className="rounded-lg border border-border bg-background/70 p-4"
+      >
         <div className="mb-3">
-          <Button type="button" variant="ghost" size="sm" onClick={() => (onBack ? onBack() : window.history.back())}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => (onBack ? onBack() : window.history.back())}
+          >
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
           </Button>
         </div>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold">Registrar una visita</p>
-          <div role="group" aria-label="Tipo de visita" className="flex gap-1 text-xs">
+          <div
+            role="group"
+            aria-label="Tipo de visita"
+            className="flex gap-1 text-xs"
+          >
             {(
               [
                 ["PAYMENT", "Pago"],
@@ -220,13 +266,44 @@ export function ProgramVisitPanel({
         {mode === "PAYMENT" ? (
           <div className="mt-3 grid gap-3">
             {lines.map((line) => (
-              <div key={line.key} className="grid items-end gap-2 sm:grid-cols-[1fr_110px_auto]">
+              <div
+                key={line.key}
+                className="grid items-end gap-2 sm:grid-cols-[1fr_110px_auto]"
+              >
                 <label className="text-xs font-medium text-muted-foreground">
                   Qué se ha pagado
+                  {(catalog.data ?? []).length > 0 ? (
+                    <select
+                      value=""
+                      onChange={(event) => {
+                        const item = (catalog.data ?? []).find(
+                          (entry) => entry.externalId === event.target.value,
+                        );
+
+                        if (item) {
+                          updateLine(line.key, {
+                            category: item.category ?? "",
+                            amount: String(item.priceEuro).replace(".", ","),
+                          });
+                        }
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="">Elegir del catálogo…</option>
+                      {(catalog.data ?? []).map((item) => (
+                        <option key={item.externalId} value={item.externalId}>
+                          {item.name} · {item.priceEuro.toLocaleString("es-ES")}{" "}
+                          €
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                   <select
                     value={line.category}
                     onChange={(event) =>
-                      updateLine(line.key, { category: event.target.value as CategoryCode | "" })
+                      updateLine(line.key, {
+                        category: event.target.value as CategoryCode | "",
+                      })
                     }
                     className={inputClass}
                   >
@@ -243,7 +320,9 @@ export function ProgramVisitPanel({
                   <input
                     inputMode="decimal"
                     value={line.amount}
-                    onChange={(event) => updateLine(line.key, { amount: event.target.value })}
+                    onChange={(event) =>
+                      updateLine(line.key, { amount: event.target.value })
+                    }
                     placeholder="0,00"
                     className={inputClass}
                   />
@@ -254,7 +333,11 @@ export function ProgramVisitPanel({
                     variant="ghost"
                     size="icon"
                     aria-label="Quitar esta línea"
-                    onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))}
+                    onClick={() =>
+                      setLines((current) =>
+                        current.filter((item) => item.key !== line.key),
+                      )
+                    }
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -268,9 +351,15 @@ export function ProgramVisitPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setLines((current) => [...current, { key: nextKey.current++, category: "", amount: "" }])}
+                onClick={() =>
+                  setLines((current) => [
+                    ...current,
+                    { key: nextKey.current++, category: "", amount: "" },
+                  ])
+                }
               >
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> <span>Añadir otro importe</span>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />{" "}
+                <span>Añadir otro importe</span>
               </Button>
               <label className="text-xs font-medium text-muted-foreground">
                 Productos con descuento de nivel
@@ -328,12 +417,21 @@ export function ProgramVisitPanel({
           </div>
         )}
 
-        <Button type="submit" className="mt-3 w-full" disabled={record.isPending}>
-          {record.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        <Button
+          type="submit"
+          className="mt-3 w-full"
+          disabled={record.isPending}
+        >
+          {record.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
           <span>{record.isPending ? "Guardando" : "Registrar visita"}</span>
         </Button>
         {notice ? (
-          <p role="alert" className="mt-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="mt-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+          >
             {notice}
           </p>
         ) : null}
@@ -354,29 +452,37 @@ export function ProgramVisitPanel({
 
 function VisitResult({ outcome }: { outcome: VisitOutcome }) {
   return (
-    <div role="status" className="rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
+    <div
+      role="status"
+      className="rounded-lg border border-success/40 bg-success/10 p-4 text-sm"
+    >
       <p className="flex items-center gap-2 font-semibold">
         <CheckCircle2 className="h-4 w-4 text-success" />
         <span>
-          {outcome.duplicate ? "Esta visita ya estaba registrada." : "Visita registrada."}
+          {outcome.duplicate
+            ? "Esta visita ya estaba registrada."
+            : "Visita registrada."}
         </span>
       </p>
       <p className="mt-2 text-muted-foreground">
-        Suma {formatProgress(outcome.progress)} de progreso{outcome.doubled ? " (puntos dobles)" : ""}.
-        Lleva {formatProgress(outcome.lifetimeAfter)} en total.
+        Suma {outcome.points.toLocaleString("es-ES")} puntos
+        {outcome.doubled ? " (puntos dobles)" : ""}. Lleva{" "}
+        {outcome.pointsTotal.toLocaleString("es-ES")} puntos en total.
         {outcome.tier ? ` Nivel: ${outcome.tier}.` : ""}
       </p>
       {outcome.issued.length > 0 ? (
         <ul className="mt-2 grid gap-1">
           {outcome.issued.map((reward) => (
             <li key={reward.id} className="flex items-center gap-2 font-medium">
-              <Gift className="h-3.5 w-3.5 text-gold" /> <span>Nuevo: {reward.title}</span>
+              <Gift className="h-3.5 w-3.5 text-gold" />{" "}
+              <span>Nuevo: {reward.title}</span>
             </li>
           ))}
         </ul>
       ) : null}
       <p className="mt-2 text-xs text-muted-foreground">
-        Productos con descuento que le quedan este año: {outcome.discountRemaining}.
+        Productos con descuento que le quedan este año:{" "}
+        {outcome.discountRemaining}.
       </p>
     </div>
   );
@@ -404,18 +510,23 @@ function RewardsList({
       <p className="text-sm font-semibold">Premios de la clienta</p>
       {!visitId ? (
         <p className="mt-1 text-xs text-muted-foreground">
-          Un premio se canjea durante una visita de pago: registra primero la visita de hoy.
+          Un premio se canjea durante una visita de pago: registra primero la
+          visita de hoy.
         </p>
       ) : null}
 
-      {loading ? <p className="mt-3 text-sm text-muted-foreground">Cargando…</p> : null}
+      {loading ? (
+        <p className="mt-3 text-sm text-muted-foreground">Cargando…</p>
+      ) : null}
       {failed ? (
         <p role="alert" className="mt-3 text-sm text-destructive">
           No se han podido cargar los premios.
         </p>
       ) : null}
       {!loading && !failed && rewards.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">Todavía no tiene premios.</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Todavía no tiene premios.
+        </p>
       ) : null}
 
       <ul className="mt-3 grid gap-2">
@@ -425,7 +536,10 @@ function RewardsList({
           const isAutomatic = reward.detail?.perk === "doble";
 
           return (
-            <li key={reward.id} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+            <li
+              key={reward.id}
+              className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+            >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-medium">{reward.title}</p>
@@ -439,7 +553,9 @@ function RewardsList({
                 </div>
 
                 {available && isAutomatic ? (
-                  <span className="text-xs text-muted-foreground">Se aplica sola en la próxima visita</span>
+                  <span className="text-xs text-muted-foreground">
+                    Se aplica sola en la próxima visita
+                  </span>
                 ) : null}
 
                 {available && !isAutomatic ? (
@@ -449,7 +565,10 @@ function RewardsList({
                         aria-label="Regalo sorpresa"
                         value={surprise[reward.id] ?? ""}
                         onChange={(event) =>
-                          setSurprise((current) => ({ ...current, [reward.id]: event.target.value }))
+                          setSurprise((current) => ({
+                            ...current,
+                            [reward.id]: event.target.value,
+                          }))
                         }
                         className="h-9 rounded-md border border-input bg-card px-2 text-xs"
                       >
@@ -473,11 +592,19 @@ function RewardsList({
                           {
                             rewardId: reward.id,
                             visitId,
-                            surpriseItem: pool.length > 0 ? surprise[reward.id] || undefined : undefined,
+                            surpriseItem:
+                              pool.length > 0
+                                ? surprise[reward.id] || undefined
+                                : undefined,
                           },
                           {
                             onError: (error) =>
-                              setProblem(messageOf(error, "No se ha podido canjear el premio.")),
+                              setProblem(
+                                messageOf(
+                                  error,
+                                  "No se ha podido canjear el premio.",
+                                ),
+                              ),
                           },
                         );
                       }}
