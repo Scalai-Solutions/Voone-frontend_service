@@ -1070,6 +1070,8 @@ export interface MembershipSignupInput {
   /** Self-declared. "prefiero_no_decirlo" is a real answer, not an absent field. */
   sex?: "mujer" | "hombre" | "otro" | "prefiero_no_decirlo";
   consentMarketing: boolean;
+  /** The person's own acceptance of the processing of their data; the backend refuses without it. */
+  acceptedPrivacy: boolean;
   /** Omitted for the public form, which the backend reads as a QR sign-up. */
   consentSource?: "qr_signup" | "staff_entry";
 }
