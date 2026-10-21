@@ -11,12 +11,34 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { getPasswordSetupDetails, setPasswordWithToken, type PasswordSetupDetails } from "@/features/auth/api/password-setup";
+import {
+  getPasswordSetupDetails,
+  setPasswordWithToken,
+  type PasswordSetupDetails,
+} from "@/features/auth/api/password-setup";
 import { ApiError } from "@/lib/api-client";
+
+/** The rules the backend enforces on a new password, shown upfront and checked as the person types. */
+const PASSWORD_RULES = [
+  {
+    label: "At least 8 characters",
+    test: (value: string) => value.length >= 8,
+  },
+  {
+    label: "One uppercase letter",
+    test: (value: string) => /[A-Z]/.test(value),
+  },
+  { label: "One number", test: (value: string) => /[0-9]/.test(value) },
+] as const;
 
 const passwordSetupSchema = z
   .object({
-    password: z.string().min(8, "Use at least 8 characters").max(128, "Password is too long"),
+    password: z
+      .string()
+      .min(8, "Use at least 8 characters")
+      .max(128, "Password is too long")
+      .regex(/[A-Z]/, "Include an uppercase letter")
+      .regex(/[0-9]/, "Include a number"),
     confirmPassword: z.string().min(1, "Confirm your password"),
   })
   .refine((value) => value.password === value.confirmPassword, {
@@ -37,15 +59,20 @@ export function PasswordSetupForm({ token }: { token: string }) {
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
   const [complete, setComplete] = React.useState(false);
-  const [details, setDetails] = React.useState<PasswordSetupDetails | null>(null);
+  const [details, setDetails] = React.useState<PasswordSetupDetails | null>(
+    null,
+  );
   const [detailsLoading, setDetailsLoading] = React.useState(true);
   const [passwordVisible, setPasswordVisible] = React.useState(false);
-  const [confirmPasswordVisible, setConfirmPasswordVisible] = React.useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] =
+    React.useState(false);
   const expiresAtLabel = details ? formatExpiry(details.expiresAt) : "";
   const form = useForm<PasswordSetupValues>({
     resolver: zodResolver(passwordSetupSchema),
     defaultValues: { password: "", confirmPassword: "" },
+    mode: "onChange",
   });
+  const passwordValue = form.watch("password");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -62,7 +89,10 @@ export function PasswordSetupForm({ token }: { token: string }) {
         }
       } catch (error) {
         if (!cancelled) {
-          const detail = error instanceof ApiError && error.detail ? error.detail : "This setup link is invalid or expired. Ask Voone admin for a new link.";
+          const detail =
+            error instanceof ApiError && error.detail
+              ? error.detail
+              : "This setup link is invalid or expired. Ask Voone admin for a new link.";
           setStatus(detail);
         }
       } finally {
@@ -97,7 +127,10 @@ export function PasswordSetupForm({ token }: { token: string }) {
       setComplete(true);
       form.reset();
     } catch (error) {
-      const detail = error instanceof ApiError && error.detail ? error.detail : "This setup link could not be used. Ask Voone admin for a new link.";
+      const detail =
+        error instanceof ApiError && error.detail
+          ? error.detail
+          : "This setup link could not be used. Ask Voone admin for a new link.";
       setStatus(detail);
     }
   }
@@ -106,8 +139,13 @@ export function PasswordSetupForm({ token }: { token: string }) {
     return (
       <div className="rounded-[28px] border border-[#d9c9b6] bg-[#fffaf3]/90 p-6 shadow-[0_30px_90px_-52px_rgba(67,48,43,0.85)] backdrop-blur-xl sm:p-8">
         <CheckCircle2 className="h-10 w-10 text-[#4d8f61]" />
-        <h1 className="mt-5 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">Password updated</h1>
-        <p className="mt-3 text-sm leading-6 text-[#806d63]">Your account is ready. Navigating to login so you can sign in{details ? ` with ${details.email}` : ""}.</p>
+        <h1 className="mt-5 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
+          Password updated
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-[#806d63]">
+          Your account is ready. Navigating to login so you can sign in
+          {details ? ` with ${details.email}` : ""}.
+        </p>
         <Button asChild className="mt-6 w-full rounded-2xl">
           <Link href="/login">Go to login</Link>
         </Button>
@@ -121,8 +159,12 @@ export function PasswordSetupForm({ token }: { token: string }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f1e2d6] text-[#704f40]">
           <LockKeyhole className="h-5 w-5" />
         </div>
-        <h1 className="mt-6 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">Checking setup link</h1>
-        <p className="mt-3 text-sm leading-6 text-[#806d63]">One moment while we prepare your password setup.</p>
+        <h1 className="mt-6 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
+          Checking setup link
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-[#806d63]">
+          One moment while we prepare your password setup.
+        </p>
       </div>
     );
   }
@@ -133,8 +175,13 @@ export function PasswordSetupForm({ token }: { token: string }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f1e2d6] text-[#704f40]">
           <LockKeyhole className="h-5 w-5" />
         </div>
-        <h1 className="mt-6 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">Link unavailable</h1>
-        <p className="mt-3 text-sm leading-6 text-[#806d63]">{status ?? "This setup link is invalid or expired. Ask Voone admin for a new link."}</p>
+        <h1 className="mt-6 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
+          Link unavailable
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-[#806d63]">
+          {status ??
+            "This setup link is invalid or expired. Ask Voone admin for a new link."}
+        </p>
         <Button asChild className="mt-6 w-full rounded-2xl">
           <Link href="/login">Go to login</Link>
         </Button>
@@ -143,49 +190,120 @@ export function PasswordSetupForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(submit)} className="rounded-[28px] border border-[#d9c9b6] bg-[#fffaf3]/90 p-6 shadow-[0_30px_90px_-52px_rgba(67,48,43,0.85)] backdrop-blur-xl sm:p-8" noValidate>
+    <form
+      onSubmit={form.handleSubmit(submit)}
+      className="rounded-[28px] border border-[#d9c9b6] bg-[#fffaf3]/90 p-6 shadow-[0_30px_90px_-52px_rgba(67,48,43,0.85)] backdrop-blur-xl sm:p-8"
+      noValidate
+    >
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f1e2d6] text-[#704f40]">
         <LockKeyhole className="h-5 w-5" />
       </div>
-      <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.22em] text-[#a47845]">{details.clinicName}</p>
-      <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">Set your password</h1>
-      <p className="mt-3 text-sm leading-6 text-[#806d63]">Use this one-time link to create the password for {details.email}.</p>
+      <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.22em] text-[#a47845]">
+        {details.clinicName}
+      </p>
+      <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
+        Set your password
+      </h1>
+      <p className="mt-3 text-sm leading-6 text-[#806d63]">
+        Use this one-time link to create the password for {details.email}.
+      </p>
 
       <div className="mt-6 space-y-4">
         <Field label="Password" error={form.formState.errors.password?.message}>
           <div className="relative">
-            <Input {...form.register("password")} type={passwordVisible ? "text" : "password"} autoComplete="new-password" className="pr-12" />
+            <Input
+              {...form.register("password")}
+              type={passwordVisible ? "text" : "password"}
+              autoComplete="new-password"
+              className="pr-12"
+            />
             <button
               type="button"
               onClick={() => setPasswordVisible((visible) => !visible)}
               aria-label={passwordVisible ? "Hide password" : "Show password"}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#806d63] transition hover:bg-[#f1e2d6] hover:text-[#2e2421]"
             >
-              {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {passwordVisible ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
         </Field>
-        <Field label="Confirm password" error={form.formState.errors.confirmPassword?.message}>
+        <ul aria-label="Password requirements" className="grid gap-1 text-xs">
+          {PASSWORD_RULES.map((rule) => {
+            const met = rule.test(passwordValue);
+
+            return (
+              <li
+                key={rule.label}
+                className={
+                  met
+                    ? "flex items-center gap-2 text-[#2f7d57]"
+                    : "flex items-center gap-2 text-[#806d63]"
+                }
+              >
+                <CheckCircle2
+                  className={met ? "h-3.5 w-3.5" : "h-3.5 w-3.5 opacity-30"}
+                  aria-hidden
+                />
+                <span>{rule.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <Field
+          label="Confirm password"
+          error={form.formState.errors.confirmPassword?.message}
+        >
           <div className="relative">
-            <Input {...form.register("confirmPassword")} type={confirmPasswordVisible ? "text" : "password"} autoComplete="new-password" className="pr-12" />
+            <Input
+              {...form.register("confirmPassword")}
+              type={confirmPasswordVisible ? "text" : "password"}
+              autoComplete="new-password"
+              className="pr-12"
+            />
             <button
               type="button"
               onClick={() => setConfirmPasswordVisible((visible) => !visible)}
-              aria-label={confirmPasswordVisible ? "Hide confirmed password" : "Show confirmed password"}
+              aria-label={
+                confirmPasswordVisible
+                  ? "Hide confirmed password"
+                  : "Show confirmed password"
+              }
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#806d63] transition hover:bg-[#f1e2d6] hover:text-[#2e2421]"
             >
-              {confirmPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {confirmPasswordVisible ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
         </Field>
       </div>
 
-      {status ? <p role="alert" className="mt-4 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive">{status}</p> : null}
+      {status ? (
+        <p
+          role="alert"
+          className="mt-4 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          {status}
+        </p>
+      ) : null}
 
-      <Button type="submit" disabled={form.formState.isSubmitting} className="mt-6 w-full rounded-2xl">
+      <Button
+        type="submit"
+        disabled={form.formState.isSubmitting}
+        className="mt-6 w-full rounded-2xl"
+      >
         {form.formState.isSubmitting ? "Saving..." : "Set password"}
       </Button>
-      <p className="mt-4 text-xs leading-5 text-[#806d63]">This link expires {expiresAtLabel} and stops working after the password is set.</p>
+      <p className="mt-4 text-xs leading-5 text-[#806d63]">
+        This link expires {expiresAtLabel} and stops working after the password
+        is set.
+      </p>
     </form>
   );
 }

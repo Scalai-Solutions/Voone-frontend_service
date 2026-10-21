@@ -80,7 +80,6 @@ function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; val
 
   return [
     { label: "Nombre comercial", value: clinic.name },
-    { label: "Identificador público", value: clinic.slug },
     { label: "Dirección", value: clinic.addressLine },
     { label: "Código postal", value: clinic.pincode },
     ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),

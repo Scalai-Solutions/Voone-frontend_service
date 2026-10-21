@@ -290,9 +290,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Add the program or club name before creating the clinic.");
       return;
     }
-    if (templateEdited && !window.confirm("Save this edited template for the clinic and create its Google Wallet class?")) {
-      return;
-    }
     setStatus(null);
 
     provisionMutation.mutate({
