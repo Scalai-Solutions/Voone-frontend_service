@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
 import type {
+  SwapChoice,
   PresentedMilestone,
   PresentedProgram,
   PresentedTier,
@@ -47,10 +48,13 @@ export function ProgramView({
   program,
   onSwap,
   onSetBenefits,
+  catalogItems = [],
 }: {
   program: PresentedProgram;
+  /** The centre's catalogue, offered as "any item" when changing a milestone's reward. */
+  catalogItems?: Array<{ externalId: string; name: string; priceEuro: number }>;
   /** Present only while the programme is a draft: an active one cannot be edited. */
-  onSwap?: (milestone: number, alternative: number) => Promise<unknown>;
+  onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
 }) {
@@ -200,6 +204,7 @@ export function ProgramView({
                   key={milestone.n}
                   milestone={milestone}
                   onSwap={onSwap}
+                  catalogItems={catalogItems}
                 />
               ))}
             </ol>
@@ -372,9 +377,11 @@ function Fact({ label, value }: { label: string; value: string }) {
 function MilestoneRow({
   milestone,
   onSwap,
+  catalogItems,
 }: {
+  catalogItems: Array<{ externalId: string; name: string; priceEuro: number }>;
   milestone: PresentedMilestone;
-  onSwap?: (milestone: number, alternative: number) => Promise<unknown>;
+  onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
 }) {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -403,14 +410,14 @@ function MilestoneRow({
     ? (PERK_ICON[milestone.perk.kind] ?? Sparkles)
     : Gift;
 
-  const choose = async (index: number) => {
+  const choose = async (choice: SwapChoice) => {
     if (!onSwap) return;
 
     setBusy(true);
     setProblem(null);
 
     try {
-      await onSwap(milestone.n, index);
+      await onSwap(milestone.n, choice);
       setOpen(false);
     } catch (error) {
       setProblem(
@@ -453,7 +460,7 @@ function MilestoneRow({
           <span className="text-right font-semibold">
             {formatProgress(milestone.realSpend)}
           </span>
-          {onSwap && alternatives.length > 0 ? (
+          {onSwap && (alternatives.length > 0 || catalogItems.length > 0) ? (
             <Button
               type="button"
               variant="outline"
@@ -471,7 +478,7 @@ function MilestoneRow({
       {open ? (
         <div className="mt-3 grid gap-2 rounded-md bg-secondary/50 p-3">
           <p className="text-xs font-semibold text-muted-foreground">
-            Alternativas que no rompen la escalera
+            Alternativas sugeridas
           </p>
           {alternatives.map((alternative, index) => (
             <div
@@ -483,12 +490,32 @@ function MilestoneRow({
                 type="button"
                 size="sm"
                 disabled={busy}
-                onClick={() => void choose(index)}
+                onClick={() => void choose({ alternative: index })}
               >
                 Usar este
               </Button>
             </div>
           ))}
+          {catalogItems.length > 0 ? (
+            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+              O cualquier artículo del catálogo
+              <select
+                value=""
+                disabled={busy}
+                onChange={(event) => {
+                  if (event.target.value) void choose({ itemId: event.target.value });
+                }}
+                className="h-9 rounded-md border border-input bg-card px-2 text-sm font-normal text-foreground"
+              >
+                <option value="">Elegir…</option>
+                {catalogItems.map((item) => (
+                  <option key={item.externalId} value={item.externalId}>
+                    {item.name} · {item.priceEuro.toLocaleString("es-ES")} €
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {problem ? (
             <p role="alert" className="text-xs text-destructive">
               {problem}

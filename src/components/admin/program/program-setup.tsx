@@ -328,10 +328,11 @@ function ProgramSetupLoaded({
                 program={program.program}
                 onSwap={
                   isDraft
-                    ? (milestone, alternative) =>
-                        swap.mutateAsync({ milestone, alternative })
+                    ? (milestone, choice) =>
+                        swap.mutateAsync({ milestone, choice })
                     : undefined
                 }
+                catalogItems={catalogRows}
                 onSetBenefits={
                   isDraft
                     ? (tier, benefits) => tierBenefits.mutateAsync({ tier, benefits })

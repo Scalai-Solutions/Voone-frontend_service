@@ -24,6 +24,7 @@ import {
   type CalcInput,
   type CatalogInputRow,
   type OnboardingAnswers,
+  type SwapChoice,
 } from "@/lib/onboarding-api";
 
 /**
@@ -200,11 +201,11 @@ export function useSwapMilestone(clinicId: string, programId: string) {
   return useMutation({
     mutationFn: ({
       milestone,
-      alternative,
+      choice,
     }: {
       milestone: number;
-      alternative: number;
-    }) => swapMilestone(clinicId, programId, milestone, alternative),
+      choice: SwapChoice;
+    }) => swapMilestone(clinicId, programId, milestone, choice),
     onSuccess: (draft) => {
       queryClient.setQueryData(
         queryKeys.onboarding.program(clinicId, draft.id),

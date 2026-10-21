@@ -308,16 +308,19 @@ export const publishProgram = (clinicId: string, programId: string) =>
     method: "POST",
   });
 
+/** One of the engine's two alternatives, or any catalogue item by its id. */
+export type SwapChoice = { alternative: number } | { itemId: string };
+
 export const swapMilestone = (
   clinicId: string,
   programId: string,
   milestone: number,
-  alternative: number,
+  choice: SwapChoice,
 ) =>
   request<ProgramEnvelope>(
     clinicId,
     `/programs/${encodeURIComponent(programId)}/milestones/${milestone}`,
-    { method: "PATCH", ...json({ alternative }) },
+    { method: "PATCH", ...json(choice) },
   );
 
 export const setTierBenefits = (
