@@ -390,6 +390,7 @@ function CenterStep({ values, update }: { values: OnboardingValues; update: <Val
           <span>
             <span className="font-semibold">Data processing consent</span>
             <span className="mt-1 block text-[#806d63]">The center confirms it is authorised to process membership data.</span>
+            <a href="/legal/tratamiento-datos" target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold underline">Read the full consent document</a>
           </span>
         </label>
       </div>
