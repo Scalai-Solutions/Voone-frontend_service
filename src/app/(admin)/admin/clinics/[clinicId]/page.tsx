@@ -26,6 +26,17 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
   const draftProgram = programs.find((program) => program.status === "BORRADOR");
   const programActionLabel = activeProgram ? "View live program" : draftProgram ? "Continue program" : "Set up program";
   const template = clinic.template;
+  // Real progress, not a guess: each item is a fact about the centre (founders' E2E item 17).
+  const credentials = clinic.onboardingCredentials;
+  const progressItems = [
+    true, // owner and center details exist
+    Boolean(template),
+    (clinic.treatments ?? []).length > 0 || Boolean(activeProgram),
+    Boolean(activeProgram),
+    Boolean(credentials?.hasPassword || credentials?.sentAt),
+    clinic.isActive,
+  ];
+  const progressPercent = Math.round((progressItems.filter(Boolean).length / progressItems.length) * 100);
   const tierRewards = Array.isArray(template?.tierRewards) ? template.tierRewards : [];
   const milestoneRewards = template?.milestoneRewards;
 
@@ -53,7 +64,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Operating status</p>
               <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Clinic readiness</h2>
             </div>
-            <span className="rounded-full bg-[#f1e2d6] px-3 py-1 text-xs font-semibold text-[#6f4d3f]">{clinic.status === "active" ? "Active" : "Setup"}</span>
+            <span className="rounded-full bg-[#f1e2d6] px-3 py-1 text-xs font-semibold text-[#6f4d3f]">{clinic.status === "active" ? "Active" : clinic.isActive ? "Setup" : "Draft, not live"}</span>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <InfoRow icon={Mail} label="Owner email" value={ownerLabel(clinic)} />
@@ -67,11 +78,12 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="font-semibold">Onboarding progress</p>
-                <p className="mt-1 text-xs text-[#8c7870]">Branding, card direction, treatments and rewards</p>
+                <p className="mt-1 text-xs text-[#8c7870]">Center, card, treatments, program, account and activation</p>
               </div>
-              <span className="text-sm font-semibold">{clinic.status === "active" ? "100%" : "62%"}</span>
+              <span className="text-sm font-semibold">{progressPercent}%</span>
             </div>
-            <span className="mt-3 block h-2 rounded-full bg-[#eadfd8]"><span className="block h-full rounded-full bg-[#b98a4f]" style={{ width: clinic.status === "active" ? "100%" : "62%" }} /></span>
+            <span className="mt-3 block h-2 rounded-full bg-[#eadfd8]"><span className="block h-full rounded-full bg-[#b98a4f]" style={{ width: `${progressPercent}%` }} /></span>
+            {!clinic.isActive ? <Button asChild className="mt-4 w-full rounded-xl"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/setup`}>Continue setup <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
           </div>
         </div>
       </section>

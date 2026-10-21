@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Copy } from "lucide-react";
 
 import { QrCode } from "@/components/shared/qr-code";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import {
 } from "@/lib/default-wallet-template";
 
 const steps = ["Owner", "Center", "Pass"];
+/** Owner, center and card here, then treatments and program, messages, account and activation. */
+const TOTAL_ONBOARDING_STEPS = 7;
 /**
  * A working ladder, not five names. A clinic that changes nothing still gets a
  * programme that ranks members — before this, tiers had no points and nothing could
@@ -232,9 +234,10 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   );
   const provisionMutation = useProvisionClinic({
     onSuccess: (provisionedClinic) => {
-      setStatus("Clinic created. Continue with the generated Wallet pass and QR setup.");
+      setStatus("Clinic saved as a draft. Continuing with treatments and program.");
       setSetupLinkCopied(false);
-      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}`);
+      // The centre now exists as an inactive draft; the rest of onboarding runs against it.
+      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}/setup`);
     },
     onError: (error) => {
       const detail = error instanceof Error && "detail" in error ? (error as ApiError).detail : undefined;
@@ -331,8 +334,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   return (
     <section className={`mx-auto min-h-[650px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] ${step === 2 ? "max-w-[1180px]" : "max-w-[900px]"}`}>
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
-        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {steps.length}</span></div>
-        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
+        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {TOTAL_ONBOARDING_STEPS}</span></div>
+        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / TOTAL_ONBOARDING_STEPS) * 100}%` }} /></div>
 
         <div className="my-auto pt-10">
           {step === 0 ? <OwnerStep values={values} update={update} /> : null}
@@ -341,7 +344,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         </div>
 
         <div className="mt-8 border-t border-[#eadfd8] pt-5">
-          {status ? <p className={`mb-4 text-sm ${status.startsWith("Clinic created") ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
+          {status ? <p className={`mb-4 text-sm ${status.startsWith("Clinic saved") ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
           {setupUrl ? (
             <div className="mb-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6] p-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Client password setup link</p>
@@ -353,7 +356,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
           ) : null}
           <div className="flex items-center justify-between gap-3">
             <Button type="button" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="rounded-xl">Previous</Button>
-            {step < steps.length - 1 ? <Button type="button" onClick={next} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continue <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Creating..." : "Create clinic"}<Check className="ml-2 h-4 w-4" /></Button>}
+            {step < steps.length - 1 ? <Button type="button" onClick={next} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continue <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Saving..." : "Save and continue"}<ArrowRight className="ml-2 h-4 w-4" /></Button>}
           </div>
         </div>
       </div>

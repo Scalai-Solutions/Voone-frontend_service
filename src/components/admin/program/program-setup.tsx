@@ -51,7 +51,14 @@ const DEFAULT_ANSWERS: OnboardingAnswers = {
 const messageOf = (error: unknown, fallback: string): string =>
   error instanceof ApiError && error.detail ? error.detail : fallback;
 
-export function ProgramSetup({ clinicId }: { clinicId: string }) {
+export function ProgramSetup({
+  clinicId,
+  onPublished,
+}: {
+  clinicId: string;
+  /** Where to go once the programme is live. Defaults to the centre's page. */
+  onPublished?: () => void;
+}) {
   const programs = usePrograms(clinicId);
   const catalog = useCatalog(clinicId);
 
@@ -93,6 +100,7 @@ export function ProgramSetup({ clinicId }: { clinicId: string }) {
       initialStep={hasProgram ? 2 : hasCatalog ? 1 : 0}
       programs={list}
       catalogRows={catalog.data ?? []}
+      onPublished={onPublished}
     />
   );
 }
@@ -102,11 +110,13 @@ function ProgramSetupLoaded({
   initialStep,
   programs: list,
   catalogRows,
+  onPublished,
 }: {
   clinicId: string;
   initialStep: number;
   programs: ProgramListItem[];
   catalogRows: CatalogRow[];
+  onPublished?: () => void;
 }) {
   const router = useRouter();
   const active = list.find((p) => p.status === "ACTIVO") ?? null;
@@ -153,7 +163,9 @@ function ProgramSetupLoaded({
     publish.mutate(shownId, {
       // Straight to the centre: nothing is left to do on this page once the programme is live.
       onSuccess: () =>
-        router.push(`/admin/clinics/${encodeURIComponent(clinicId)}`),
+        onPublished
+          ? onPublished()
+          : router.push(`/admin/clinics/${encodeURIComponent(clinicId)}`),
       onError: (error) =>
         setProblem(messageOf(error, "No se ha podido activar el programa.")),
     });
