@@ -1,6 +1,12 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
+import type { TierKey } from "@/lib/onboarding-api";
 import {
   createDraft,
   getCalculator,
@@ -13,6 +19,7 @@ import {
   previewProgram,
   publishProgram,
   replaceCatalog,
+  setTierBenefits,
   swapMilestone,
   type CalcInput,
   type CatalogInputRow,
@@ -46,8 +53,12 @@ export function useReplaceCatalog(clinicId: string) {
       // first loaded, going back a step would show the catalogue as it was before every edit.
       queryClient.setQueryData(queryKeys.onboarding.catalog(clinicId), items);
       // The estimates and clinic treatment list are derived from the catalogue.
-      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.estimates(clinicId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.estimates(clinicId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.currentClinic(),
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.treatments() });
     },
   });
@@ -59,9 +70,16 @@ export function useImportCatalog(clinicId: string) {
   return useMutation({
     mutationFn: (csv: string) => importCatalogCsv(clinicId, csv),
     onSuccess: (result) => {
-      queryClient.setQueryData(queryKeys.onboarding.catalog(clinicId), result.items);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.estimates(clinicId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
+      queryClient.setQueryData(
+        queryKeys.onboarding.catalog(clinicId),
+        result.items,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.estimates(clinicId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.currentClinic(),
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.treatments() });
     },
   });
@@ -81,7 +99,10 @@ export function useEstimates(clinicId: string, enabled: boolean) {
  * The previous result stays on screen while the next loads, which is what stops the preview
  * flashing empty on every click.
  */
-export function usePreview(clinicId: string, answers: OnboardingAnswers | null) {
+export function usePreview(
+  clinicId: string,
+  answers: OnboardingAnswers | null,
+) {
   return useQuery({
     queryKey: queryKeys.onboarding.preview(clinicId, answers),
     queryFn: () => previewProgram(clinicId, answers as OnboardingAnswers),
@@ -106,7 +127,8 @@ export function useCalculator(
 ) {
   return useQuery({
     queryKey: queryKeys.onboarding.calculator(clinicId, programId, input),
-    queryFn: () => getCalculator(clinicId, programId, input as Partial<CalcInput>),
+    queryFn: () =>
+      getCalculator(clinicId, programId, input as Partial<CalcInput>),
     enabled: input !== null,
     placeholderData: keepPreviousData,
     retry: false,
@@ -135,8 +157,13 @@ export function useCreateDraft(clinicId: string) {
   return useMutation({
     mutationFn: (answers: OnboardingAnswers) => createDraft(clinicId, answers),
     onSuccess: (draft) => {
-      queryClient.setQueryData(queryKeys.onboarding.program(clinicId, draft.id), draft);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.programs(clinicId) });
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.programs(clinicId),
+      });
     },
   });
 }
@@ -147,11 +174,22 @@ export function usePublishProgram(clinicId: string) {
   return useMutation({
     mutationFn: (programId: string) => publishProgram(clinicId, programId),
     onSuccess: (live) => {
-      queryClient.setQueryData(queryKeys.onboarding.program(clinicId, live.id), live);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.programs(clinicId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.recalibration(clinicId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.staffProgram() });
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, live.id),
+        live,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.programs(clinicId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.recalibration(clinicId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.currentClinic(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.staffProgram(),
+      });
     },
   });
 }
@@ -160,10 +198,33 @@ export function useSwapMilestone(clinicId: string, programId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ milestone, alternative }: { milestone: number; alternative: number }) =>
-      swapMilestone(clinicId, programId, milestone, alternative),
+    mutationFn: ({
+      milestone,
+      alternative,
+    }: {
+      milestone: number;
+      alternative: number;
+    }) => swapMilestone(clinicId, programId, milestone, alternative),
     onSuccess: (draft) => {
-      queryClient.setQueryData(queryKeys.onboarding.program(clinicId, draft.id), draft);
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+    },
+  });
+}
+
+export function useSetTierBenefits(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ tier, benefits }: { tier: TierKey; benefits: string[] }) =>
+      setTierBenefits(clinicId, programId, tier, benefits),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
     },
   });
 }

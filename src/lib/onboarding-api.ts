@@ -149,6 +149,8 @@ export interface PresentedTier {
   threshold: number;
   minTenureMonths: number;
   benefits: string[];
+  /** The ones the centre wrote itself: the only ones it can add or remove. */
+  customBenefits: string[];
 }
 
 export interface PresentedProgram {
@@ -316,6 +318,18 @@ export const swapMilestone = (
     clinicId,
     `/programs/${encodeURIComponent(programId)}/milestones/${milestone}`,
     { method: "PATCH", ...json({ alternative }) },
+  );
+
+export const setTierBenefits = (
+  clinicId: string,
+  programId: string,
+  tier: TierKey,
+  benefits: string[],
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/benefits`,
+    { method: "PUT", ...json({ benefits }) },
   );
 
 export const getRecalibration = (clinicId: string) =>

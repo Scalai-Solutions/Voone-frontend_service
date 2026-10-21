@@ -177,7 +177,7 @@ export function QuestionsStep({
             }))}
           />
           <NumberField
-            label="Visitas al año exactas"
+            label="Visitas medias al año por cliente"
             unit="visitas"
             value={visitsNow}
             recommended={recommendedVisits}
@@ -202,7 +202,7 @@ export function QuestionsStep({
         <Question
           number={4}
           title="¿Qué parte de lo que gasta un cliente quieres devolverle en premios?"
-          note="Calculado a lo que cuestan los premios al centro, no a su precio de venta."
+          note="Por cada 100 € que gasta un cliente, si eliges 5 %, 5 € van a sus premios. Se calcula sobre lo que cuestan los premios al centro, no sobre su precio de venta."
         >
           <Options
             label="Inversión"
