@@ -5,6 +5,7 @@ export const queryKeys = {
   members: () => ["members"] as const,
   member: (memberId: string) => ["member", memberId] as const,
   staffProgram: () => ["staff-program"] as const,
+  staffCatalog: () => ["staff-catalog"] as const,
   memberRewards: (memberId: string) => ["member-rewards", memberId] as const,
   templatePresets: () => ["template-presets"] as const,
   clinicTemplate: (clinicId: string) => ["clinic-template", clinicId] as const,

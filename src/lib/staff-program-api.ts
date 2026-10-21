@@ -44,6 +44,10 @@ export interface VisitOutcome {
   visitId: string;
   duplicate: boolean;
   progress: number;
+  /** The visit as the client sees it: ten points per euro. */
+  points: number;
+  /** Total after this visit, in points. */
+  pointsTotal: number;
   doubled: boolean;
   lifetimeBefore: number;
   lifetimeAfter: number;
@@ -97,6 +101,18 @@ export const getStaffProgram = async (): Promise<StaffProgram | null> => {
     throw error;
   }
 };
+
+export interface StaffCatalogItem {
+  externalId: string;
+  name: string;
+  priceEuro: number;
+  category: CategoryCode | null;
+  isProduct: boolean;
+}
+
+/** The centre's own catalogue, for choosing what was paid instead of typing it. */
+export const getStaffCatalog = () =>
+  request<{ items: StaffCatalogItem[] }>("/catalog").then((r) => r.items);
 
 export const recordVisit = (memberId: string, input: VisitInput) =>
   request<VisitOutcome>(`/members/${encodeURIComponent(memberId)}/visits`, {
