@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
-import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,7 +132,11 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
           {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}
-          {hasProgram ? <ProgramVisitPanel memberId={memberId} /> : null}
+          {hasProgram ? (
+            <Button asChild className="w-full">
+              <Link href={`/dashboard/scan?member=${encodeURIComponent(memberId)}`}>Registrar visita</Link>
+            </Button>
+          ) : null}
           {!hasProgram && !staffProgram.isLoading ? <form onSubmit={submitManualPoints} className="rounded-lg border border-border bg-background/70 p-4">
             <p className="text-sm font-semibold">Añadir puntos manualmente</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-[120px_1fr]">
