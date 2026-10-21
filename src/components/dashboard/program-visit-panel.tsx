@@ -69,7 +69,14 @@ const storeVisit = (memberId: string, visitId: string) => {
   }
 };
 
-export function ProgramVisitPanel({ memberId }: { memberId: string }) {
+export function ProgramVisitPanel({
+  memberId,
+  onBack,
+}: {
+  memberId: string;
+  /** Where "Volver" goes; defaults to the previous page. */
+  onBack?: () => void;
+}) {
   const [mode, setMode] = React.useState<"PAYMENT" | "BONO_SESSION">("PAYMENT");
   const [lines, setLines] = React.useState<LineDraft[]>([{ key: 1, category: "", amount: "" }]);
   const nextKey = React.useRef(2);
@@ -177,7 +184,7 @@ export function ProgramVisitPanel({ memberId }: { memberId: string }) {
     <div className="grid gap-4">
       <form onSubmit={submit} className="rounded-lg border border-border bg-background/70 p-4">
         <div className="mb-3">
-          <Button type="button" variant="ghost" size="sm" onClick={() => window.history.back()}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => (onBack ? onBack() : window.history.back())}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
           </Button>
         </div>
