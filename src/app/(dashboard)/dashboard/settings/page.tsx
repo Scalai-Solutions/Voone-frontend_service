@@ -25,7 +25,6 @@ export default async function SettingsPage() {
     { label: "Propietaria", value: owner?.email ?? "Sin propietario guardado" },
     { label: "Dirección", value: clinic.addressLine },
     { label: "Código postal", value: clinic.pincode },
-    { label: "Identificador público", value: clinic.slug },
     { label: "Plan", value: clinic.voonePlan },
     { label: "Miembros activos", value: formatNumber(clinic.members) },
     { label: "Plantilla predeterminada", value: clinic.template?.programName ?? "Sin plantilla Wallet" },

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,11 @@ import {
   useSwapMilestone,
 } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
-import type { CatalogRow, OnboardingAnswers, ProgramListItem } from "@/lib/onboarding-api";
+import type {
+  CatalogRow,
+  OnboardingAnswers,
+  ProgramListItem,
+} from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
 import { CalculatorSection } from "./calculator-section";
 import { CatalogStep } from "./catalog-step";
@@ -62,14 +66,22 @@ export function ProgramSetup({ clinicId }: { clinicId: string }) {
 
   if (programs.isError || catalog.isError) {
     return (
-      <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
-        {messageOf(programs.error ?? catalog.error, "No se ha podido cargar el programa del centro.")}
+      <p
+        role="alert"
+        className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm"
+      >
+        {messageOf(
+          programs.error ?? catalog.error,
+          "No se ha podido cargar el programa del centro.",
+        )}
       </p>
     );
   }
 
   const list = programs.data ?? [];
-  const hasProgram = list.some((p) => p.status === "ACTIVO" || p.status === "BORRADOR");
+  const hasProgram = list.some(
+    (p) => p.status === "ACTIVO" || p.status === "BORRADOR",
+  );
   const hasCatalog = (catalog.data?.length ?? 0) > 0;
 
   // Mounted only now, with the starting screen worked out from what was found ON ARRIVAL. It must
@@ -96,9 +108,12 @@ function ProgramSetupLoaded({
   programs: ProgramListItem[];
   catalogRows: CatalogRow[];
 }) {
+  const router = useRouter();
   const active = list.find((p) => p.status === "ACTIVO") ?? null;
   const latestDraft =
-    [...list].filter((p) => p.status === "BORRADOR").sort((a, b) => b.version - a.version)[0] ?? null;
+    [...list]
+      .filter((p) => p.status === "BORRADOR")
+      .sort((a, b) => b.version - a.version)[0] ?? null;
 
   // A draft made in this visit wins over one found on arrival.
   const [draftId, setDraftId] = React.useState<string | null>(null);
@@ -106,9 +121,9 @@ function ProgramSetupLoaded({
   const shown = useProgram(clinicId, shownId);
 
   const [step, setStep] = React.useState<number>(initialStep);
-  const [answersOverride, setAnswers] = React.useState<OnboardingAnswers | null>(null);
+  const [answersOverride, setAnswers] =
+    React.useState<OnboardingAnswers | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
-  const [activated, setActivated] = React.useState(false);
 
   const answers = answersOverride ?? shown.data?.answers ?? DEFAULT_ANSWERS;
 
@@ -124,10 +139,10 @@ function ProgramSetupLoaded({
     createDraft.mutate(answers, {
       onSuccess: (draft) => {
         setDraftId(draft.id);
-        setActivated(false);
         setStep(2);
       },
-      onError: (error) => setProblem(messageOf(error, "No se ha podido generar el programa.")),
+      onError: (error) =>
+        setProblem(messageOf(error, "No se ha podido generar el programa.")),
     });
   };
 
@@ -136,8 +151,11 @@ function ProgramSetupLoaded({
 
     setProblem(null);
     publish.mutate(shownId, {
-      onSuccess: () => setActivated(true),
-      onError: (error) => setProblem(messageOf(error, "No se ha podido activar el programa.")),
+      // Straight to the centre: nothing is left to do on this page once the programme is live.
+      onSuccess: () =>
+        router.push(`/admin/clinics/${encodeURIComponent(clinicId)}`),
+      onError: (error) =>
+        setProblem(messageOf(error, "No se ha podido activar el programa.")),
     });
   };
 
@@ -182,19 +200,37 @@ function ProgramSetupLoaded({
       </nav>
 
       {step === 0 ? (
-        <CatalogStep clinicId={clinicId} initial={catalogRows} onContinue={() => setStep(1)} />
+        <CatalogStep
+          clinicId={clinicId}
+          initial={catalogRows}
+          onContinue={() => setStep(1)}
+        />
       ) : null}
 
       {step === 1 ? (
         estimates.isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> <span>Estimando el ticket y la frecuencia…</span>
+            <Loader2 className="h-4 w-4 animate-spin" />{" "}
+            <span>Estimando el ticket y la frecuencia…</span>
           </div>
         ) : estimates.isError || !estimates.data ? (
-          <div role="alert" className="grid gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
-            <p>{messageOf(estimates.error, "No se ha podido estimar a partir del catálogo.")}</p>
+          <div
+            role="alert"
+            className="grid gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm"
+          >
+            <p>
+              {messageOf(
+                estimates.error,
+                "No se ha podido estimar a partir del catálogo.",
+              )}
+            </p>
             <div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(0)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setStep(0)}
+              >
                 Volver al catálogo
               </Button>
             </div>
@@ -226,31 +262,47 @@ function ProgramSetupLoaded({
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-3">
-                <h3 className="font-serif text-2xl font-semibold">Programa propuesto</h3>
-                <Badge variant={program.status === "ACTIVO" ? "default" : "secondary"}>
+                <h3 className="font-serif text-2xl font-semibold">
+                  Programa propuesto
+                </h3>
+                <Badge
+                  variant={
+                    program.status === "ACTIVO" ? "default" : "secondary"
+                  }
+                >
                   <span key={program.status}>
-                    {program.status === "ACTIVO" ? "Activo" : "Borrador"} · versión {program.version}
+                    {program.status === "ACTIVO" ? "Activo" : "Borrador"} ·
+                    versión {program.version}
                   </span>
                 </Badge>
               </div>
 
               {isDraft && active ? (
                 <p className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">
-                  Esta es una versión nueva. El programa activo sigue siendo el anterior hasta que
-                  actives esta.
+                  Esta es una versión nueva. El programa activo sigue siendo el
+                  anterior hasta que actives esta.
                 </p>
               ) : null}
 
               {recalibration.data?.offer && !isDraft ? (
-                <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+                <div
+                  role="status"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm"
+                >
                   <p className="flex items-start gap-2">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
-                      Las visitas reales se alejan de lo que se supuso al crear el programa. Puedes
-                      revisarlo con los datos de verdad. Nada cambia hasta que lo actives.
+                      Las visitas reales se alejan de lo que se supuso al crear
+                      el programa. Puedes revisarlo con los datos de verdad.
+                      Nada cambia hasta que lo actives.
                     </span>
                   </p>
-                  <Button type="button" size="sm" variant="outline" onClick={() => setStep(1)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setStep(1)}
+                  >
                     Revisar el programa
                   </Button>
                 </div>
@@ -260,7 +312,8 @@ function ProgramSetupLoaded({
                 program={program.program}
                 onSwap={
                   isDraft
-                    ? (milestone, alternative) => swap.mutateAsync({ milestone, alternative })
+                    ? (milestone, alternative) =>
+                        swap.mutateAsync({ milestone, alternative })
                     : undefined
                 }
               />
@@ -274,8 +327,14 @@ function ProgramSetupLoaded({
               ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
-                <Button type="button" variant="outline" onClick={() => setStep(1)}>
-                  {isDraft ? "Cambiar las respuestas" : "Crear una versión nueva"}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                >
+                  {isDraft
+                    ? "Cambiar las respuestas"
+                    : "Crear una versión nueva"}
                 </Button>
 
                 {isDraft ? (
@@ -285,27 +344,19 @@ function ProgramSetupLoaded({
                         Resuelve los avisos de arriba para activarlo.
                       </p>
                     ) : null}
-                    <Button type="button" onClick={activate} disabled={blockedByReview || publish.isPending}>
-                      {publish.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    <Button
+                      type="button"
+                      onClick={activate}
+                      disabled={blockedByReview || publish.isPending}
+                    >
+                      {publish.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
                       <span>Activar programa</span>
                     </Button>
                   </div>
                 ) : null}
               </div>
-
-              {activated ? (
-                <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
-                  <p className="flex items-center gap-2 font-semibold">
-                    <Check className="h-4 w-4 text-success" />{" "}
-                    <span>El programa está activo. Los clientes ya avanzan con él.</span>
-                  </p>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/admin/clinics/${encodeURIComponent(clinicId)}`}>
-                      Volver al centro
-                    </Link>
-                  </Button>
-                </div>
-              ) : null}
             </>
           )}
         </div>
