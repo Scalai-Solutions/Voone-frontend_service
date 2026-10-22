@@ -833,6 +833,13 @@ export function getMember(memberId: string) {
   );
 }
 
+export function deleteMember(memberId: string) {
+  return staffProxyFetch<{ status: "deleted" }>(
+    `/members/${encodeURIComponent(memberId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function createMember(input: CreateMemberInput) {
   const template =
     mockTemplates.find((item) => item.id === input.templateId) ??

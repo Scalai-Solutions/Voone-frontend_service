@@ -8,7 +8,7 @@ import { newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMembers } from "@/features/members/api/useMembers";
 import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
-import { useStaffProgram } from "@/features/program/api/useStaffProgram";
+import { useRecordVisit, useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { useTreatments } from "@/features/treatments/api/useTreatments";
 import { ApiError, lookupMemberByWalletCode, type Member } from "@/lib/api-client";
 
@@ -62,17 +62,24 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
     [selectedTreatmentIds, treatments.data]
   );
   const selectedTreatmentPoints = selectedTreatments.reduce((total, treatment) => total + treatment.points, 0);
+  const selectedTreatmentAmount = selectedTreatments.reduce(
+    (total, treatment) => total + (treatment.priceEuro ?? 0),
+    0
+  );
+  const hasVisitProgram = Boolean(staffProgram.data);
   const filteredTreatments = React.useMemo(() => {
     const normalizedSearch = treatmentSearch.trim().toLowerCase();
 
     if (!normalizedSearch) return treatments.data ?? [];
 
     return (treatments.data ?? []).filter((treatment) =>
-      `${treatment.name} ${treatment.points}`.toLowerCase().includes(normalizedSearch)
+      `${treatment.name} ${treatment.points} ${treatment.priceEuro ?? ""}`.toLowerCase().includes(normalizedSearch)
     );
   }, [treatmentSearch, treatments.data]);
 
   const creditKeyRef = React.useRef<string | null>(null);
+
+  const recordVisitMutation = useRecordVisit(selectedMember?.id ?? "");
 
   const confirmMutation = useCreditMember({
     onError: (error) => {
@@ -269,17 +276,52 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
       return;
     }
 
+    if (staffProgram.isLoading) {
+      setNotice("Espera un momento: estamos comprobando qué programa usa este centro.");
+      return;
+    }
+
+    // Minted once per credit attempt and reused on every retry, which is what makes the
+    // backend's guard work: a fresh key each time would let a double tap, or a retry
+    // after a timeout, credit the member twice. Cleared by resetScan once it lands.
+    creditKeyRef.current ??= newIdempotencyKey();
+
+    if (hasVisitProgram) {
+      if (!(selectedTreatmentAmount > 0)) {
+        setNotice("Este centro usa visitas por importe. Selecciona tratamientos con precio guardado.");
+        return;
+      }
+
+      recordVisitMutation.mutate(
+        {
+          kind: "PAYMENT",
+          lines: selectedTreatments.map((treatment) => ({ amountEuro: treatment.priceEuro ?? 0 })),
+          idempotencyKey: creditKeyRef.current,
+        },
+        {
+          onError: (error) => {
+            setNotice(
+              error instanceof ApiError && error.detail
+                ? `No se guardó la visita: ${error.detail}`
+                : "No se guardó la visita. Inténtalo una vez más antes de que el miembro se vaya."
+            );
+          },
+          onSuccess: (outcome) => {
+            resetScan(
+              `Visita registrada para ${selectedMember.name}. Progreso añadido: ${outcome.progress.toLocaleString("es-ES")} €.`
+            );
+          },
+        }
+      );
+      return;
+    }
+
     if (!Number.isInteger(selectedTreatmentPoints) || selectedTreatmentPoints < 1 || selectedTreatmentPoints > 1_000_000) {
       setNotice("La suma de puntos seleccionada no es válida. Revísala en la configuración del centro.");
       return;
     }
 
     const label = selectedTreatments.map((treatment) => treatment.name).join(" + ").slice(0, 120);
-
-    // Minted once per credit attempt and reused on every retry, which is what makes the
-    // backend's guard work: a fresh key each time would let a double tap, or a retry
-    // after a timeout, credit the member twice. Cleared by resetScan once it lands.
-    creditKeyRef.current ??= newIdempotencyKey();
 
     confirmMutation.mutate({
       memberId: selectedMember.id,
@@ -310,6 +352,8 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
     }
   }
 
+  const isSaving = staffProgram.isLoading || confirmMutation.isPending || recordVisitMutation.isPending;
+
   return (
     <section className="relative text-[#2e2421]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -336,8 +380,8 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
             </div>
           </div>
           <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-[#c9bbb3]">
-            <span>{selectedMember ? `${selectedMember.name} · ${selectedMember.points.toLocaleString("es-ES")} puntos` : scanMessage}</span>
-            <span className="font-semibold text-[#d6a979]">{confirmMutation.isPending ? "Guardando" : "Listo"}</span>
+            <span>{selectedMember ? `${selectedMember.name} · ${selectedMember.points.toLocaleString("es-ES")} ${hasVisitProgram ? "€ de progreso" : "puntos"}` : scanMessage}</span>
+            <span className="font-semibold text-[#d6a979]">{isSaving ? "Guardando" : "Listo"}</span>
           </div>
         </div>
 
@@ -369,7 +413,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#bca99d]">Saldo</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#bca99d]">{hasVisitProgram ? "Progreso" : "Saldo"}</p>
                     <p className="mt-2 text-2xl font-semibold">{selectedMember.points.toLocaleString("es-ES")}</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
@@ -391,7 +435,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                 <label className="mt-5 flex items-center gap-3 rounded-2xl border border-[#ded1c8] bg-white px-3 py-3 text-[#927e72]">
                   <Search size={17} />
                   <span className="sr-only">Buscar tratamiento</span>
-                  <input value={treatmentSearch} onChange={(event) => setTreatmentSearch(event.target.value)} placeholder="Buscar por nombre o puntos" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+                  <input value={treatmentSearch} onChange={(event) => setTreatmentSearch(event.target.value)} placeholder={hasVisitProgram ? "Buscar por nombre o importe" : "Buscar por nombre o puntos"} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
                 </label>
                 <div className="mt-4 max-h-[300px] space-y-2 overflow-y-auto pr-1">
                   {treatments.isLoading ? <p className="rounded-2xl border border-dashed border-[#ded1c8] bg-white px-4 py-4 text-sm text-[#927e72]">Cargando tratamientos...</p> : null}
@@ -405,7 +449,9 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                           {typeof treatment.priceEuro === "number" ? <span className={selected ? "mt-1 block text-xs text-[#d8c8bd]" : "mt-1 block text-xs text-[#927e72]"}>{treatment.priceEuro.toLocaleString("es-ES")} euro</span> : null}
                         </span>
                         <span className="flex shrink-0 items-center gap-2 text-sm font-bold">
-                          {treatment.points.toLocaleString("es-ES")}
+                          {hasVisitProgram
+                            ? `${(treatment.priceEuro ?? 0).toLocaleString("es-ES")} €`
+                            : treatment.points.toLocaleString("es-ES")}
                           <span className={selected ? "grid h-6 w-6 place-items-center rounded-full bg-white text-[#2d211e]" : "grid h-6 w-6 place-items-center rounded-full border border-[#d8c8bd] text-transparent"}>
                             <CheckCircle2 className="h-4 w-4" />
                           </span>
@@ -416,7 +462,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                 </div>
                 {!treatments.isLoading && !treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">Este centro todavía no tiene tratamientos guardados.</p> : null}
                 {treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">No hay tratamientos que coincidan con esa búsqueda.</p> : null}
-                {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total</p> : null}
+                {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {hasVisitProgram ? `${selectedTreatmentAmount.toLocaleString("es-ES")} € de importe` : `${selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total`}</p> : null}
               </div>
 
               <div className="mt-5 rounded-[26px] border border-[#e2d5cc] bg-white/90 p-5 sm:p-6">
@@ -430,8 +476,8 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
 
               {selectedTreatments.length > 0 ? (
                 <div className="mt-auto pt-5">
-                  <button type="button" onClick={handleCredit} disabled={confirmMutation.isPending} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#161211] px-5 py-4 text-sm font-bold text-white shadow-[0_18px_44px_rgba(22,18,17,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55">
-                    <CheckCircle2 size={18} /> {confirmMutation.isPending ? "Guardando puntos..." : `Añadir ${selectedTreatmentPoints.toLocaleString("es-ES")} puntos`}
+                  <button type="button" onClick={handleCredit} disabled={isSaving} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#161211] px-5 py-4 text-sm font-bold text-white shadow-[0_18px_44px_rgba(22,18,17,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55">
+                    <CheckCircle2 size={18} /> {staffProgram.isLoading ? "Comprobando programa..." : isSaving ? "Guardando visita..." : hasVisitProgram ? `Registrar ${selectedTreatmentAmount.toLocaleString("es-ES")} €` : `Añadir ${selectedTreatmentPoints.toLocaleString("es-ES")} puntos`}
                   </button>
                 </div>
               ) : null}
@@ -461,7 +507,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
             ) : null}
           </div>
           <div className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5 text-sm leading-6 text-[#806d63]">
-            Escanea un QR o busca una persona para abrir la acreditación de puntos.
+            Escanea un QR o busca una persona para registrar la visita.
             {notice ? <div role="alert" className="mt-3 rounded-xl bg-[#e9f3e8] px-3 py-2 text-sm font-semibold text-[#3d6a48]"><CheckCircle2 size={15} className="mr-1 inline" />{notice}</div> : null}
           </div>
           </div>
