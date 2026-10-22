@@ -1149,6 +1149,18 @@ export async function addMemberAsStaff(input: {
   });
 }
 
+export interface MemberPassLinkResult {
+  addToWalletUrl: string;
+}
+
+/** The link a member opens to add their card again, for reception to show as a QR. */
+export function getMemberPassLink(memberId: string) {
+  return staffProxyFetch<MemberPassLinkResult>(
+    `/members/${encodeURIComponent(memberId)}/pass`,
+    { method: "POST" },
+  );
+}
+
 export function sendMemberPassEmail(memberId: string) {
   return staffProxyFetch<SendMemberPassEmailResult>(
     `/members/${encodeURIComponent(memberId)}/pass/email`,

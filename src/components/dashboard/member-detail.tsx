@@ -3,13 +3,14 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, WalletCards } from "lucide-react";
 
+import { QrCode } from "@/components/shared/qr-code";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { newIdempotencyKey } from "@/lib/api-client";
+import { getMemberPassLink, newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMember } from "@/features/members/api/useMember";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
@@ -131,6 +132,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             </div>
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
+          <ReaddCard memberId={memberId} />
           {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}
           {hasProgram ? (
             <Button asChild className="w-full">
@@ -202,6 +204,57 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           )) : <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">Aún no hay movimientos de puntos.</p>}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * For a client who deleted their card or changed phone: a QR they scan at the desk, which opens
+ * the same add-to-wallet page they were sent at sign-up. Generated only when asked, because
+ * building it re-issues the card with the member's current points.
+ */
+function ReaddCard({ memberId }: { memberId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const show = async () => {
+    setBusy(true);
+    setProblem(null);
+
+    try {
+      setUrl((await getMemberPassLink(memberId)).addToWalletUrl);
+    } catch {
+      setProblem("No se ha podido generar el enlace. Inténtalo de nuevo.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-border bg-background/70 p-4">
+      <p className="text-sm font-semibold">¿Ha perdido la tarjeta?</p>
+      {url ? (
+        <div className="grid justify-items-start gap-2">
+          <QrCode value={url} size={192} title="Enlace para añadir la tarjeta a Wallet" />
+          <p className="text-xs text-muted-foreground">
+            Pide a la clienta que escanee el código con la cámara del móvil y pulse «Añadir a Wallet».
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setUrl(null)}>
+            Ocultar
+          </Button>
+        </div>
+      ) : (
+        <Button type="button" variant="outline" onClick={() => void show()} disabled={busy}>
+          <WalletCards className="mr-2 h-4 w-4" />
+          {busy ? "Generando…" : "Volver a añadir la tarjeta a Wallet"}
+        </Button>
+      )}
+      {problem ? (
+        <p role="alert" className="text-sm text-destructive">
+          {problem}
+        </p>
+      ) : null}
     </div>
   );
 }
