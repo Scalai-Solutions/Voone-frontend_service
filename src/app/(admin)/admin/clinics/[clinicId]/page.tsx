@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowUpRight, BadgeCheck, Bell, Building2, CreditCard, Gift, Mail, MapPin, Phone, Sparkles, Target, Users, WalletCards } from "lucide-react";
 
 import { ClinicAccountActions, ClinicCredentialsActions } from "@/components/admin/clinic-account-actions";
+import { TreatmentsPreview } from "@/components/admin/treatments-preview";
 import { PageHeader } from "@/components/shared/page-kit";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
@@ -134,7 +135,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
           <Button asChild className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/program`}>{programActionLabel} <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
         <SetupPanel icon={WalletCards} title="Treatments" description="Clinic dashboard treatment catalog and points setup.">
-          {(clinic.treatments ?? []).length > 0 ? (clinic.treatments ?? []).map((treatment) => <SetupRow key={treatment.id} name={treatment.name} detail={treatment.priceEuro ? `${treatment.priceEuro} euro` : "No price set"} value={`${treatment.points} points`} />) : <EmptySetupRow label="No treatments saved" />}
+          <TreatmentsPreview treatments={clinic.treatments ?? []} />
         </SetupPanel>
         <SetupPanel icon={Gift} title="Tier rewards" description="Reward tiers created during onboarding.">
           {tierRewards.length > 0 ? tierRewards.map((tier, index) => <SetupRow key={`${tier.name}-${index}`} name={tier.name} detail={tier.rewardText || "No reward text set"} value="Tier" />) : <EmptySetupRow label="No tier rewards saved" />}

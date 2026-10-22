@@ -1,17 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, WalletCards } from "lucide-react";
 
 import { QrCode } from "@/components/shared/qr-code";
+import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMemberPassLink, newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
+import { useDeleteMember } from "@/features/members/api/useDeleteMember";
 import { useMember } from "@/features/members/api/useMember";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
@@ -43,8 +45,8 @@ const memberAge = (member: Member) => {
 };
 
 export function MemberDetail({ memberId }: { memberId: string }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const [deactivated, setDeactivated] = useState(false);
   const [manualPoints, setManualPoints] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [notice, setNotice] = useState("");
@@ -69,6 +71,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
       setNotice(`Cambio manual registrado. Nuevo saldo: ${updatedMember.points.toLocaleString("es-ES")} puntos.`);
     },
   });
+  const deleteMemberMutation = useDeleteMember();
 
   if (member.isLoading) return <Skeleton className="h-80 w-full" />;
   if (member.error || !member.data) return <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudo cargar el miembro.</div>;
@@ -92,6 +95,17 @@ export function MemberDetail({ memberId }: { memberId: string }) {
       points,
       label: `Ajuste manual: ${reason}`,
       idempotencyKey: adjustmentKeyRef.current,
+    });
+  }
+
+  function deleteCurrentMember() {
+    if (!window.confirm("¿Eliminar este miembro? Se borrará de la clínica y sus pases Wallet se revocarán cuando sea posible.")) {
+      return;
+    }
+
+    deleteMemberMutation.mutate(memberId, {
+      onError: () => setNotice("No se pudo eliminar el miembro. Inténtalo de nuevo."),
+      onSuccess: () => router.push("/dashboard/members"),
     });
   }
 
@@ -133,12 +147,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           </div>
           <WalletStatusBadges statuses={member.data.walletStatus} />
           <ReaddCard memberId={memberId} />
-          {deactivated ? <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Miembro marcado como inactivo localmente.</p> : null}
-          {hasProgram ? (
-            <Button asChild className="w-full">
-              <Link href={`/dashboard/scan?member=${encodeURIComponent(memberId)}`}>Registrar visita</Link>
-            </Button>
-          ) : null}
+          {hasProgram ? <ProgramVisitPanel memberId={memberId} /> : null}
           {!hasProgram && !staffProgram.isLoading ? <form onSubmit={submitManualPoints} className="rounded-lg border border-border bg-background/70 p-4">
             <p className="text-sm font-semibold">Añadir puntos manualmente</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-[120px_1fr]">
@@ -174,16 +183,14 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             </Button>
             {notice ? <p role="status" className="mt-3 rounded-md bg-muted/70 p-3 text-sm text-muted-foreground">{notice}</p> : null}
           </form> : null}
+          {hasProgram && notice ? <p role="status" className="rounded-md bg-muted/70 p-3 text-sm text-muted-foreground">{notice}</p> : null}
           <Button
             type="button"
             variant="destructive"
-            onClick={() => {
-              if (window.confirm("¿Desactivar este miembro? Su pase dejará de acumular puntos.")) {
-                setDeactivated(true);
-              }
-            }}
+            onClick={deleteCurrentMember}
+            disabled={deleteMemberMutation.isPending}
           >
-            Desactivar miembro
+            {deleteMemberMutation.isPending ? "Eliminando" : "Eliminar miembro"}
           </Button>
         </CardContent>
       </Card>
