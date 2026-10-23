@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 
-import { saveTemplate, type SaveTemplateInput, type Template } from "@/lib/api-client";
+import { saveAdminTemplate, saveTemplate, type SaveTemplateInput, type Template } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
 type UseSaveTemplateOptions = Omit<
@@ -11,13 +11,17 @@ type UseSaveTemplateOptions = Omit<
 export function useSaveTemplate(
   templateId: string | undefined,
   clinicId: string,
+  scope: "clinic" | "admin" = "clinic",
   options?: UseSaveTemplateOptions,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: queryKeys.mutations.saveTemplate(),
-    mutationFn: (input) => saveTemplate(input, templateId, clinicId),
+    mutationFn: (input) =>
+      scope === "admin"
+        ? saveAdminTemplate(input, templateId, clinicId)
+        : saveTemplate(input, templateId, clinicId),
     ...options,
     onSuccess: (data, variables, onMutateResult, context) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });

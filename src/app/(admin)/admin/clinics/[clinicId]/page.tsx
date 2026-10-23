@@ -43,7 +43,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Clinic profile" title={clinic.name} description={`${clinic.addressLine} · ${clinic.pincode}`} action={template ? { href: `/dashboard/templates/${template.id}`, label: "Open builder" } : { href: "/admin/onboarding/new", label: "Create template" }} />
+      <PageHeader eyebrow="Clinic profile" title={clinic.name} description={`${clinic.addressLine} · ${clinic.pincode}`} action={template ? { href: `/admin/clinics/${clinic.id}/card`, label: "Open builder" } : { href: "/admin/onboarding/new", label: "Create template" }} />
 
       <section className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="relative overflow-hidden rounded-[30px] bg-[#211918] p-6 text-[#fff8f2] shadow-[0_20px_60px_rgba(67,42,30,0.14)]">
@@ -96,7 +96,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Template designs</p>
               <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Selected clinic template</h2>
             </div>
-            {template ? <Button asChild variant="outline" className="rounded-full"><Link href={`/dashboard/templates/${template.id}`}>Open builder <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
+            {template ? <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${clinic.id}/card`}>Open builder <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
           </div>
           {template ? (
             <div className="mt-5 grid gap-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4 md:grid-cols-[180px_1fr]">
