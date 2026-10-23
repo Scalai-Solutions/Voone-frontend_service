@@ -23,6 +23,54 @@ import {
 } from "@/lib/default-wallet-template";
 
 const steps = ["Owner", "Center", "Pass"];
+
+/** One URL and nothing else. Anything pasted alongside it (a caption, a second link) is refused. */
+const isSingleUrl = (value: string): boolean => {
+  const text = value.trim();
+
+  if (text === "") return true;
+  if (/\s/.test(text)) return false;
+
+  try {
+    const url = new URL(text);
+
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
+/** Why the current step cannot be left yet, or null. Drives the disabled button and its hint. */
+const blockedReason = (step: number, values: OnboardingValues): string | null => {
+  if (step === 0 && (!values.ownerName || !values.ownerMobile || !values.ownerEmail)) {
+    return "Add the owner name, mobile, and email to continue.";
+  }
+  if (step === 1 && (!values.centerName || !values.addressLine || !values.pincode)) {
+    return "Add the center name, address, and postal code.";
+  }
+  if (step === 1 && !values.dataConsent) {
+    return "Confirm the data processing consent to continue.";
+  }
+  if (step === 2 && !values.vooneTemplateId) {
+    return "Choose a template design before creating the clinic.";
+  }
+  if (step === 2 && !values.programName.trim()) {
+    return "Add the program or club name before creating the clinic.";
+  }
+  if (step === 2) {
+    const fields: Array<[string, string]> = [
+      ["Logo URL", values.logo],
+      ["Logo for dark background", values.logoOnDark],
+      ["Hero image URL", values.heroImageUrl],
+      ["Button URL", values.appointmentUrl],
+    ];
+    const bad = fields.find(([, value]) => !isSingleUrl(value));
+
+    if (bad) return `${bad[0]} must be a single web address, with no extra text or spaces.`;
+  }
+
+  return null;
+};
 /** Owner, center and card here, then treatments and program, messages, account and activation. */
 const TOTAL_ONBOARDING_STEPS = 7;
 /**
@@ -75,6 +123,7 @@ type OnboardingValues = {
   addressLine: string;
   pincode: string;
   logo: string;
+  logoOnDark: string;
   colors: [string, string, string];
   dataConsent: boolean;
   programName: string;
@@ -108,6 +157,7 @@ const initialValues: OnboardingValues = {
   addressLine: "",
   pincode: "",
   logo: "",
+  logoOnDark: "",
   colors: [DEFAULT_WALLET_BACKGROUND_COLOR, "#201715", "#b98a4f"],
   dataConsent: false,
   programName: "",
@@ -261,38 +311,23 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   }
 
   function next() {
-    if (step === 0 && (!values.ownerName || !values.ownerMobile || !values.ownerEmail)) {
-      setStatus("Add the owner name, mobile, and email to continue.");
-      return;
-    }
-    if (step === 1 && (!values.centerName || !values.addressLine || !values.pincode)) {
-      setStatus("Add the center name, address, and postal code.");
-      return;
-    }
-    if (step === 1 && !values.dataConsent) {
-      setStatus("Confirm the data processing consent before continuing.");
-      return;
-    }
-    if (step === 2 && !values.vooneTemplateId) {
-      setStatus("Choose a template design before creating the clinic.");
-      return;
-    }
-    if (step === 2 && !values.programName.trim()) {
-      setStatus("Add the program or club name before creating the clinic.");
+    const reason = blockedReason(step, values);
+
+    if (reason) {
+      setStatus(reason);
       return;
     }
     setStep((current) => Math.min(current + 1, steps.length - 1));
   }
 
   function finish() {
-    if (!values.vooneTemplateId) {
-      setStatus("Choose a template design before creating the clinic.");
+    const reason = blockedReason(2, values);
+
+    if (reason) {
+      setStatus(reason);
       return;
     }
-    if (!values.programName.trim()) {
-      setStatus("Add the program or club name before creating the clinic.");
-      return;
-    }
+
     setStatus(null);
 
     provisionMutation.mutate({
@@ -305,6 +340,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       programName: values.programName.trim(),
       hexBackgroundColor: values.colors[0],
       logoUrl: values.logo.trim(),
+      logoOnDarkUrl: values.logoOnDark.trim(),
       heroImageUrl: values.heroImageUrl.trim(),
       websiteUrl: "",
       appointmentUrl: values.appointmentUrl.trim(),
@@ -330,6 +366,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   }
 
   const setupUrl = provisionMutation.data?.onboardingCredentials?.setupUrl;
+  const blocked = blockedReason(step, values);
 
   return (
     <section className={`mx-auto min-h-[650px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] ${step === 2 ? "max-w-[1180px]" : "max-w-[900px]"}`}>
@@ -344,6 +381,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         </div>
 
         <div className="mt-8 border-t border-[#eadfd8] pt-5">
+          {!status && blocked ? <p className="mb-4 text-sm text-[#806d63]">{blocked}</p> : null}
           {status ? <p className={`mb-4 text-sm ${status.startsWith("Clinic saved") ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
           {setupUrl ? (
             <div className="mb-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6] p-4">
@@ -356,7 +394,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
           ) : null}
           <div className="flex items-center justify-between gap-3">
             <Button type="button" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="rounded-xl">Previous</Button>
-            {step < steps.length - 1 ? <Button type="button" onClick={next} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continue <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Saving..." : "Save and continue"}<ArrowRight className="ml-2 h-4 w-4" /></Button>}
+            {step < steps.length - 1 ? <Button type="button" onClick={next} disabled={blocked !== null} title={blocked ?? undefined} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continue <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending || blocked !== null} title={blocked ?? undefined} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Saving..." : "Save and continue"}<ArrowRight className="ml-2 h-4 w-4" /></Button>}
           </div>
         </div>
       </div>
@@ -433,6 +471,9 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 </WizardField>
                 <WizardField label="Logo URL">
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
+                </WizardField>
+                <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2">
+                  <Input value={values.logoOnDark} onChange={(event) => update("logoOnDark", event.target.value)} placeholder="https://.../logo-light.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
                 <WizardField label="Program / club name" className="sm:col-span-2">
                   <Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Club Diamante" className="rounded-xl bg-[#fffaf6]" />

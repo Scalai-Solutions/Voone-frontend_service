@@ -61,6 +61,7 @@ export interface SaveTemplateInput {
   programName: string;
   hexBackgroundColor: string;
   logoUrl?: string;
+  logoOnDarkUrl?: string;
   heroImageUrl?: string;
   websiteUrl?: string;
   appointmentUrl?: string;
@@ -115,6 +116,7 @@ export interface Template {
   programName: string;
   hexBackgroundColor: string;
   logoUrl?: string | null;
+  logoOnDarkUrl?: string | null;
   heroImageUrl?: string | null;
   websiteUrl?: string | null;
   appointmentUrl?: string | null;
@@ -639,6 +641,13 @@ export function saveTemplate(
       body: JSON.stringify(input),
     },
   );
+}
+
+/** Rebuilds every installed wallet card of the clinic. Resolves with how many were queued. */
+export function refreshClinicCards() {
+  return staffProxyFetch<{ queued: number }>("/templates/refresh-cards", {
+    method: "POST",
+  });
 }
 
 export function saveAdminTemplate(
@@ -1188,6 +1197,7 @@ export interface ProvisionClinicInput {
   programName: string;
   hexBackgroundColor?: string;
   logoUrl?: string;
+  logoOnDarkUrl?: string;
   heroImageUrl?: string;
   websiteUrl?: string;
   appointmentUrl?: string;
