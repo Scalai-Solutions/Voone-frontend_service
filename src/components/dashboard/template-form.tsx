@@ -19,17 +19,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
-import { ApiError, type Clinic, type Template, type TemplatePreset } from "@/lib/api-client";
+import { ApiError, refreshClinicCards, type Clinic, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
-const optionalUrlSchema = z.string().url("Usa una URL válida").max(2048).optional().or(z.literal(""));
+// One URL and nothing else: a pasted line such as "foto.jpg  logo  https://..." is rejected here
+// instead of being sent to Google Wallet, which refuses it.
+const optionalUrlSchema = z
+  .string()
+  .trim()
+  .url("Usa una URL válida")
+  .max(2048)
+  .refine((value) => !/\s/.test(value), "Pon solo una URL, sin espacios ni texto extra")
+  .optional()
+  .or(z.literal(""));
 
 const templateSchema = z.object({
   presetId: z.string().min(1, "Selecciona un diseño inicial"),
   programName: z.string().trim().min(2, "Añade el nombre del programa").max(120, "Máximo 120 caracteres"),
   hexBackgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Elige un color hexadecimal válido"),
   logoUrl: optionalUrlSchema,
+  logoOnDarkUrl: optionalUrlSchema,
   heroImageUrl: optionalUrlSchema,
   pointsLabel: z.string().trim().min(2, "Añade la etiqueta de puntos").max(80, "Máximo 80 caracteres"),
   tierLabel: z.string().trim().min(2, "Añade la etiqueta de nivel").max(80, "Máximo 80 caracteres"),
@@ -53,6 +63,7 @@ const emptyValues: TemplateFormValues = {
   programName: "",
   hexBackgroundColor: "#ead0bd",
   logoUrl: "",
+  logoOnDarkUrl: "",
   heroImageUrl: "",
   pointsLabel: "Saldo Beauty",
   tierLabel: "Miembro Gold",
@@ -99,6 +110,7 @@ function toFormValues(template: Template | undefined, selectedPreset: TemplatePr
     programName: template.programName,
     hexBackgroundColor: template.hexBackgroundColor,
     logoUrl: template.logoUrl ?? "",
+    logoOnDarkUrl: template.logoOnDarkUrl ?? "",
     heroImageUrl: template.heroImageUrl ?? "",
     pointsLabel: template.pointsLabel,
     tierLabel: template.tierLabel,
@@ -154,6 +166,26 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       setStatusMessage("No se pudo guardar. Inténtalo de nuevo o revisa la conexión con la API.");
     },
   });
+
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  async function refreshCards() {
+    setRefreshing(true);
+
+    try {
+      const { queued } = await refreshClinicCards();
+
+      setStatusMessage(
+        queued > 0
+          ? `Actualizando ${queued} tarjetas. Los móviles las reciben en unos minutos.`
+          : "No hay tarjetas emitidas que actualizar.",
+      );
+    } catch {
+      setStatusMessage("No se pudieron actualizar las tarjetas. Inténtalo de nuevo.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function selectPreset(preset: TemplatePreset) {
     setSelectedPreset(preset);
@@ -234,6 +266,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               </Field>
               <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
                 <Input {...form.register("logoUrl")} placeholder="https://..." />
+              </Field>
+              <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message}>
+                <Input {...form.register("logoOnDarkUrl")} placeholder="https://..." />
               </Field>
               <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message}>
                 <Input {...form.register("heroImageUrl")} placeholder="https://..." />
@@ -343,8 +378,13 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-h-6 text-sm">
-            {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan en la plantilla Wallet de la clínica.</span>}
+            {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan y llegan a las tarjetas que ya tienen tus clientes.</span>}
           </div>
+          {initialTemplate ? (
+            <Button type="button" variant="outline" className="h-10 rounded-2xl px-4" disabled={refreshing} onClick={refreshCards}>
+              {refreshing ? "Actualizando..." : "Actualizar tarjetas emitidas"}
+            </Button>
+          ) : null}
           <Button type="submit" className="h-10 rounded-2xl px-6" disabled={mutation.isPending}>
             {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar plantilla" : "Crear plantilla"}
           </Button>
