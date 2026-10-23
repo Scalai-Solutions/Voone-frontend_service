@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
-import { ApiError, refreshClinicCards, type Clinic, type Template, type TemplatePreset } from "@/lib/api-client";
+import { ApiError, type Clinic, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ const templateSchema = z.object({
   tierLabel: z.string().trim().min(2, "Añade la etiqueta de nivel").max(80, "Máximo 80 caracteres"),
   benefitsText: z.string().trim().min(8, "Añade un mensaje breve de beneficios").max(1200, "Máximo 1200 caracteres"),
   infoText: z.string().trim().min(8, "Añade un mensaje breve de información").max(1200, "Máximo 1200 caracteres"),
-  treatments: z.array(z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), pointsAllotted: z.number().int().min(0) })).min(1, "Añade al menos un tratamiento"),
+  treatments: z.array(z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), priceEuro: z.number().optional(), pointsAllotted: z.number().int().min(0) })).min(1, "Añade al menos un tratamiento"),
 });
 
 type TemplateFormValues = z.infer<typeof templateSchema>;
@@ -116,7 +116,15 @@ function toFormValues(template: Template | undefined, selectedPreset: TemplatePr
     tierLabel: template.tierLabel,
     benefitsText: template.benefitsText,
     infoText: template.infoText,
-    treatments: template.treatments?.length ? template.treatments : emptyValues.treatments,
+    // The price is carried through so editing a treatment here does not erase it. A missing price is
+    // dropped rather than sent as null, which the backend would read as zero.
+    treatments: template.treatments?.length
+      ? template.treatments.map((treatment) => ({
+          name: treatment.name,
+          pointsAllotted: treatment.pointsAllotted,
+          ...(typeof treatment.priceEuro === "number" ? { priceEuro: treatment.priceEuro } : {}),
+        }))
+      : emptyValues.treatments,
   };
 }
 
@@ -131,10 +139,14 @@ function textColorFor(backgroundColor: string) {
   return luminance(backgroundColor) > 0.45 ? "#2b211c" : "#fff9f2";
 }
 
-export function TemplateForm({ clinicId, initialTemplate, presets, selectedPresetId }: { clinicId: string; initialTemplate?: Template; presets: TemplatePreset[]; selectedPresetId?: string }) {
+/**
+ * "clinic" saves for the signed-in clinic's own session. "admin" is a Voone administrator editing a
+ * chosen clinic's card, and saves through the admin route with that clinic's id.
+ */
+export function TemplateForm({ clinicId, initialTemplate, presets, selectedPresetId, scope = "clinic" }: { clinicId: string; initialTemplate?: Template; presets: TemplatePreset[]; selectedPresetId?: string; scope?: "clinic" | "admin" }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const currentClinic = useCurrentClinic();
+  const currentClinic = useCurrentClinic({ enabled: scope === "clinic" });
   const presetsQuery = useTemplatePresets({ initialData: presets });
   const availablePresets = presetsQuery.data ?? presets;
   const clinicDetails = React.useMemo(() => toClinicDetails(currentClinic.data), [currentClinic.data]);
@@ -145,9 +157,16 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
   const treatments = useFieldArray({ control: form.control, name: "treatments" });
+
+  // Saving the design must not rewrite the catalogue: treatments go along only when this form
+  // created the template or the treatments were actually edited.
+  const saveInput = (input: TemplateFormValues): SaveTemplateInput =>
+    initialTemplate && !form.formState.dirtyFields.treatments
+      ? { ...input, treatments: undefined }
+      : input;
   const values = form.watch();
 
-  const mutation = useSaveTemplate(initialTemplate?.id, clinicId, {
+  const mutation = useSaveTemplate(initialTemplate?.id, clinicId, scope, {
     onSuccess: (template) => {
       setStatusMessage("Plantilla guardada para los proveedores Wallet disponibles.");
 
@@ -159,33 +178,13 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       if (error instanceof ApiError && error.status === 409) {
         setStatusMessage("This clinic already has a template — edit it instead");
         queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });
-        window.setTimeout(() => router.replace("/dashboard/templates"), 1200);
+        window.setTimeout(() => router.replace(scope === "admin" ? `/admin/clinics/${clinicId}` : "/dashboard/templates"), 1200);
         return;
       }
 
       setStatusMessage("No se pudo guardar. Inténtalo de nuevo o revisa la conexión con la API.");
     },
   });
-
-  const [refreshing, setRefreshing] = React.useState(false);
-
-  async function refreshCards() {
-    setRefreshing(true);
-
-    try {
-      const { queued } = await refreshClinicCards();
-
-      setStatusMessage(
-        queued > 0
-          ? `Actualizando ${queued} tarjetas. Los móviles las reciben en unos minutos.`
-          : "No hay tarjetas emitidas que actualizar.",
-      );
-    } catch {
-      setStatusMessage("No se pudieron actualizar las tarjetas. Inténtalo de nuevo.");
-    } finally {
-      setRefreshing(false);
-    }
-  }
 
   function selectPreset(preset: TemplatePreset) {
     setSelectedPreset(preset);
@@ -226,9 +225,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   }
 
   return (
-    <form onSubmit={form.handleSubmit((input) => mutation.mutate(input))} className="mx-auto max-w-[1120px] space-y-3">
+    <form onSubmit={form.handleSubmit((input) => mutation.mutate(saveInput(input)))} className="mx-auto max-w-[1120px] space-y-3">
       <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/70 p-1">
-        {templateTabs.map((tab) => {
+        {templateTabs.filter((tab) => scope === "clinic" || tab.id !== "center").map((tab) => {
           const Icon = tab.icon;
           return (
             <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition", activeTab === tab.id ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}> 
@@ -380,11 +379,6 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
           <div className="min-h-6 text-sm">
             {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan y llegan a las tarjetas que ya tienen tus clientes.</span>}
           </div>
-          {initialTemplate ? (
-            <Button type="button" variant="outline" className="h-10 rounded-2xl px-4" disabled={refreshing} onClick={refreshCards}>
-              {refreshing ? "Actualizando..." : "Actualizar tarjetas emitidas"}
-            </Button>
-          ) : null}
           <Button type="submit" className="h-10 rounded-2xl px-6" disabled={mutation.isPending}>
             {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar plantilla" : "Crear plantilla"}
           </Button>

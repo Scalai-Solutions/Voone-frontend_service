@@ -13,7 +13,7 @@ interface CenterViewProps {
   canEdit: boolean;
 }
 
-type CenterTab = "tratamientos" | "recompensas" | "niveles" | "informacion";
+type CenterTab = "tratamientos" | "recompensas" | "niveles" | "informacion" | "tarjeta";
 
 interface SetupItem {
   id: string;
@@ -118,11 +118,20 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
         <button type="button" onClick={() => setTab("recompensas")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "recompensas" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Recompensas</button>
         <button type="button" onClick={() => setTab("niveles")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "niveles" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Niveles</button>
         <button type="button" onClick={() => setTab("informacion")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "informacion" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Información del centro</button>
+        {canEdit && clinic?.template?.id ? <button type="button" onClick={() => setTab("tarjeta")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tarjeta" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tarjeta Wallet</button> : null}
       </div>
 
       {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
       {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
       {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
+
+      {tab === "tarjeta" && clinic?.template?.id ? (
+        <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
+          <h2 className="font-serif text-2xl font-semibold">Tarjeta Wallet</h2>
+          <p className="mt-2 max-w-xl text-sm text-[#927e72]">Cambia el logo, la imagen, los colores y los textos de la tarjeta. Al guardar, las tarjetas que ya tienen tus clientes se actualizan solas.</p>
+          <Link href={`/dashboard/templates/${clinic.template.id}`} className="mt-5 inline-flex rounded-full bg-[#2d211e] px-5 py-2.5 text-sm font-semibold text-white">Editar el diseño de la tarjeta</Link>
+        </div>
+      ) : null}
 
       {tab === "informacion" ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">

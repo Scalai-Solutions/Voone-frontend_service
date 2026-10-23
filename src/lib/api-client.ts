@@ -71,7 +71,8 @@ export interface SaveTemplateInput {
   tierLabel: string;
   benefitsText: string;
   infoText: string;
-  treatments: TemplateTreatmentInput[];
+  /** Left out when only the design changed: the backend then leaves the catalogue untouched. */
+  treatments?: TemplateTreatmentInput[];
 }
 
 export interface VooneTemplateButton {
@@ -641,13 +642,6 @@ export function saveTemplate(
       body: JSON.stringify(input),
     },
   );
-}
-
-/** Rebuilds every installed wallet card of the clinic. Resolves with how many were queued. */
-export function refreshClinicCards() {
-  return staffProxyFetch<{ queued: number }>("/templates/refresh-cards", {
-    method: "POST",
-  });
 }
 
 export function saveAdminTemplate(
