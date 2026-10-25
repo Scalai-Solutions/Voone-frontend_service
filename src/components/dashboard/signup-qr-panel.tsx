@@ -113,7 +113,7 @@ export function SignupQrPanel({ signupUrl }: { signupUrl: string }) {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Button type="button" variant="outline" className="rounded-xl" onClick={copy}>
                 {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-                {copied ? "Copied" : "Copy link"}
+                {copied ? "Copiado" : "Copiar enlace"}
               </Button>
               <Button type="button" className="rounded-xl bg-[#2d211e] text-white hover:bg-[#44322d]" onClick={() => void download()}>
                 <Download className="mr-2 h-4 w-4" /> Download PDF

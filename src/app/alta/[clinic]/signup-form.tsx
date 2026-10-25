@@ -262,7 +262,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
             {clinic.name}
           </p>
           <h2 className="mt-7 font-serif text-[1.92rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
-            Ya eres socia
+            Ya eres miembro
           </h2>
           <p className="mx-auto mt-4 max-w-[286px] text-[0.82rem] leading-6 text-[#7d746b]">
             Tu tarjeta sigue siendo la misma. Si no la encuentras en tu móvil,

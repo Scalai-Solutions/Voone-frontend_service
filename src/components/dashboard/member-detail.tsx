@@ -204,7 +204,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             <div key={item.id} className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3 text-sm">
               <div>
                 <p className="font-medium">{item.label}</p>
-                <p className="text-muted-foreground">{item.date} · Registro bloqueado</p>
+                <p className="text-muted-foreground">{item.date} · Movimiento permanente</p>
               </div>
               <span className="font-semibold text-success">+{item.points}</span>
             </div>

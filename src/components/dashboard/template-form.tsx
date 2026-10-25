@@ -52,8 +52,8 @@ type TemplateFormValues = z.infer<typeof templateSchema>;
 type TemplateTab = "edit" | "preview" | "treatments" | "center";
 
 const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "edit", label: "Edit Template", icon: Paintbrush },
-  { id: "preview", label: "Live Preview", icon: Eye },
+  { id: "edit", label: "Diseño", icon: Paintbrush },
+  { id: "preview", label: "Vista previa", icon: Eye },
   { id: "treatments", label: "Tratamientos", icon: ListChecks },
   { id: "center", label: "Información del centro", icon: Building2 },
 ];
@@ -66,7 +66,7 @@ const emptyValues: TemplateFormValues = {
   logoOnDarkUrl: "",
   heroImageUrl: "",
   pointsLabel: "Saldo Beauty",
-  tierLabel: "Miembro Gold",
+  tierLabel: "Nivel",
   benefitsText: "",
   infoText: "",
   treatments: [{ name: "Consulta", pointsAllotted: 60 }],
@@ -90,7 +90,7 @@ function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; val
     ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
     { label: "Plan", value: clinic.voonePlan },
     { label: "Miembros activos", value: formatNumber(clinic.members) },
-    { label: "Plantilla predeterminada", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Diseño de tarjeta predeterminado", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
     { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
   ];
 }
@@ -168,7 +168,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
   const mutation = useSaveTemplate(initialTemplate?.id, clinicId, scope, {
     onSuccess: (template) => {
-      setStatusMessage("Plantilla guardada para los proveedores Wallet disponibles.");
+      setStatusMessage("Diseño de la tarjeta guardado para los proveedores Wallet disponibles.");
 
       if (!initialTemplate) {
         router.replace(`/dashboard/templates/${template.id}`);
@@ -176,7 +176,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
-        setStatusMessage("This clinic already has a template — edit it instead");
+        setStatusMessage("Este centro ya tiene un diseño de tarjeta: edítalo en lugar de crear otro.");
         queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });
         window.setTimeout(() => router.replace(scope === "admin" ? `/admin/clinics/${clinicId}` : "/dashboard/templates"), 1200);
         return;
@@ -240,7 +240,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       {activeTab === "edit" ? (
         <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-4 lg:grid-cols-[1fr_0.95fr]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Edit Template</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Diseño de la tarjeta</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Diseño y contenido</h2>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {availablePresets.map((preset) => (
@@ -286,7 +286,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                 <Input {...form.register("pointsLabel")} placeholder="Saldo Beauty" />
               </Field>
               <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
-                <Input {...form.register("tierLabel")} placeholder="Miembro Gold" />
+                <Input {...form.register("tierLabel")} placeholder="Nivel" />
               </Field>
               <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
                 <Textarea rows={2} className="min-h-16" {...form.register("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
@@ -302,9 +302,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       {activeTab === "preview" ? (
         <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Live Preview</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Vista previa</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Cambios de contenido van en Edit Template y los puntos se gestionan en Tratamientos.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Los cambios de contenido van en Diseño y los puntos se gestionan en Tratamientos.</p>
             <div className="mt-5 max-w-[360px]"><PassPreviewCard values={values} presetName={selectedPreset?.name} /></div>
           </div>
           <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
@@ -356,7 +356,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Información del centro</p>
               <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Datos de {currentClinic.data?.name ?? "tu centro"}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#927e72]">Esta pestaña muestra la información del negocio que acompaña a las plantillas y enlaces del centro.</p>
+              <p className="mt-2 text-sm leading-6 text-[#927e72]">Esta pestaña muestra la información del negocio que acompaña al diseño de la tarjeta y a los enlaces del centro.</p>
             </div>
             <Info className="h-6 w-6 text-[#b8864b]" />
           </div>
@@ -380,7 +380,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan y llegan a las tarjetas que ya tienen tus clientes.</span>}
           </div>
           <Button type="submit" className="h-10 rounded-2xl px-6" disabled={mutation.isPending}>
-            {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar plantilla" : "Crear plantilla"}
+            {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar diseño" : "Crear diseño"}
           </Button>
         </div>
       </section>

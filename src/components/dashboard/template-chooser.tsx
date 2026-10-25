@@ -28,7 +28,7 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
     return (
       <div className="voone-panel flex items-center gap-4 p-5">
         <LockKeyhole className="h-5 w-5 text-[#a47845]" />
-        <p className="text-sm text-muted-foreground">Solo owner o manager pueden crear la plantilla Wallet de la clínica.</p>
+        <p className="text-sm text-muted-foreground">Solo el propietario o un gerente pueden crear el diseño de la tarjeta de la clínica.</p>
       </div>
     );
   }
@@ -38,7 +38,7 @@ export function TemplateLandingGate({ clinicId, canEdit, initialTemplate }: Temp
   }
 
   if (presets.error) {
-    return <div className="voone-panel p-5 text-sm text-destructive">No se pudieron cargar las plantillas iniciales.</div>;
+    return <div className="voone-panel p-5 text-sm text-destructive">No se pudieron cargar los diseños iniciales.</div>;
   }
 
   const [signaturePreset, diamondPreset, scratchPreset] = presets.data;
@@ -142,7 +142,7 @@ function TemplateCardAction({
   isDisabled,
   selectedTemplateId,
   variant,
-  idleLabel = "Usar plantilla",
+  idleLabel = "Usar este diseño",
 }: {
   href: string;
   isSelected: boolean;
@@ -155,7 +155,7 @@ function TemplateCardAction({
     return (
       <Button asChild className="mt-auto h-10 rounded-2xl px-4">
         <Link href={`/dashboard/templates/${selectedTemplateId}`}>
-          Editar plantilla <ArrowUpRight className="ml-2 h-4 w-4" />
+          Editar diseño de la tarjeta <ArrowUpRight className="ml-2 h-4 w-4" />
         </Link>
       </Button>
     );

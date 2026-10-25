@@ -34,7 +34,7 @@ function toTreatmentRows(treatments: Treatment[]): SetupItem[] {
   return treatments.map((treatment) => ({
     id: treatment.id,
     name: treatment.name,
-    detail: typeof treatment.priceEuro === "number" ? `Precio: ${formatNumber(treatment.priceEuro)} euro` : "Precio no configurado",
+    detail: typeof treatment.priceEuro === "number" ? `Precio: ${formatNumber(treatment.priceEuro)} €` : "Precio no configurado",
     value: `${formatNumber(treatment.points)} puntos`,
   }));
 }
@@ -67,7 +67,7 @@ function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
     {
       id: "points-conversion",
       name: "Conversión de puntos",
-      detail: `Por cada ${formatNumber(milestone.priceAmount)} euro`,
+      detail: `Por cada ${formatNumber(milestone.priceAmount)} €`,
       value: `${formatNumber(milestone.pointsAwarded)} puntos`,
     },
   ];
@@ -83,7 +83,7 @@ function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; val
     { label: "Dirección", value: clinic.addressLine },
     { label: "Código postal", value: clinic.pincode },
     ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
-    { label: "Programa Wallet", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Programa Wallet", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
     { label: "Plan Voone", value: clinic.voonePlan },
     { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
     {
@@ -123,7 +123,7 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
 
       {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
       {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
-      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
+      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">

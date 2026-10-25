@@ -71,8 +71,6 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
 
   return null;
 };
-/** Owner, center and card here, then treatments and program, messages, account and activation. */
-const TOTAL_ONBOARDING_STEPS = 7;
 /**
  * A working ladder, not five names. A clinic that changes nothing still gets a
  * programme that ranks members — before this, tiers had no points and nothing could
@@ -371,8 +369,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   return (
     <section className={`mx-auto min-h-[650px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] ${step === 2 ? "max-w-[1180px]" : "max-w-[900px]"}`}>
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
-        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {TOTAL_ONBOARDING_STEPS}</span></div>
-        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / TOTAL_ONBOARDING_STEPS) * 100}%` }} /></div>
+        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {steps.length}</span></div>
+        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
 
         <div className="my-auto pt-10">
           {step === 0 ? <OwnerStep values={values} update={update} /> : null}
@@ -537,16 +535,16 @@ function WalletCardPreview({ centerName, color, logoUrl, programName, heroImageU
               <p className="text-[10px] font-semibold">Club de fidelización</p>
               <h3 className="mt-1 font-serif text-[26px] leading-none">{clubName}</h3>
               <div className="mt-5 grid grid-cols-[1fr_auto] gap-3 border-b border-white/20 pb-3">
-                <div><p className="text-[9px] opacity-70">Nombre de socia</p><p className="text-[11px] font-bold">Nombre de la clienta</p></div>
+                <div><p className="text-[9px] opacity-70">Nombre del miembro</p><p className="text-[11px] font-bold">Nombre del cliente</p></div>
                 <div className="text-right"><p className="text-[9px] opacity-70">Puntos</p><p className="text-[11px] font-bold">250</p></div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
-                <div><p className="opacity-70">N.º de socia</p><p className="mt-1 font-bold">SOCIO-123</p></div>
+                <div><p className="opacity-70">N.º de miembro</p><p className="mt-1 font-bold">MIEMBRO-123</p></div>
                 <div className="text-center"><p className="opacity-70">Nivel</p><p className="mt-1 font-bold">Diamante</p></div>
                 <div className="text-right"><p className="opacity-70">Beneficio</p><p className="mt-1 font-bold">{cta}</p></div>
               </div>
               <div className="mt-6 flex justify-center">
-                <QrCode value="https://voone.example/member/SOCIO-123" size={92} className="rounded-xl p-2" title="Preview QR" />
+                <QrCode value="https://voone.example/member/MIEMBRO-123" size={92} className="rounded-xl p-2" title="Preview QR" />
               </div>
             </div>
             <div className="h-28 bg-[#c9a88f]/40 bg-cover bg-center" style={heroImageUrl ? { backgroundImage: `linear-gradient(90deg,rgba(46,36,33,0.45),rgba(46,36,33,0.12)),url(${heroImageUrl})` } : undefined} />

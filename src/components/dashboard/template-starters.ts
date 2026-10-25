@@ -29,7 +29,7 @@ export const scratchTemplateValues: SaveTemplateInput = {
 export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
   "signature-glow": {
     id: "signature-glow",
-    title: "Plantilla 1",
+    title: "Diseño 1",
     eyebrow: "Signature Glow Club",
     description: "Un pase cálido de fidelización para puntos por tratamientos, crédito por visitas y recompensas habituales.",
     values: {
@@ -74,7 +74,7 @@ export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
   },
   "diamond-skin": {
     id: "diamond-skin",
-    title: "Plantilla 2",
+    title: "Diseño 2",
     eyebrow: "Diamond Skin Plan",
     description: "Un pase premium para saldos de paquetes, ventajas de nivel superior y programas avanzados de piel.",
     values: {
