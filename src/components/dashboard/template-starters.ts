@@ -20,7 +20,7 @@ export const scratchTemplateValues: SaveTemplateInput = {
   logoUrl: "",
   heroImageUrl: "",
   pointsLabel: "Saldo Beauty",
-  tierLabel: "Miembro Gold",
+  tierLabel: "Nivel",
   benefitsText: "",
   infoText: "",
   treatments: [{ name: "Consulta", pointsAllotted: 60 }],
@@ -39,7 +39,7 @@ export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
       logoUrl: "",
       heroImageUrl: "",
       pointsLabel: "Puntos Glow",
-      tierLabel: "Miembro Gold",
+      tierLabel: "Nivel",
       benefitsText: "Reserva prioritaria, crédito de cumpleaños y recompensas de temporada.",
       infoText: "Muestra este pase en recepción antes de pagar para acumular puntos.",
       treatments: [
@@ -84,7 +84,7 @@ export const templateStarters: Record<TemplateStarterId, TemplateStarter> = {
       logoUrl: "",
       heroImageUrl: "",
       pointsLabel: "Créditos Skin",
-      tierLabel: "Miembro Diamond",
+      tierLabel: "Nivel",
       benefitsText: "Agenda VIP, crédito para paquetes láser y vistas privadas de tratamientos.",
       infoText: "Usa este pase para visitas, saldos de paquetes y beneficios de nivel.",
       treatments: [

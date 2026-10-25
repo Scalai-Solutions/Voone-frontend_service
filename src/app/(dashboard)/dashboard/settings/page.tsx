@@ -22,7 +22,7 @@ export default async function SettingsPage() {
   const canManageTeam = hasPermission(session, PERMISSIONS.teamManage);
   const clinicFields = [
     { label: "Nombre del centro", value: clinic.name },
-    { label: "Propietaria", value: owner?.email ?? "Sin propietario guardado" },
+    { label: "Propietario/a", value: owner?.email ?? "Sin propietario guardado" },
     { label: "Dirección", value: clinic.addressLine },
     { label: "Código postal", value: clinic.pincode },
     { label: "Plan", value: clinic.voonePlan },
