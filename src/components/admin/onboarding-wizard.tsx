@@ -13,8 +13,6 @@ import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic
 import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
-  DEFAULT_WALLET_HERO_IMAGE_URL,
-  DEFAULT_WALLET_LOGO_URL,
   DEFAULT_WALLET_POINTS_LABEL,
   DEFAULT_WALLET_PROGRAM_NAME,
   DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
@@ -57,9 +55,12 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
   if (step === 2 && !values.programName.trim()) {
     return "Add the program or club name before creating the clinic.";
   }
+  if (step === 2 && !values.logo.trim()) {
+    return "Add the clinic's own logo URL (a single web address).";
+  }
   if (step === 2) {
     const fields: Array<[string, string]> = [
-      ["Logo URL", values.logo],
+      ["Clinic logo URL", values.logo],
       ["Logo for dark background", values.logoOnDark],
       ["Hero image URL", values.heroImageUrl],
       ["Button URL", values.appointmentUrl],
@@ -195,8 +196,8 @@ const templateOptionsFor = (presets: TemplatePreset[], templates: VooneTemplate[
     description: index === 0 ? DEFAULT_WALLET_TEMPLATE_DESCRIPTION : "Preset starting design",
     programName: index === 0 ? DEFAULT_WALLET_PROGRAM_NAME : `${preset.name} Club`,
     hexBackgroundColor: index === 0 ? DEFAULT_WALLET_BACKGROUND_COLOR : preset.hexBackgroundColor,
-    logoUrl: DEFAULT_WALLET_LOGO_URL,
-    heroImageUrl: DEFAULT_WALLET_HERO_IMAGE_URL,
+    logoUrl: "",
+    heroImageUrl: "",
     pointsLabel: initialValues.pointsLabel,
     tierLabel: initialValues.tierLabel,
     benefitsText: initialValues.benefitsText,
@@ -467,7 +468,7 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 <WizardField label="Card color">
                   <Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} className="h-10 rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Logo URL">
+                <WizardField label="Clinic logo URL">
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
                 <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2">
@@ -527,7 +528,8 @@ function WalletCardPreview({ centerName, color, logoUrl, programName, heroImageU
           <div className="mt-3 overflow-hidden rounded-[22px] text-white shadow-lg" style={{ backgroundColor: color }}>
             <div className="border-b border-white/20 px-4 py-3">
               <div className="flex items-center gap-3">
-                {logoUrl ? <span aria-label="Logo preview" className="h-8 w-16 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${logoUrl})` }} /> : <span className="h-8 w-16 shrink-0 rounded bg-white/10" />}
+                {/* Display only: with no logo entered the preview draws the Voone logo; it is never saved. */}
+                <span aria-label="Logo preview" className="h-8 w-16 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${logoUrl.trim() || "/voone-logo.png"})` }} />
                 <p className="truncate text-[11px] font-bold">{centerName}</p>
               </div>
             </div>

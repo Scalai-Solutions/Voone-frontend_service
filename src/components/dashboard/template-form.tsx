@@ -265,6 +265,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               </Field>
               <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
                 <Input {...form.register("logoUrl")} placeholder="https://..." />
+                {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
               <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message}>
                 <Input {...form.register("logoOnDarkUrl")} placeholder="https://..." />

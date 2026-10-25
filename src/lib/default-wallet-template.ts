@@ -3,10 +3,6 @@ export const DEFAULT_WALLET_TEMPLATE_DESCRIPTION =
   "Default premium Google Wallet loyalty card with dark styling, hero image, and Spanish labels.";
 export const DEFAULT_WALLET_PROGRAM_NAME = "Club Diamante";
 export const DEFAULT_WALLET_BACKGROUND_COLOR = "#30221f";
-export const DEFAULT_WALLET_LOGO_URL =
-  "https://i.ibb.co/C5qhWHMk/Whats-App-Image-2026-08-31-at-12-18-49-PM-1.jpg";
-export const DEFAULT_WALLET_HERO_IMAGE_URL =
-  "https://i.ibb.co/Hfy7XNtb/Gemini-Generated-Image-viollgviollgviol.png";
 export const DEFAULT_WALLET_POINTS_LABEL = "Puntos";
 export const DEFAULT_WALLET_TIER_LABEL = "Nivel";
 export const DEFAULT_WALLET_BENEFITS_TEXT =
