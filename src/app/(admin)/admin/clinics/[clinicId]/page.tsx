@@ -6,6 +6,7 @@ import { ClinicAccountActions, ClinicCredentialsActions } from "@/components/adm
 import { TreatmentsPreview } from "@/components/admin/treatments-preview";
 import { PageHeader } from "@/components/shared/page-kit";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAdminClinic, getAdminClinicPrograms } from "@/lib/admin-api";
 import { ApiError, type MilestoneRewardsInput } from "@/lib/api-client";
@@ -52,6 +53,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f1d6bd] text-[#402d26]"><Building2 className="h-6 w-6" /></span>
             <h2 className="mt-6 max-w-md font-serif text-5xl font-semibold leading-[0.98] tracking-[-0.03em]">{clinic.name}</h2>
             <p className="mt-5 flex items-center gap-2 text-sm text-[#c9bbb3]"><MapPin className="h-4 w-4" /> {clinic.addressLine} · {clinic.pincode}</p>
+            {clinic.usesDefaultLogo ? <Badge variant="secondary" className="mt-4 w-fit">Default logo</Badge> : null}
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               <DarkMetric icon={Users} label="Members" value={clinic.members.toLocaleString()} />
               <DarkMetric icon={CreditCard} label="Voone plan" value={clinic.voonePlan} />

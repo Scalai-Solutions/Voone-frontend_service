@@ -101,7 +101,7 @@ export function ClinicsList() {
               <Link href={`/admin/clinics/${clinic.id}`} className="grid gap-4 border-b border-[#ede4de] px-5 py-4 text-sm transition last:border-b-0 hover:bg-[#f5efeb] lg:grid-cols-[44px_minmax(220px,1.2fr)_minmax(180px,0.9fr)_110px_120px_150px_120px] lg:items-center">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#201715] text-[#f1d6bd]"><Building2 className="h-4 w-4" /></span>
                 <span>
-                  <span className="block font-semibold text-[#2e2421]">{clinic.name}</span>
+                  <span className="block font-semibold text-[#2e2421]">{clinic.name}{clinic.usesDefaultLogo ? <Badge variant="secondary" className="ml-2 align-middle">Default logo</Badge> : null}</span>
                   <span className="mt-1 flex items-center gap-1 text-xs text-[#8c7870]"><MapPin className="h-3 w-3" /> {clinic.addressLine} · {clinic.pincode}</span>
                 </span>
                 <span className="text-xs text-[#6f625d]">

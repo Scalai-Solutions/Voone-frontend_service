@@ -81,7 +81,7 @@ export function SignupQrPanel({ signupUrl }: { signupUrl: string }) {
     pdf.text("Voone Wallet", 105, 233, { align: "center" });
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
-    pdf.text("Coloca este PDF en recepción para que las clientas se den de alta en segundos.", 105, 244, { align: "center" });
+    pdf.text("Coloca este PDF en recepción para que los clientes se den de alta en segundos.", 105, 244, { align: "center" });
     pdf.save("client-signup-qr.pdf");
   };
 
@@ -98,7 +98,7 @@ export function SignupQrPanel({ signupUrl }: { signupUrl: string }) {
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Client sign-up</p>
                 <h2 id="signup-qr-title" className="mt-2 font-serif text-3xl font-semibold">Código QR de alta</h2>
-                <p className="mt-2 text-sm leading-6 text-[#806d63]">Imprímelo y colócalo en recepción. Al escanearlo, la clienta se da de alta en segundos.</p>
+                <p className="mt-2 text-sm leading-6 text-[#806d63]">Imprímelo y colócalo en recepción. Al escanearlo, el cliente se da de alta en segundos.</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full p-2 text-[#806d63] hover:bg-[#f6eee8]" aria-label="Cerrar QR">
                 <X className="h-5 w-5" />

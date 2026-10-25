@@ -142,7 +142,7 @@ export function MemberForm() {
               through the QR form. */}
           <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
             El alta se registra sin consentimiento de marketing. Para recibir comunicaciones,
-            la clienta debe aceptarlo ella misma desde el formulario del código QR.
+            el cliente debe aceptarlo él mismo desde el formulario del código QR.
           </p>
 
           {failure ? (

@@ -32,7 +32,7 @@ const TIERS: Array<{ key: TierKey; label: string; color: string }> = [
 
 const ASSUMPTIONS = [
   "Durante el primer año los clientes se incorporan poco a poco, hasta llegar al número indicado. Desde el segundo año, cada cliente que se va se sustituye por una nueva, y siempre empiezan en Bronce.",
-  "El 52% de las nuevos clientes repiten (gastan ticket × visitas al año) y el 48% son ocasionales (gastan 1,3 veces el ticket al año).",
+  "El 52% de los nuevos clientes repiten (gastan ticket × visitas al año) y el 48% son ocasionales (gastan 1,3 veces el ticket al año).",
   "Cada año siguen el 75% de los que repiten y el 50% de las ocasionales.",
   "El nivel de cada cliente sale de lo que lleva gastado de verdad desde que entró.",
   "Premios y ventajas se cuentan el mes en que se alcanzan, a lo que cuestan al centro, y solo se canjea el 75%.",

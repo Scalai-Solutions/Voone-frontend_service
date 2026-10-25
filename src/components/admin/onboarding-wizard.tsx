@@ -286,7 +286,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Clinic saved as a draft. Continuing with treatments and program.");
       setSetupLinkCopied(false);
       // The centre now exists as an inactive draft; the rest of onboarding runs against it.
-      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}/setup`);
+      const notice = provisionedClinic.walletWarning ? `?notice=${encodeURIComponent(provisionedClinic.walletWarning)}` : "";
+      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}/setup${notice}`);
     },
     onError: (error) => {
       const detail = error instanceof Error && "detail" in error ? (error as ApiError).detail : undefined;

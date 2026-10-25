@@ -292,6 +292,8 @@ export interface Clinic {
   } | null;
   treatments?: Treatment[];
   template?: AdminClinicTemplate | null;
+  /** True while the clinic card still shows the Voone logo because no logo of its own was set. */
+  usesDefaultLogo?: boolean;
 }
 
 export type NotificationType =
@@ -1237,6 +1239,10 @@ export interface ProvisionedClinic {
     setupTokenExpiresAt: string;
     hasPassword: boolean;
   };
+  /** Set when the Google Wallet card could not be created yet. */
+  walletWarning?: "google_pending";
+  /** Spanish text from the server explaining `walletWarning`. */
+  walletWarningMessage?: string;
 }
 
 /**

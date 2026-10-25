@@ -188,7 +188,7 @@ export function ProgramVisitPanel({
         (line) => !Number.isFinite(line.amountEuro) || line.amountEuro < 0,
       )
     ) {
-      setNotice("Indica lo que ha pagado la clienta, con al menos un importe.");
+      setNotice("Indica lo que ha pagado el cliente, con al menos un importe.");
       return;
     }
 
@@ -507,7 +507,7 @@ function RewardsList({
 
   return (
     <section className="rounded-lg border border-border bg-background/70 p-4">
-      <p className="text-sm font-semibold">Premios de la clienta</p>
+      <p className="text-sm font-semibold">Premios del cliente</p>
       {!visitId ? (
         <p className="mt-1 text-xs text-muted-foreground">
           Un premio se canjea durante una visita de pago: registra primero la

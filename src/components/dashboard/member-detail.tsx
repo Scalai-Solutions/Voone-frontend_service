@@ -245,7 +245,7 @@ function ReaddCard({ memberId }: { memberId: string }) {
         <div className="grid justify-items-start gap-2">
           <QrCode value={url} size={192} title="Enlace para añadir la tarjeta a Wallet" />
           <p className="text-xs text-muted-foreground">
-            Pide a la clienta que escanee el código con la cámara del móvil y pulse «Añadir a Wallet».
+            Pide al cliente que escanee el código con la cámara del móvil y pulse «Añadir a Wallet».
           </p>
           <Button type="button" variant="outline" size="sm" onClick={() => setUrl(null)}>
             Ocultar
