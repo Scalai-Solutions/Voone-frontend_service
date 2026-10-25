@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCurrentSession } from "@/lib/auth";
+
 /**
  * Server-side calls to the backend's staff surface.
  *
@@ -23,8 +25,31 @@ const resolveBaseUrl = (): string => {
   return base.replace(/\/$/, "");
 };
 
+/**
+ * Who is making a write, for the backend's change record.
+ *
+ * Writes only: reads leave no record, and every page render would otherwise pay for a
+ * session lookup it does not use. Never throws and never blocks the call — an unknown
+ * actor is recorded as unknown, which is better than a save that fails over bookkeeping.
+ * Header values must be Latin-1 for fetch to accept them, so anything else is left out.
+ */
+const resolveActor = async (method: string | undefined): Promise<string | undefined> => {
+  if (!method || ["GET", "HEAD"].includes(method.toUpperCase())) {
+    return undefined;
+  }
+
+  try {
+    const email = (await getCurrentSession())?.email?.trim();
+
+    return email && /^[\x20-\x7e]+$/.test(email) ? email : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const staffFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
   const key = process.env.STAFF_API_KEY;
+  const actor = await resolveActor(init.method);
 
   return fetch(`${resolveBaseUrl()}${path}`, {
     ...init,
@@ -32,6 +57,7 @@ export const staffFetch = async (path: string, init: RequestInit = {}): Promise<
       "Content-Type": "application/json",
       // Omitted when unset so a local backend without a key behaves the same way.
       ...(key ? { "x-voone-staff-key": key } : {}),
+      ...(actor ? { "x-actor": actor } : {}),
       ...init.headers,
     },
     // These are writes; a cached one would be a bug rather than an optimization.

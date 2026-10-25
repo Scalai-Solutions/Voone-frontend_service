@@ -3,14 +3,16 @@ import { CalendarDays, Ellipsis, Rocket } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getAdminClinics } from "@/lib/admin-api";
-import { getTemplates } from "@/lib/api-client";
 
 const ownerLabel = (clinic: Awaited<ReturnType<typeof getAdminClinics>>[number]) =>
   clinic.users.find((user) => user.role === "OWNER")?.email ?? clinic.users[0]?.email ?? "Sin usuario";
 
 export default async function AdminOverviewPage() {
-  const [clinics, templates] = await Promise.all([getAdminClinics(), getTemplates()]);
+  const clinics = await getAdminClinics();
   const activeClinics = clinics.filter((clinic) => clinic.status === "active");
+  // Read from the clinic list, which already carries each clinic's template: the template
+  // list endpoint is scoped to one clinic, and this page spans all of them.
+  const draftPrograms = clinics.filter((clinic) => clinic.template && clinic.template.status !== "ACTIVE").length;
   const setupClinics = clinics.filter((clinic) => clinic.status === "setup");
   const totalMembers = clinics.reduce((total, clinic) => total + clinic.members, 0);
   const activeMembers = activeClinics.reduce((total, clinic) => total + clinic.members, 0);
@@ -52,7 +54,7 @@ export default async function AdminOverviewPage() {
             <div className="space-y-4">
               <StatusRow color="bg-[#201715]" label="Active" value={activeClinics.length.toString()} total={clinics.length} />
               <StatusRow color="bg-[#b98a4f]" label="Onboarding" value={setupClinics.length.toString()} total={clinics.length} />
-              <StatusRow color="bg-[#eadfd8]" label="Draft programs" value={templates.filter((template) => template.status !== "ACTIVE").length.toString()} total={clinics.length} />
+              <StatusRow color="bg-[#eadfd8]" label="Draft programs" value={draftPrograms.toString()} total={clinics.length} />
             </div>
           </div>
         </DashboardPanel>

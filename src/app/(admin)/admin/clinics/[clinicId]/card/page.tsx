@@ -23,7 +23,7 @@ export default async function AdminClinicCardPage({
   if (!clinic.template) notFound();
 
   const [template, presets] = await Promise.all([
-    getTemplate(clinic.template.id),
+    getTemplate(clinic.template.id, clinic.id),
     getTemplatePresets(),
   ]);
 

@@ -577,10 +577,15 @@ async function withMockFallback<T>(
   }
 }
 
-export function getTemplates() {
-  return apiFetch<TemplateApiResponse[]>("/v1/templates").then((templates) =>
-    templates.map(normalizeTemplate),
-  );
+/**
+ * The templates visible to one clinic. The backend scopes the list by x-clinic-id, so a
+ * caller with no single clinic in hand (the admin overview) cannot use this and must read
+ * what it needs from the admin clinic list instead.
+ */
+export function getTemplates(clinicId: string) {
+  return apiFetch<TemplateApiResponse[]>("/v1/templates", {
+    headers: { "x-clinic-id": clinicId },
+  }).then((templates) => templates.map(normalizeTemplate));
 }
 
 export function getTemplatePresets() {
@@ -605,15 +610,21 @@ export function getCurrentClinicTemplate(clinicId: string) {
     () =>
       apiFetch<TemplateApiResponse | null>(
         `/v1/templates/current?clinicId=${encodeURIComponent(clinicId)}`,
+        { headers: { "x-clinic-id": clinicId } },
       ).then((template) => (template ? normalizeTemplate(template) : null)),
     null,
   );
 }
 
-export function getTemplate(templateId: string) {
-  return apiFetch<TemplateApiResponse>(`/v1/templates/${templateId}`).then(
-    normalizeTemplate,
-  );
+/**
+ * One template, read on behalf of the clinic it belongs to. The backend compares the
+ * x-clinic-id header with the template's clinic, so the id passed here must be the
+ * clinic's own: the session's for an owner, the opened clinic's for an administrator.
+ */
+export function getTemplate(templateId: string, clinicId: string) {
+  return apiFetch<TemplateApiResponse>(`/v1/templates/${templateId}`, {
+    headers: { "x-clinic-id": clinicId },
+  }).then(normalizeTemplate);
 }
 
 /**

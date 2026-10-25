@@ -23,6 +23,8 @@ export interface VooneSession {
    */
   clinicSlug: string;
   name: string;
+  /** The signed-in user's email, when the login supplies one. Recorded as the actor on writes. */
+  email?: string;
 }
 
 export const DASHBOARD_ROLES: Role[] = ["owner", "manager", "staff"];

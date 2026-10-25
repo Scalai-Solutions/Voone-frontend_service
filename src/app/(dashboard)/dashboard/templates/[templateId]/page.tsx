@@ -23,7 +23,7 @@ export default async function EditTemplatePage({
 
   const queryClient = new QueryClient();
   const [template] = await Promise.all([
-    getTemplate(templateId),
+    getTemplate(templateId, session.clinicId),
     queryClient.prefetchQuery({
       queryKey: queryKeys.templatePresets(),
       queryFn: getTemplatePresets,
