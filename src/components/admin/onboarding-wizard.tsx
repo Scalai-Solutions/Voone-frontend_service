@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy } from "lucide-react";
 
-import { QrCode } from "@/components/shared/qr-code";
+import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -496,13 +496,12 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
               </div>
             </form>
 
-            <WalletCardPreview
+            <CardPreviewPanel
               centerName={cardName}
               color={values.colors[0]}
               logoUrl={values.logo}
               programName={values.programName}
               heroImageUrl={values.heroImageUrl}
-              buttonText={values.appLinkText}
               benefitsText={values.benefitsText}
               infoText={values.infoText}
             />
@@ -515,45 +514,12 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
   );
 }
 
-function WalletCardPreview({ centerName, color, logoUrl, programName, heroImageUrl, buttonText, benefitsText, infoText }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; buttonText: string; benefitsText: string; infoText: string }) {
-  const clubName = programName.trim() || "Club Diamante";
-  const cta = buttonText.trim() || "Ver beneficios";
-
+function CardPreviewPanel({ centerName, color, logoUrl, programName, heroImageUrl, benefitsText, infoText }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; benefitsText: string; infoText: string }) {
   return (
     <aside className="rounded-[22px] border border-[#ded2cb] bg-[#fffaf6] p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Live preview</p>
-      <div className="mt-4 mx-auto w-[260px] rounded-[30px] border-[7px] border-[#161616] bg-[#f7f7f7] p-2 shadow-[0_22px_48px_rgba(0,0,0,0.35)]">
-        <div className="rounded-[24px] bg-white px-3 pb-3 pt-2">
-          <div className="flex items-center justify-between px-1 text-[10px] font-semibold text-[#1e1e1e]"><span>9:30</span><span>5G ▰</span></div>
-          <div className="mt-4 text-lg leading-none text-[#1e1e1e]">‹</div>
-          <div className="mt-3 overflow-hidden rounded-[22px] text-white shadow-lg" style={{ backgroundColor: color }}>
-            <div className="border-b border-white/20 px-4 py-3">
-              <div className="flex items-center gap-3">
-                {/* Display only: with no logo entered the preview draws the Voone logo; it is never saved. */}
-                <span aria-label="Logo preview" className="h-8 w-16 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${logoUrl.trim() || "/voone-logo.png"})` }} />
-                <p className="truncate text-[11px] font-bold">{centerName}</p>
-              </div>
-            </div>
-            <div className="px-4 py-4">
-              <p className="text-[10px] font-semibold">Club de fidelización</p>
-              <h3 className="mt-1 font-serif text-[26px] leading-none">{clubName}</h3>
-              <div className="mt-5 grid grid-cols-[1fr_auto] gap-3 border-b border-white/20 pb-3">
-                <div><p className="text-[9px] opacity-70">Nombre del miembro</p><p className="text-[11px] font-bold">Nombre del cliente</p></div>
-                <div className="text-right"><p className="text-[9px] opacity-70">Puntos</p><p className="text-[11px] font-bold">250</p></div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
-                <div><p className="opacity-70">N.º de miembro</p><p className="mt-1 font-bold">MIEMBRO-123</p></div>
-                <div className="text-center"><p className="opacity-70">Nivel</p><p className="mt-1 font-bold">Diamante</p></div>
-                <div className="text-right"><p className="opacity-70">Beneficio</p><p className="mt-1 font-bold">{cta}</p></div>
-              </div>
-              <div className="mt-6 flex justify-center">
-                <QrCode value="https://voone.example/member/MIEMBRO-123" size={92} className="rounded-xl p-2" title="Preview QR" />
-              </div>
-            </div>
-            <div className="h-28 bg-[#c9a88f]/40 bg-cover bg-center" style={heroImageUrl ? { backgroundImage: `linear-gradient(90deg,rgba(46,36,33,0.45),rgba(46,36,33,0.12)),url(${heroImageUrl})` } : undefined} />
-          </div>
-          <button type="button" className="mt-3 h-8 w-full rounded-full border border-[#bfb7b2] text-[11px] font-semibold text-[#1d5fd1]">Detalles</button>
-        </div>
+      <div className="mt-4 flex justify-center">
+        <WalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} />
       </div>
       <div className="mt-4 space-y-2 text-xs text-[#806d63]">
         <p><span className="font-semibold text-[#2e2421]">Benefits:</span> {benefitsText || "Member benefits appear in pass details."}</p>

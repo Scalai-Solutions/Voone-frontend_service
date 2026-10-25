@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Building2, CheckCircle2, CreditCard, Eye, FileText, Info, ListChecks, Paintbrush, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
-import { QrCode } from "@/components/shared/qr-code";
+import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -135,10 +135,6 @@ function luminance(hex: string) {
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-function textColorFor(backgroundColor: string) {
-  return luminance(backgroundColor) > 0.45 ? "#2b211c" : "#fff9f2";
-}
-
 /**
  * "clinic" saves for the signed-in clinic's own session. "admin" is a Voone administrator editing a
  * chosen clinic's card, and saves through the admin route with that clinic's id.
@@ -151,7 +147,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const availablePresets = presetsQuery.data ?? presets;
   const clinicDetails = React.useMemo(() => toClinicDetails(currentClinic.data), [currentClinic.data]);
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
-  const [selectedPreset, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
+  const [, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
@@ -306,7 +302,18 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Vista previa</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Los cambios de contenido van en Diseño y los puntos se gestionan en Tratamientos.</p>
-            <div className="mt-5 max-w-[360px]"><PassPreviewCard values={values} presetName={selectedPreset?.name} /></div>
+            <div className="mt-5 max-w-[360px]">
+              <WalletCardPreview
+                clinicName={currentClinic.data?.name}
+                programName={values.programName}
+                color={values.hexBackgroundColor}
+                logoUrl={values.logoUrl}
+                heroImageUrl={values.heroImageUrl}
+                levelLabel={values.tierLabel}
+                pointsLabel={values.pointsLabel}
+              />
+              <p className="mt-4 text-xs leading-5 text-[#806e66]"><span className="font-semibold text-[#2e2421]">Beneficios:</span> {values.benefitsText || "Los beneficios aparecerán aquí."}</p>
+            </div>
           </div>
           <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
             <div className="flex items-center justify-between gap-3">
@@ -386,48 +393,5 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
         </div>
       </section>
     </form>
-  );
-}
-
-const PREVIEW_QR_VALUE = "VOONE-EJEMPLO";
-
-function PreviewQr() {
-  return (
-    <QrCode
-      value={PREVIEW_QR_VALUE}
-      size={92}
-      className="rounded-xl shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]"
-      title="Vista previa del QR"
-    />
-  );
-}
-
-function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; presetName?: string }) {
-  const foreground = textColorFor(values.hexBackgroundColor);
-
-  return (
-    <div className="overflow-hidden rounded-[24px] border border-white/45 p-4 shadow-[0_28px_70px_-42px_rgba(67,48,43,0.82)]" style={{ background: values.hexBackgroundColor, color: foreground }}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase opacity-70">Google Wallet</p>
-          <p className="mt-1 text-xs font-semibold opacity-75">{presetName ?? "Preset Voone"}</p>
-        </div>
-        <PreviewQr />
-      </div>
-      <h3 className="mt-5 font-serif text-2xl font-semibold tracking-tight">{values.programName || "Nombre del programa"}</h3>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl bg-white/14 p-3">
-          <p className="text-[10px] uppercase opacity-70">Puntos</p>
-          <p className="mt-1 font-serif text-2xl font-semibold">1.250</p>
-          <p className="text-xs opacity-70">{values.pointsLabel || "Etiqueta de puntos"}</p>
-        </div>
-        <div className="rounded-2xl bg-white/14 p-3">
-          <p className="text-[10px] uppercase opacity-70">Nivel</p>
-          <p className="mt-1 font-serif text-2xl font-semibold">Gold</p>
-          <p className="text-xs opacity-70">{values.tierLabel || "Etiqueta de nivel"}</p>
-        </div>
-      </div>
-      <div className="mt-3 max-h-16 overflow-hidden rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefitsText || "Los beneficios aparecerán aquí."}</div>
-    </div>
   );
 }
