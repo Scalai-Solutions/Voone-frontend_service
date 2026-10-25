@@ -65,7 +65,7 @@ const emptyValues: TemplateFormValues = {
   logoUrl: "",
   logoOnDarkUrl: "",
   heroImageUrl: "",
-  pointsLabel: "Saldo Beauty",
+  pointsLabel: "Puntos",
   tierLabel: "Nivel",
   benefitsText: "",
   infoText: "",
@@ -147,7 +147,6 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const availablePresets = presetsQuery.data ?? presets;
   const clinicDetails = React.useMemo(() => toClinicDetails(currentClinic.data), [currentClinic.data]);
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
-  const [, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [heroUnchecked, setHeroUnchecked] = React.useState(false);
@@ -245,7 +244,6 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   });
 
   function selectPreset(preset: TemplatePreset) {
-    setSelectedPreset(preset);
     form.setValue("presetId", preset.id, { shouldDirty: true, shouldValidate: true });
     form.setValue("hexBackgroundColor", preset.hexBackgroundColor, { shouldDirty: true, shouldValidate: true });
 
@@ -312,7 +310,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Texto Wallet</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <Field label="Etiqueta de puntos" error={form.formState.errors.pointsLabel?.message}>
-                <Input {...form.register("pointsLabel")} placeholder="Saldo Beauty" />
+                <Input {...form.register("pointsLabel")} placeholder="Puntos" />
               </Field>
               <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
                 <Input {...form.register("tierLabel")} placeholder="Nivel" />

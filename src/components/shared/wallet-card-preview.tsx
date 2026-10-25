@@ -73,11 +73,10 @@ export function WalletCardPreview({
   const progress = nextRewardPoints > 0 ? Math.min(Math.round((points / nextRewardPoints) * 100), 100) : 0;
 
   return (
-    <figure className={cn("m-0 w-full max-w-[340px]", className)}>
+    <figure className={cn("m-0 w-full max-w-[340px]", className)} aria-label={`Tarjeta de ${programName || clinicName || "fidelización"}`}>
       <div
         className="overflow-hidden rounded-[22px] shadow-[0_18px_44px_-28px_rgba(0,0,0,0.7)]"
         style={{ backgroundColor: color, color: ink }}
-        aria-label={`Tarjeta de ${programName || clinicName || "fidelización"}`}
       >
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <span className="flex h-9 max-w-[150px] items-center rounded-lg bg-white/95 px-2 shadow-sm">

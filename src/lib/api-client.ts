@@ -292,7 +292,10 @@ export interface Clinic {
   } | null;
   treatments?: Treatment[];
   template?: AdminClinicTemplate | null;
-  /** True while the clinic card still shows the Voone logo because no logo of its own was set. */
+  /**
+   * True when the card is not fully the clinic's own: the backend sets it when there is no own
+   * logo, no template, or a borrowed hero image or dark-background logo.
+   */
   usesDefaultLogo?: boolean;
 }
 
@@ -428,8 +431,8 @@ const mockTemplates: Template[] = [
     presetId: "classic-gold",
     programName: "Gold Beauty Club",
     hexBackgroundColor: "#ead0bd",
-    pointsLabel: "Saldo Beauty",
-    tierLabel: "Miembro Gold",
+    pointsLabel: "Puntos",
+    tierLabel: "Nivel",
     benefitsText:
       "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
     infoText: "Muestra este pase en recepción antes de pagar.",
