@@ -150,6 +150,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const [, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
+  const [heroUnchecked, setHeroUnchecked] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
   const treatments = useFieldArray({ control: form.control, name: "treatments" });
@@ -161,6 +162,67 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       ? { ...input, treatments: undefined }
       : input;
   const values = form.watch();
+
+  // Reads the hero image from the URL the user typed and warns when it is too close to the card
+  // colour. A link that cannot be read (blocked by CORS, broken, not an image) is not an error:
+  // the form says it could not be checked and the image is still saved.
+  const heroUrl = (values.heroImageUrl ?? "").trim();
+  const backgroundColor = values.hexBackgroundColor;
+  React.useEffect(() => {
+    let cancelled = false;
+    let image: HTMLImageElement | null = null;
+    const finish = (warning: string | null, unchecked: boolean) => {
+      if (cancelled) return;
+      setHeroWarning(warning);
+      setHeroUnchecked(unchecked);
+    };
+    const timer = window.setTimeout(() => {
+      if (!heroUrl) return finish(null, false);
+
+      let parsed: URL;
+      try {
+        parsed = new URL(heroUrl);
+      } catch {
+        return finish(null, false);
+      }
+      if (!/^https?:$/.test(parsed.protocol) || /\s/.test(heroUrl)) return finish(null, false);
+
+      image = new window.Image();
+      image.crossOrigin = "anonymous";
+      image.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 32;
+          canvas.height = 32;
+          const context = canvas.getContext("2d");
+          if (!context || !image) return finish(null, true);
+          context.drawImage(image, 0, 0, 32, 32);
+          // Throws when the canvas is tainted, that is, when the server sent no CORS headers.
+          const pixels = context.getImageData(0, 0, 32, 32).data;
+          let total = 0;
+          for (let index = 0; index < pixels.length; index += 4) {
+            total += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / (3 * 255);
+          }
+          const imageLuminance = total / (pixels.length / 4);
+          const tooClose = Math.abs(imageLuminance - luminance(backgroundColor)) < 0.22;
+          finish(tooClose ? "Esta imagen se parece demasiado al color del pase. Elige una imagen con más contraste o ajusta el fondo." : null, false);
+        } catch {
+          finish(null, true);
+        }
+      };
+      image.onerror = () => finish(null, true);
+      image.src = heroUrl;
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (image) {
+        image.onload = null;
+        image.onerror = null;
+      }
+    };
+  }, [heroUrl, backgroundColor]);
 
   const mutation = useSaveTemplate(initialTemplate?.id, clinicId, scope, {
     onSuccess: (template) => {
@@ -190,34 +252,6 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     if (!form.getValues("programName")) {
       form.setValue("programName", `${preset.name} Club`, { shouldDirty: true, shouldValidate: true });
     }
-  }
-
-  async function checkHeroContrast(file: File | undefined) {
-    if (!file) {
-      setHeroWarning(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    const image = new window.Image();
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 32;
-      canvas.height = 32;
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context.drawImage(image, 0, 0, 32, 32);
-      const pixels = context.getImageData(0, 0, 32, 32).data;
-      let total = 0;
-      for (let index = 0; index < pixels.length; index += 4) {
-        total += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / (3 * 255);
-      }
-      const imageLuminance = total / (pixels.length / 4);
-      const backgroundLuminance = luminance(values.hexBackgroundColor);
-      setHeroWarning(Math.abs(imageLuminance - backgroundLuminance) < 0.22 ? "Esta imagen se parece demasiado al color del pase. Elige una imagen con más contraste o ajusta el fondo." : null);
-      URL.revokeObjectURL(objectUrl);
-    };
-    image.src = objectUrl;
   }
 
   return (
@@ -266,12 +300,10 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message}>
                 <Input {...form.register("logoOnDarkUrl")} placeholder="https://..." />
               </Field>
-              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message}>
+              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2">
                 <Input {...form.register("heroImageUrl")} placeholder="https://..." />
-              </Field>
-              <Field label="Comprobar contraste" className="sm:col-span-2">
-                <Input type="file" accept="image/*" onChange={(event) => checkHeroContrast(event.target.files?.[0])} />
                 {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
+                {heroUnchecked ? <p className="mt-2 text-xs text-[#927e72]">No se pudo comprobar este enlace.</p> : null}
               </Field>
             </div>
           </div>
