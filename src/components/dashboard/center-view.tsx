@@ -5,8 +5,10 @@ import Link from "next/link";
 import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
+import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
 import type { Clinic, MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
+import type { PresentedProgram } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
@@ -27,6 +29,39 @@ const ownerEmailFor = (clinic: Clinic) =>
   clinic.users[0]?.email;
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
+
+/**
+ * What a client sees as "points": the programme counts progress in euros and shows it ten times
+ * larger, the same constant the backend applies at the edge (POINTS_PER_EURO = 10).
+ */
+const POINTS_PER_EURO = 10;
+const toPoints = (progress: number) => Math.round(progress * POINTS_PER_EURO);
+
+/** The live programme's rewards and perks, in the order a client reaches them. Tier-ups are the Niveles tab's. */
+function programRewardRows(program: PresentedProgram): SetupItem[] {
+  return program.ladder
+    .filter((step) => step.type !== "nivel")
+    .map((step) => {
+      const name = step.reward?.name ?? step.perk?.name ?? `Paso ${step.n}`;
+      const detail = step.perk?.description || step.reward?.items.map((item) => item.name).join(", ") || "Sin descripción guardada";
+
+      return {
+        id: `program-step-${step.n}`,
+        name,
+        detail,
+        value: `${formatNumber(toPoints(step.threshold))} puntos`,
+      };
+    });
+}
+
+function programTierRows(program: PresentedProgram): SetupItem[] {
+  return program.tiers.map((tier) => ({
+    id: `program-tier-${tier.key}`,
+    name: tier.label,
+    detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
+    value: tier.threshold === 0 ? "Desde el inicio" : `Desde ${formatNumber(toPoints(tier.threshold))} puntos`,
+  }));
+}
 
 function toRewardRows(rewards: TierRewardInput[] | undefined): SetupItem[] {
   return (rewards ?? []).map((reward, index) => ({
@@ -86,8 +121,13 @@ export function CenterView({ canEdit }: CenterViewProps) {
   const currentClinic = useCurrentClinic();
   const clinic = currentClinic.data;
   const [tab, setTab] = React.useState<CenterTab>("tratamientos");
-  const rewardRowsFromClinic = React.useMemo(() => toRewardRows(clinic?.template?.tierRewards), [clinic?.template?.tierRewards]);
-  const tierRowsFromClinic = React.useMemo(() => toTierRows(clinic?.template?.milestoneRewards), [clinic?.template?.milestoneRewards]);
+  // A centre with a live programme reads its rewards and levels from it; a 404 (null) means it is still
+  // on the card design's own figures, which stay as the fallback.
+  const staffProgram = useStaffProgram();
+  const liveProgram = staffProgram.data?.program ?? null;
+  const rewardRowsFromClinic = React.useMemo(() => liveProgram ? programRewardRows(liveProgram) : toRewardRows(clinic?.template?.tierRewards), [liveProgram, clinic?.template?.tierRewards]);
+  const tierRowsFromClinic = React.useMemo(() => liveProgram ? programTierRows(liveProgram) : toTierRows(clinic?.template?.milestoneRewards), [liveProgram, clinic?.template?.milestoneRewards]);
+  const programLoading = staffProgram.isPending;
   const clinicDetails = React.useMemo(() => toClinicDetails(clinic), [clinic]);
   const rewardRowsKey = React.useMemo(() => rowsKey(rewardRowsFromClinic), [rewardRowsFromClinic]);
   const tierRowsKey = React.useMemo(() => rowsKey(tierRowsFromClinic), [tierRowsFromClinic]);
@@ -109,8 +149,8 @@ export function CenterView({ canEdit }: CenterViewProps) {
       </div>
 
       {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} /> : null}
-      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
-      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
+      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} /> : null}
+      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} /> : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">

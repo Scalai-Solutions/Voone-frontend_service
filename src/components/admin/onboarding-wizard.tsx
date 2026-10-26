@@ -72,40 +72,9 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
 
   return null;
 };
-/**
- * A working ladder, not five names. A clinic that changes nothing still gets a
- * programme that ranks members — before this, tiers had no points and nothing could
- * decide which one anybody was in.
- *
- * The spacing widens as the tiers climb, which is the shape loyalty programmes usually
- * take: Silver should feel reachable and Diamond should not.
- */
-const defaultTiers: TierRewardDraft[] = [
-  { name: "Bronze", rewardText: "", minLifetimePoints: "0", milestoneCount: "5", pointsToNextMilestone: "200" },
-  { name: "Silver", rewardText: "", minLifetimePoints: "1000", milestoneCount: "5", pointsToNextMilestone: "400" },
-  { name: "Gold", rewardText: "", minLifetimePoints: "3000", milestoneCount: "5", pointsToNextMilestone: "800" },
-  { name: "Platinum", rewardText: "", minLifetimePoints: "7000", milestoneCount: "5", pointsToNextMilestone: "1600" },
-  { name: "Diamond", rewardText: "", minLifetimePoints: "15000", milestoneCount: "5", pointsToNextMilestone: "3000" },
-];
 type TreatmentDraft = {
   name: string;
   priceEuro: string;
-};
-
-type TierRewardDraft = {
-  name: string;
-  rewardText: string;
-  /** Strings because they are bound to inputs; coerced on submit. */
-  minLifetimePoints: string;
-  milestoneCount: string;
-  pointsToNextMilestone: string;
-};
-
-type MilestoneRewardDraft = {
-  milestoneCount: string;
-  pointsToNextMilestone: string;
-  priceAmount: string;
-  pointsAwarded: string;
 };
 
 type OnboardingValues = {
@@ -127,8 +96,6 @@ type OnboardingValues = {
   dataConsent: boolean;
   programName: string;
   treatments: TreatmentDraft[];
-  tierRewards: TierRewardDraft[];
-  milestoneRewards: MilestoneRewardDraft;
   vooneTemplateId: string;
   presetId: string;
   heroImageUrl: string;
@@ -161,13 +128,6 @@ const initialValues: OnboardingValues = {
   dataConsent: false,
   programName: "",
   treatments: [{ name: "", priceEuro: "" }],
-  tierRewards: defaultTiers.map((tier) => ({ ...tier })),
-  milestoneRewards: {
-    milestoneCount: "10",
-    pointsToNextMilestone: "2000",
-    priceAmount: "10",
-    pointsAwarded: "100",
-  },
   vooneTemplateId: "",
   presetId: "",
   heroImageUrl: "",
@@ -212,23 +172,15 @@ const intOrDefault = (value: string, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-/** Zero is a legitimate floor for the lowest tier, so this cannot reuse intOrDefault. */
-const intOrZero = (value: string) => {
-  const parsed = Number.parseInt(value, 10);
-
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-};
-
-const milestonePayload = (values: OnboardingValues) => ({
-  milestoneCount: intOrDefault(values.milestoneRewards.milestoneCount, 10),
-  pointsToNextMilestone: intOrDefault(values.milestoneRewards.pointsToNextMilestone, 2000),
-  priceAmount: intOrDefault(values.milestoneRewards.priceAmount, 10),
-  pointsAwarded: intOrDefault(values.milestoneRewards.pointsAwarded, 100),
-});
+/**
+ * Treatment points use the same ratio the programme shows clients: ten points per euro. Tiers and
+ * milestone rewards are not asked for here; the backend applies its defaults and the programme
+ * builder is the only place they change afterwards.
+ */
+const POINTS_PER_EURO = 10;
 
 const treatmentsPayload = (values: OnboardingValues) => {
-  const milestone = milestonePayload(values);
-  const pointsForPrice = (priceEuro: number) => Math.round((priceEuro / milestone.priceAmount) * milestone.pointsAwarded);
+  const pointsForPrice = (priceEuro: number) => Math.round(priceEuro * POINTS_PER_EURO);
   const treatments = values.treatments
     .map((treatment) => ({
       name: treatment.name.trim(),
@@ -242,22 +194,6 @@ const treatmentsPayload = (values: OnboardingValues) => {
 
   return treatments;
 };
-
-const tierRewardsPayload = (values: OnboardingValues) =>
-  values.tierRewards
-    .map((tier) => ({
-      name: tier.name.trim(),
-      rewardText: tier.rewardText.trim(),
-      // A tier without points cannot rank anybody, so an empty box means zero rather
-      // than "unset" — and the backend rejects two tiers sharing a floor, which is how
-      // a clinic finds out it left two blank.
-      minLifetimePoints: intOrZero(tier.minLifetimePoints),
-      milestoneCount: intOrDefault(tier.milestoneCount, 5),
-      pointsToNextMilestone: intOrDefault(tier.pointsToNextMilestone, 200),
-    }))
-    .filter((tier) => tier.name.length > 0)
-    // Sorted so the clinic can type them in any order and still get a sane ladder.
-    .sort((a, b) => a.minLifetimePoints - b.minLifetimePoints);
 
 export function OnboardingWizard({ presets, templates }: { presets: TemplatePreset[]; templates: VooneTemplate[] }) {
   const router = useRouter();
@@ -351,8 +287,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       benefitsText: values.benefitsText,
       infoText: values.infoText,
       treatments: treatmentsPayload(values),
-      tierRewards: tierRewardsPayload(values),
-      milestoneRewards: milestonePayload(values),
     });
   }
 
