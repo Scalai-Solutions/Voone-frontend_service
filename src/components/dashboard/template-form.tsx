@@ -3,12 +3,11 @@
 /* eslint-disable react-hooks/incompatible-library */
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Building2, CheckCircle2, CreditCard, Eye, FileText, Info, ListChecks, Paintbrush, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush } from "lucide-react";
 import { z } from "zod";
 
 import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
@@ -19,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
-import { ApiError, type Clinic, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
+import { ApiError, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
@@ -49,13 +48,11 @@ const templateSchema = z.object({
 });
 
 type TemplateFormValues = z.infer<typeof templateSchema>;
-type TemplateTab = "edit" | "preview" | "treatments" | "center";
+type TemplateTab = "edit" | "preview";
 
 const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "edit", label: "Diseño", icon: Paintbrush },
   { id: "preview", label: "Vista previa", icon: Eye },
-  { id: "treatments", label: "Tratamientos", icon: ListChecks },
-  { id: "center", label: "Información del centro", icon: Building2 },
 ];
 
 const emptyValues: TemplateFormValues = {
@@ -71,29 +68,6 @@ const emptyValues: TemplateFormValues = {
   infoText: "",
   treatments: [{ name: "Consulta", pointsAllotted: 60 }],
 };
-
-const ownerEmailFor = (clinic: Clinic) =>
-  clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
-  clinic.users[0]?.email;
-
-const formatNumber = (value: number) => value.toLocaleString("es-ES");
-
-function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; value: string }> {
-  if (!clinic) return [];
-
-  const ownerEmail = ownerEmailFor(clinic);
-
-  return [
-    { label: "Nombre comercial", value: clinic.name },
-    { label: "Dirección", value: clinic.addressLine },
-    { label: "Código postal", value: clinic.pincode },
-    ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
-    { label: "Plan", value: clinic.voonePlan },
-    { label: "Miembros activos", value: formatNumber(clinic.members) },
-    { label: "Diseño de tarjeta predeterminado", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
-    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
-  ];
-}
 
 function toFormValues(template: Template | undefined, selectedPreset: TemplatePreset | undefined): TemplateFormValues {
   if (!template) {
@@ -145,17 +119,15 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const currentClinic = useCurrentClinic({ enabled: scope === "clinic" });
   const presetsQuery = useTemplatePresets({ initialData: presets });
   const availablePresets = presetsQuery.data ?? presets;
-  const clinicDetails = React.useMemo(() => toClinicDetails(currentClinic.data), [currentClinic.data]);
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [heroUnchecked, setHeroUnchecked] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
-  const treatments = useFieldArray({ control: form.control, name: "treatments" });
 
-  // Saving the design must not rewrite the catalogue: treatments go along only when this form
-  // created the template or the treatments were actually edited.
+  // Saving the design must not rewrite the catalogue. Treatments are edited in My center, not here,
+  // so they go along only when this form creates the template (with its starter treatment).
   const saveInput = (input: TemplateFormValues): SaveTemplateInput =>
     initialTemplate && !form.formState.dirtyFields.treatments
       ? { ...input, treatments: undefined }
@@ -255,7 +227,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   return (
     <form onSubmit={form.handleSubmit((input) => mutation.mutate(saveInput(input)))} className="mx-auto max-w-[1120px] space-y-3">
       <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/70 p-1">
-        {templateTabs.filter((tab) => scope === "clinic" || tab.id !== "center").map((tab) => {
+        {templateTabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition", activeTab === tab.id ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}> 
@@ -331,7 +303,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Vista previa</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Los cambios de contenido van en Diseño y los puntos se gestionan en Tratamientos.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Los cambios de contenido van en Diseño y los tratamientos y sus puntos se gestionan en Mi centro.</p>
             <div className="mt-5 max-w-[360px]">
               <WalletCardPreview
                 clinicName={currentClinic.data?.name}
@@ -355,60 +327,6 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               <p className="mt-2 text-sm text-[#806e66]">{values.infoText || "El texto informativo aparecerá aquí."}</p>
             </div>
           </div>
-        </section>
-      ) : null}
-
-      {activeTab === "treatments" ? (
-        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Tratamientos</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Puntos por tratamiento</h2>
-            </div>
-            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => treatments.append({ name: "", pointsAllotted: 0 })}>
-              <Plus className="mr-2 h-4 w-4" /> Añadir
-            </Button>
-          </div>
-          <div className="mt-5 overflow-hidden rounded-2xl border border-[#eadfd8]">
-            {treatments.fields.map((field, index) => (
-              <div key={field.id} className="grid gap-3 border-b border-[#eadfd8] bg-[#fffaf6] p-3 last:border-b-0 sm:grid-cols-[1fr_140px_auto]">
-                <Field label="Tratamiento" error={form.formState.errors.treatments?.[index]?.name?.message}>
-                  <Input {...form.register(`treatments.${index}.name`)} placeholder="Hydrafacial" />
-                </Field>
-                <Field label="Puntos" error={form.formState.errors.treatments?.[index]?.pointsAllotted?.message}>
-                  <Input type="number" min={0} {...form.register(`treatments.${index}.pointsAllotted`, { valueAsNumber: true })} />
-                </Field>
-                <Button type="button" variant="outline" className="self-end rounded-2xl" disabled={treatments.fields.length === 1} onClick={() => treatments.remove(index)} aria-label="Eliminar tratamiento">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          {typeof form.formState.errors.treatments?.message === "string" ? <p className="mt-2 text-sm text-destructive">{form.formState.errors.treatments.message}</p> : null}
-        </section>
-      ) : null}
-
-      {activeTab === "center" ? (
-        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Información del centro</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Datos de {currentClinic.data?.name ?? "tu centro"}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#927e72]">Esta pestaña muestra la información del negocio que acompaña al diseño de la tarjeta y a los enlaces del centro.</p>
-            </div>
-            <Info className="h-6 w-6 text-[#b8864b]" />
-          </div>
-          {clinicDetails.length > 0 ? (
-            <div className="mt-5 grid gap-x-16 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-              {clinicDetails.map((detail) => (
-                <div key={detail.label}>
-                  <p className="text-xs text-[#927e72]">{detail.label}</p>
-                  <p className="mt-1 font-semibold">{detail.value}</p>
-                </div>
-              ))}
-            </div>
-          ) : <p className="mt-5 text-sm text-[#927e72]">Cargando la información guardada durante el onboarding...</p>}
-          <Link href="/dashboard/settings" className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><FileText className="h-4 w-4" /> Editar información completa</Link>
         </section>
       ) : null}
 

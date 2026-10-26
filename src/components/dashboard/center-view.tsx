@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
-import type { Clinic, MilestoneRewardsInput, TierRewardInput, Treatment } from "@/lib/api-client";
+import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
+import type { Clinic, MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
-  treatments?: Treatment[];
   canEdit: boolean;
 }
 
@@ -22,22 +22,11 @@ interface SetupItem {
   value: string;
 }
 
-const EMPTY_TREATMENTS: Treatment[] = [];
-
 const ownerEmailFor = (clinic: Clinic) =>
   clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
   clinic.users[0]?.email;
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
-
-function toTreatmentRows(treatments: Treatment[]): SetupItem[] {
-  return treatments.map((treatment) => ({
-    id: treatment.id,
-    name: treatment.name,
-    detail: typeof treatment.priceEuro === "number" ? `Precio: ${formatNumber(treatment.priceEuro)} €` : "Precio no configurado",
-    value: `${formatNumber(treatment.points)} puntos`,
-  }));
-}
 
 function toRewardRows(rewards: TierRewardInput[] | undefined): SetupItem[] {
   return (rewards ?? []).map((reward, index) => ({
@@ -93,15 +82,13 @@ function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; val
   ];
 }
 
-export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterViewProps) {
+export function CenterView({ canEdit }: CenterViewProps) {
   const currentClinic = useCurrentClinic();
   const clinic = currentClinic.data;
   const [tab, setTab] = React.useState<CenterTab>("tratamientos");
-  const treatmentRowsFromClinic = React.useMemo(() => toTreatmentRows(clinic?.treatments ?? treatments), [clinic?.treatments, treatments]);
   const rewardRowsFromClinic = React.useMemo(() => toRewardRows(clinic?.template?.tierRewards), [clinic?.template?.tierRewards]);
   const tierRowsFromClinic = React.useMemo(() => toTierRows(clinic?.template?.milestoneRewards), [clinic?.template?.milestoneRewards]);
   const clinicDetails = React.useMemo(() => toClinicDetails(clinic), [clinic]);
-  const treatmentRowsKey = React.useMemo(() => rowsKey(treatmentRowsFromClinic), [treatmentRowsFromClinic]);
   const rewardRowsKey = React.useMemo(() => rowsKey(rewardRowsFromClinic), [rewardRowsFromClinic]);
   const tierRowsKey = React.useMemo(() => rowsKey(tierRowsFromClinic), [tierRowsFromClinic]);
 
@@ -121,7 +108,7 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
         {canEdit && clinic?.template?.id ? <button type="button" onClick={() => setTab("tarjeta")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tarjeta" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tarjeta Wallet</button> : null}
       </div>
 
-      {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
+      {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} /> : null}
       {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
       {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
 
