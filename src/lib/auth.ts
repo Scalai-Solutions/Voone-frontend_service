@@ -82,6 +82,7 @@ export async function getCurrentSession(): Promise<VooneSession | null> {
     clinicId: user.clinicId,
     clinicSlug: user.clinicSlug ?? "",
     name: user.name ?? "Voone user",
+    email: user.email ?? undefined,
   };
 }
 
