@@ -50,7 +50,7 @@ export default async function NewTemplatePage({
       <div className="mx-auto flex max-w-[1120px] flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">
-            Nueva plantilla
+            Nuevo diseño de la tarjeta
           </p>
           <h1 className="mt-1 font-serif text-3xl font-semibold tracking-[-0.02em] text-[#2e2421]">
             Crear pase Wallet

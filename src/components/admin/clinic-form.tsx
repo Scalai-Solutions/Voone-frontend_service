@@ -165,6 +165,7 @@ function ProvisionedSummary({
         <CardTitle>{provisioned.clinic.name} ya está de alta</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
+        {provisioned.walletWarningMessage ? <p role="status" className="rounded-md bg-warning/10 p-3 text-sm text-warning">{provisioned.walletWarningMessage}</p> : null}
         <div className="rounded-lg bg-secondary p-4">
           <p className="text-sm text-muted-foreground">{provisioned.template.programName}</p>
           <p className="mt-1 flex items-center gap-2 text-sm">

@@ -23,9 +23,9 @@ export default async function AdminTemplateDesignsPage() {
   return (
     <div className="mx-auto max-w-[1180px]">
       <PageHeader
-        eyebrow="Voone template library"
-        title="Template Designs"
-        description="Create reusable Wallet designs with their own buttons, labels, images, and text modules. Clinics can use these designs when their Wallet class is provisioned."
+        eyebrow="Voone design library"
+        title="Design library"
+        description="Create reusable Wallet card designs with their own buttons, labels, images, and text modules. Clinics can use these designs when their Wallet class is provisioned."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <AdminTemplateGallery templates={templates} />

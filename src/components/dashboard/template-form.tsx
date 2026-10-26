@@ -3,23 +3,23 @@
 /* eslint-disable react-hooks/incompatible-library */
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Building2, CheckCircle2, CreditCard, Eye, FileText, Info, ListChecks, Paintbrush, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush } from "lucide-react";
 import { z } from "zod";
 
-import { QrCode } from "@/components/shared/qr-code";
+import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
+import { useTemplateRefreshStatus, type RefreshPolling } from "@/features/templates/api/useTemplateRefreshStatus";
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
-import { ApiError, type Clinic, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
+import { ApiError, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,11 @@ const optionalUrlSchema = z
   .optional()
   .or(z.literal(""));
 
-const templateSchema = z.object({
+const treatmentSchema = z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), priceEuro: z.number().optional(), pointsAllotted: z.number().int().min(0) });
+
+type TreatmentValue = z.infer<typeof treatmentSchema>;
+
+const designFields = {
   presetId: z.string().min(1, "Selecciona un diseño inicial"),
   programName: z.string().trim().min(2, "Añade el nombre del programa").max(120, "Máximo 120 caracteres"),
   hexBackgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Elige un color hexadecimal válido"),
@@ -45,18 +49,28 @@ const templateSchema = z.object({
   tierLabel: z.string().trim().min(2, "Añade la etiqueta de nivel").max(80, "Máximo 80 caracteres"),
   benefitsText: z.string().trim().min(8, "Añade un mensaje breve de beneficios").max(1200, "Máximo 1200 caracteres"),
   infoText: z.string().trim().min(8, "Añade un mensaje breve de información").max(1200, "Máximo 1200 caracteres"),
-  treatments: z.array(z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), priceEuro: z.number().optional(), pointsAllotted: z.number().int().min(0) })).min(1, "Añade al menos un tratamiento"),
-});
+};
 
-type TemplateFormValues = z.infer<typeof templateSchema>;
-type TemplateTab = "edit" | "preview" | "treatments" | "center";
+// A new design starts with a treatment, so it is validated. An existing design's treatments are
+// managed in My center and not shown here, so an error about them would have no field to sit on.
+const createSchema = z.object({ ...designFields, treatments: z.array(treatmentSchema).min(1, "Añade al menos un tratamiento") });
+const updateSchema = z.object({ ...designFields, treatments: z.array(z.custom<TreatmentValue>()) });
+
+type TemplateFormValues = z.infer<typeof createSchema>;
+type TemplateTab = "edit" | "preview";
 
 const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "edit", label: "Edit Template", icon: Paintbrush },
-  { id: "preview", label: "Live Preview", icon: Eye },
-  { id: "treatments", label: "Tratamientos", icon: ListChecks },
-  { id: "center", label: "Información del centro", icon: Building2 },
+  { id: "edit", label: "Diseño", icon: Paintbrush },
+  { id: "preview", label: "Vista previa", icon: Eye },
 ];
+
+const POLL_WINDOW_MS = 60_000;
+
+const formatChangeTime = (iso: string) => {
+  const date = new Date(iso);
+
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
+};
 
 const emptyValues: TemplateFormValues = {
   presetId: "",
@@ -65,35 +79,12 @@ const emptyValues: TemplateFormValues = {
   logoUrl: "",
   logoOnDarkUrl: "",
   heroImageUrl: "",
-  pointsLabel: "Saldo Beauty",
-  tierLabel: "Miembro Gold",
+  pointsLabel: "Puntos",
+  tierLabel: "Nivel",
   benefitsText: "",
   infoText: "",
   treatments: [{ name: "Consulta", pointsAllotted: 60 }],
 };
-
-const ownerEmailFor = (clinic: Clinic) =>
-  clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
-  clinic.users[0]?.email;
-
-const formatNumber = (value: number) => value.toLocaleString("es-ES");
-
-function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; value: string }> {
-  if (!clinic) return [];
-
-  const ownerEmail = ownerEmailFor(clinic);
-
-  return [
-    { label: "Nombre comercial", value: clinic.name },
-    { label: "Dirección", value: clinic.addressLine },
-    { label: "Código postal", value: clinic.pincode },
-    ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
-    { label: "Plan", value: clinic.voonePlan },
-    { label: "Miembros activos", value: formatNumber(clinic.members) },
-    { label: "Plantilla predeterminada", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
-    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
-  ];
-}
 
 function toFormValues(template: Template | undefined, selectedPreset: TemplatePreset | undefined): TemplateFormValues {
   if (!template) {
@@ -135,10 +126,6 @@ function luminance(hex: string) {
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-function textColorFor(backgroundColor: string) {
-  return luminance(backgroundColor) > 0.45 ? "#2b211c" : "#fff9f2";
-}
-
 /**
  * "clinic" saves for the signed-in clinic's own session. "admin" is a Voone administrator editing a
  * chosen clinic's card, and saves through the admin route with that clinic's id.
@@ -149,26 +136,96 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const currentClinic = useCurrentClinic({ enabled: scope === "clinic" });
   const presetsQuery = useTemplatePresets({ initialData: presets });
   const availablePresets = presetsQuery.data ?? presets;
-  const clinicDetails = React.useMemo(() => toClinicDetails(currentClinic.data), [currentClinic.data]);
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
-  const [selectedPreset, setSelectedPreset] = React.useState<TemplatePreset | undefined>(initialPreset);
   const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
+  const [heroUnchecked, setHeroUnchecked] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
-  const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
-  const treatments = useFieldArray({ control: form.control, name: "treatments" });
+  // True while the person is asked to confirm how many cards a save reaches.
+  const [confirming, setConfirming] = React.useState(false);
+  const [polling, setPolling] = React.useState<RefreshPolling | null>(null);
+  const form = useForm<TemplateFormValues>({ resolver: zodResolver(initialTemplate ? updateSchema : createSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
 
-  // Saving the design must not rewrite the catalogue: treatments go along only when this form
-  // created the template or the treatments were actually edited.
+  // Saving the design must not rewrite the catalogue. Treatments are edited in My center, not here,
+  // so they go along only when this form creates the template (with its starter treatment).
   const saveInput = (input: TemplateFormValues): SaveTemplateInput =>
-    initialTemplate && !form.formState.dirtyFields.treatments
-      ? { ...input, treatments: undefined }
-      : input;
+    initialTemplate ? { ...input, treatments: undefined } : input;
   const values = form.watch();
+
+  // Only the centre's own session can read its card status; the admin route has no such view.
+  const statusEnabled = scope === "clinic" && Boolean(initialTemplate);
+  const refreshStatus = useTemplateRefreshStatus({ enabled: statusEnabled, polling });
+  const status = refreshStatus.data;
+  const lastChange = status?.lastChange ?? null;
+  const lastChangeTime = lastChange ? formatChangeTime(lastChange.at) : null;
+  // Progress is shown only for the change just saved, never for an older one.
+  const showProgress = Boolean(polling && lastChange && lastChange.at !== polling.previousChangeAt && lastChange.cardsAtSave > 0);
+
+  // Reads the hero image from the URL the user typed and warns when it is too close to the card
+  // colour. A link that cannot be read (blocked by CORS, broken, not an image) is not an error:
+  // the form says it could not be checked and the image is still saved.
+  const heroUrl = (values.heroImageUrl ?? "").trim();
+  const backgroundColor = values.hexBackgroundColor;
+  React.useEffect(() => {
+    let cancelled = false;
+    let image: HTMLImageElement | null = null;
+    const finish = (warning: string | null, unchecked: boolean) => {
+      if (cancelled) return;
+      setHeroWarning(warning);
+      setHeroUnchecked(unchecked);
+    };
+    const timer = window.setTimeout(() => {
+      if (!heroUrl) return finish(null, false);
+
+      let parsed: URL;
+      try {
+        parsed = new URL(heroUrl);
+      } catch {
+        return finish(null, false);
+      }
+      if (!/^https?:$/.test(parsed.protocol) || /\s/.test(heroUrl)) return finish(null, false);
+
+      image = new window.Image();
+      image.crossOrigin = "anonymous";
+      image.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 32;
+          canvas.height = 32;
+          const context = canvas.getContext("2d");
+          if (!context || !image) return finish(null, true);
+          context.drawImage(image, 0, 0, 32, 32);
+          // Throws when the canvas is tainted, that is, when the server sent no CORS headers.
+          const pixels = context.getImageData(0, 0, 32, 32).data;
+          let total = 0;
+          for (let index = 0; index < pixels.length; index += 4) {
+            total += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / (3 * 255);
+          }
+          const imageLuminance = total / (pixels.length / 4);
+          const tooClose = Math.abs(imageLuminance - luminance(backgroundColor)) < 0.22;
+          finish(tooClose ? "Esta imagen se parece demasiado al color del pase. Elige una imagen con más contraste o ajusta el fondo." : null, false);
+        } catch {
+          finish(null, true);
+        }
+      };
+      image.onerror = () => finish(null, true);
+      image.src = heroUrl;
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (image) {
+        image.onload = null;
+        image.onerror = null;
+      }
+    };
+  }, [heroUrl, backgroundColor]);
 
   const mutation = useSaveTemplate(initialTemplate?.id, clinicId, scope, {
     onSuccess: (template) => {
-      setStatusMessage("Plantilla guardada para los proveedores Wallet disponibles.");
+      setStatusMessage("Diseño de la tarjeta guardado.");
+      setPolling((current) => ({ until: Date.now() + POLL_WINDOW_MS, previousChangeAt: current?.previousChangeAt ?? null }));
 
       if (!initialTemplate) {
         router.replace(`/dashboard/templates/${template.id}`);
@@ -176,7 +233,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
-        setStatusMessage("This clinic already has a template — edit it instead");
+        setStatusMessage("Este centro ya tiene un diseño de tarjeta: edítalo en lugar de crear otro.");
         queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });
         window.setTimeout(() => router.replace(scope === "admin" ? `/admin/clinics/${clinicId}` : "/dashboard/templates"), 1200);
         return;
@@ -186,8 +243,26 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     },
   });
 
+  function save(input: SaveTemplateInput) {
+    setConfirming(false);
+    setStatusMessage(null);
+    // Remember what the last change was, so the progress that follows is for this one.
+    setPolling({ until: 0, previousChangeAt: lastChange?.at ?? null });
+    mutation.mutate(input);
+  }
+
+  // Changing an existing design reaches cards that are already out, so it is confirmed first.
+  function submit(input: TemplateFormValues) {
+    if (statusEnabled) {
+      void refreshStatus.refetch();
+      setConfirming(true);
+      return;
+    }
+
+    save(saveInput(input));
+  }
+
   function selectPreset(preset: TemplatePreset) {
-    setSelectedPreset(preset);
     form.setValue("presetId", preset.id, { shouldDirty: true, shouldValidate: true });
     form.setValue("hexBackgroundColor", preset.hexBackgroundColor, { shouldDirty: true, shouldValidate: true });
 
@@ -196,38 +271,10 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     }
   }
 
-  async function checkHeroContrast(file: File | undefined) {
-    if (!file) {
-      setHeroWarning(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    const image = new window.Image();
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 32;
-      canvas.height = 32;
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context.drawImage(image, 0, 0, 32, 32);
-      const pixels = context.getImageData(0, 0, 32, 32).data;
-      let total = 0;
-      for (let index = 0; index < pixels.length; index += 4) {
-        total += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / (3 * 255);
-      }
-      const imageLuminance = total / (pixels.length / 4);
-      const backgroundLuminance = luminance(values.hexBackgroundColor);
-      setHeroWarning(Math.abs(imageLuminance - backgroundLuminance) < 0.22 ? "Esta imagen se parece demasiado al color del pase. Elige una imagen con más contraste o ajusta el fondo." : null);
-      URL.revokeObjectURL(objectUrl);
-    };
-    image.src = objectUrl;
-  }
-
   return (
-    <form onSubmit={form.handleSubmit((input) => mutation.mutate(saveInput(input)))} className="mx-auto max-w-[1120px] space-y-3">
+    <form onSubmit={form.handleSubmit(submit)} className="mx-auto max-w-[1120px] space-y-3">
       <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/70 p-1">
-        {templateTabs.filter((tab) => scope === "clinic" || tab.id !== "center").map((tab) => {
+        {templateTabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition", activeTab === tab.id ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}> 
@@ -240,7 +287,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       {activeTab === "edit" ? (
         <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-4 lg:grid-cols-[1fr_0.95fr]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Edit Template</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Diseño de la tarjeta</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Diseño y contenido</h2>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {availablePresets.map((preset) => (
@@ -265,16 +312,15 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               </Field>
               <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
                 <Input {...form.register("logoUrl")} placeholder="https://..." />
+                {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
               <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message}>
                 <Input {...form.register("logoOnDarkUrl")} placeholder="https://..." />
               </Field>
-              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message}>
+              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2">
                 <Input {...form.register("heroImageUrl")} placeholder="https://..." />
-              </Field>
-              <Field label="Comprobar contraste" className="sm:col-span-2">
-                <Input type="file" accept="image/*" onChange={(event) => checkHeroContrast(event.target.files?.[0])} />
                 {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
+                {heroUnchecked ? <p className="mt-2 text-xs text-[#927e72]">No se pudo comprobar este enlace.</p> : null}
               </Field>
             </div>
           </div>
@@ -283,10 +329,10 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Texto Wallet</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <Field label="Etiqueta de puntos" error={form.formState.errors.pointsLabel?.message}>
-                <Input {...form.register("pointsLabel")} placeholder="Saldo Beauty" />
+                <Input {...form.register("pointsLabel")} placeholder="Puntos" />
               </Field>
               <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
-                <Input {...form.register("tierLabel")} placeholder="Miembro Gold" />
+                <Input {...form.register("tierLabel")} placeholder="Nivel" />
               </Field>
               <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
                 <Textarea rows={2} className="min-h-16" {...form.register("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
@@ -302,10 +348,21 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       {activeTab === "preview" ? (
         <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Live Preview</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Vista previa</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Cambios de contenido van en Edit Template y los puntos se gestionan en Tratamientos.</p>
-            <div className="mt-5 max-w-[360px]"><PassPreviewCard values={values} presetName={selectedPreset?.name} /></div>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Los cambios de contenido van en Diseño y los tratamientos y sus puntos se gestionan en Mi centro.</p>
+            <div className="mt-5 max-w-[360px]">
+              <WalletCardPreview
+                clinicName={currentClinic.data?.name}
+                programName={values.programName}
+                color={values.hexBackgroundColor}
+                logoUrl={values.logoUrl}
+                heroImageUrl={values.heroImageUrl}
+                levelLabel={values.tierLabel}
+                pointsLabel={values.pointsLabel}
+              />
+              <p className="mt-4 text-xs leading-5 text-[#806e66]"><span className="font-semibold text-[#2e2421]">Beneficios:</span> {values.benefitsText || "Los beneficios aparecerán aquí."}</p>
+            </div>
           </div>
           <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
             <div className="flex items-center justify-between gap-3">
@@ -320,57 +377,43 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
         </section>
       ) : null}
 
-      {activeTab === "treatments" ? (
-        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Tratamientos</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Puntos por tratamiento</h2>
-            </div>
-            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => treatments.append({ name: "", pointsAllotted: 0 })}>
-              <Plus className="mr-2 h-4 w-4" /> Añadir
-            </Button>
+      {confirming ? (
+        <section role="alertdialog" aria-labelledby="template-confirm-title" className="rounded-3xl border border-[#d9b98f] bg-[#fff8ed] p-4">
+          <p id="template-confirm-title" className="font-semibold text-[#2e2421]">
+            {refreshStatus.isPending
+              ? "Comprobando cuántas tarjetas se actualizarán..."
+              : status
+                ? status.eligible > 0
+                  ? status.eligible === 1
+                    ? "Se actualizará 1 tarjeta"
+                    : `Se actualizarán ${status.eligible.toLocaleString("es-ES")} tarjetas`
+                  : "Todavía no hay tarjetas emitidas; el cambio se aplicará a las nuevas."
+                : "No se pudo comprobar cuántas tarjetas se actualizarán."}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" className="rounded-2xl" disabled={mutation.isPending} onClick={() => void form.handleSubmit((input) => save(saveInput(input)), () => setConfirming(false))()}>Guardar y actualizar</Button>
+            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setConfirming(false)}>Cancelar</Button>
           </div>
-          <div className="mt-5 overflow-hidden rounded-2xl border border-[#eadfd8]">
-            {treatments.fields.map((field, index) => (
-              <div key={field.id} className="grid gap-3 border-b border-[#eadfd8] bg-[#fffaf6] p-3 last:border-b-0 sm:grid-cols-[1fr_140px_auto]">
-                <Field label="Tratamiento" error={form.formState.errors.treatments?.[index]?.name?.message}>
-                  <Input {...form.register(`treatments.${index}.name`)} placeholder="Hydrafacial" />
-                </Field>
-                <Field label="Puntos" error={form.formState.errors.treatments?.[index]?.pointsAllotted?.message}>
-                  <Input type="number" min={0} {...form.register(`treatments.${index}.pointsAllotted`, { valueAsNumber: true })} />
-                </Field>
-                <Button type="button" variant="outline" className="self-end rounded-2xl" disabled={treatments.fields.length === 1} onClick={() => treatments.remove(index)} aria-label="Eliminar tratamiento">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          {typeof form.formState.errors.treatments?.message === "string" ? <p className="mt-2 text-sm text-destructive">{form.formState.errors.treatments.message}</p> : null}
         </section>
       ) : null}
 
-      {activeTab === "center" ? (
-        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Información del centro</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Datos de {currentClinic.data?.name ?? "tu centro"}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#927e72]">Esta pestaña muestra la información del negocio que acompaña a las plantillas y enlaces del centro.</p>
-            </div>
-            <Info className="h-6 w-6 text-[#b8864b]" />
-          </div>
-          {clinicDetails.length > 0 ? (
-            <div className="mt-5 grid gap-x-16 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-              {clinicDetails.map((detail) => (
-                <div key={detail.label}>
-                  <p className="text-xs text-[#927e72]">{detail.label}</p>
-                  <p className="mt-1 font-semibold">{detail.value}</p>
-                </div>
-              ))}
-            </div>
-          ) : <p className="mt-5 text-sm text-[#927e72]">Cargando la información guardada durante el onboarding...</p>}
-          <Link href="/dashboard/settings" className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"><FileText className="h-4 w-4" /> Editar información completa</Link>
+      {statusEnabled && (lastChange || showProgress) ? (
+        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-3 text-sm">
+          {lastChange && lastChangeTime ? (
+            <p className="text-[#806e66]">Último cambio: {lastChange.by ? `${lastChange.by} · ${lastChangeTime}` : lastChangeTime}</p>
+          ) : null}
+          {showProgress && status && lastChange ? (
+            <>
+              <p className="mt-1 font-semibold text-[#2e2421]">
+                {status.syncedSince.toLocaleString("es-ES")} de {lastChange.cardsAtSave.toLocaleString("es-ES")} tarjetas actualizadas en el servidor
+              </p>
+              {status.failedSince > 0 ? (
+                <p className="mt-1 text-destructive">
+                  {status.failedSince === 1 ? "1 tarjeta con error" : `${status.failedSince.toLocaleString("es-ES")} tarjetas con error`}: se reintentarán al guardar de nuevo.
+                </p>
+              ) : null}
+            </>
+          ) : null}
         </section>
       ) : null}
 
@@ -380,53 +423,10 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
             {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan y llegan a las tarjetas que ya tienen tus clientes.</span>}
           </div>
           <Button type="submit" className="h-10 rounded-2xl px-6" disabled={mutation.isPending}>
-            {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar plantilla" : "Crear plantilla"}
+            {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar diseño" : "Crear diseño"}
           </Button>
         </div>
       </section>
     </form>
-  );
-}
-
-const PREVIEW_QR_VALUE = "VOONE-EJEMPLO";
-
-function PreviewQr() {
-  return (
-    <QrCode
-      value={PREVIEW_QR_VALUE}
-      size={92}
-      className="rounded-xl shadow-[0_18px_40px_-28px_rgba(0,0,0,0.65)]"
-      title="Vista previa del QR"
-    />
-  );
-}
-
-function PassPreviewCard({ values, presetName }: { values: TemplateFormValues; presetName?: string }) {
-  const foreground = textColorFor(values.hexBackgroundColor);
-
-  return (
-    <div className="overflow-hidden rounded-[24px] border border-white/45 p-4 shadow-[0_28px_70px_-42px_rgba(67,48,43,0.82)]" style={{ background: values.hexBackgroundColor, color: foreground }}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase opacity-70">Google Wallet</p>
-          <p className="mt-1 text-xs font-semibold opacity-75">{presetName ?? "Preset Voone"}</p>
-        </div>
-        <PreviewQr />
-      </div>
-      <h3 className="mt-5 font-serif text-2xl font-semibold tracking-tight">{values.programName || "Nombre del programa"}</h3>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl bg-white/14 p-3">
-          <p className="text-[10px] uppercase opacity-70">Puntos</p>
-          <p className="mt-1 font-serif text-2xl font-semibold">1.250</p>
-          <p className="text-xs opacity-70">{values.pointsLabel || "Etiqueta de puntos"}</p>
-        </div>
-        <div className="rounded-2xl bg-white/14 p-3">
-          <p className="text-[10px] uppercase opacity-70">Nivel</p>
-          <p className="mt-1 font-serif text-2xl font-semibold">Gold</p>
-          <p className="text-xs opacity-70">{values.tierLabel || "Etiqueta de nivel"}</p>
-        </div>
-      </div>
-      <div className="mt-3 max-h-16 overflow-hidden rounded-2xl bg-white/14 p-3 text-xs leading-5 opacity-85">{values.benefitsText || "Los beneficios aparecerán aquí."}</div>
-    </div>
   );
 }

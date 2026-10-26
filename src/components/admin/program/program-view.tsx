@@ -133,7 +133,7 @@ export function ProgramView({
                     ? "Desde el primer día"
                     : `Desde ${formatProgress(tier.threshold)} gastados`}
                   {tier.minTenureMonths
-                    ? ` y ${tier.minTenureMonths} meses como socia`
+                    ? ` y ${tier.minTenureMonths} meses como miembro`
                     : ""}
                 </p>
               </div>

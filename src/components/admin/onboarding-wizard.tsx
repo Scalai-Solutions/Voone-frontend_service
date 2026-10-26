@@ -5,16 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy } from "lucide-react";
 
-import { QrCode } from "@/components/shared/qr-code";
+import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
+import { toPoints } from "@/lib/points";
 import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
-  DEFAULT_WALLET_HERO_IMAGE_URL,
-  DEFAULT_WALLET_LOGO_URL,
   DEFAULT_WALLET_POINTS_LABEL,
   DEFAULT_WALLET_PROGRAM_NAME,
   DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
@@ -57,9 +56,12 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
   if (step === 2 && !values.programName.trim()) {
     return "Add the program or club name before creating the clinic.";
   }
+  if (step === 2 && !values.logo.trim()) {
+    return "Add the clinic's own logo URL (a single web address).";
+  }
   if (step === 2) {
     const fields: Array<[string, string]> = [
-      ["Logo URL", values.logo],
+      ["Clinic logo URL", values.logo],
       ["Logo for dark background", values.logoOnDark],
       ["Hero image URL", values.heroImageUrl],
       ["Button URL", values.appointmentUrl],
@@ -71,42 +73,9 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
 
   return null;
 };
-/** Owner, center and card here, then treatments and program, messages, account and activation. */
-const TOTAL_ONBOARDING_STEPS = 7;
-/**
- * A working ladder, not five names. A clinic that changes nothing still gets a
- * programme that ranks members — before this, tiers had no points and nothing could
- * decide which one anybody was in.
- *
- * The spacing widens as the tiers climb, which is the shape loyalty programmes usually
- * take: Silver should feel reachable and Diamond should not.
- */
-const defaultTiers: TierRewardDraft[] = [
-  { name: "Bronze", rewardText: "", minLifetimePoints: "0", milestoneCount: "5", pointsToNextMilestone: "200" },
-  { name: "Silver", rewardText: "", minLifetimePoints: "1000", milestoneCount: "5", pointsToNextMilestone: "400" },
-  { name: "Gold", rewardText: "", minLifetimePoints: "3000", milestoneCount: "5", pointsToNextMilestone: "800" },
-  { name: "Platinum", rewardText: "", minLifetimePoints: "7000", milestoneCount: "5", pointsToNextMilestone: "1600" },
-  { name: "Diamond", rewardText: "", minLifetimePoints: "15000", milestoneCount: "5", pointsToNextMilestone: "3000" },
-];
 type TreatmentDraft = {
   name: string;
   priceEuro: string;
-};
-
-type TierRewardDraft = {
-  name: string;
-  rewardText: string;
-  /** Strings because they are bound to inputs; coerced on submit. */
-  minLifetimePoints: string;
-  milestoneCount: string;
-  pointsToNextMilestone: string;
-};
-
-type MilestoneRewardDraft = {
-  milestoneCount: string;
-  pointsToNextMilestone: string;
-  priceAmount: string;
-  pointsAwarded: string;
 };
 
 type OnboardingValues = {
@@ -128,8 +97,6 @@ type OnboardingValues = {
   dataConsent: boolean;
   programName: string;
   treatments: TreatmentDraft[];
-  tierRewards: TierRewardDraft[];
-  milestoneRewards: MilestoneRewardDraft;
   vooneTemplateId: string;
   presetId: string;
   heroImageUrl: string;
@@ -162,13 +129,6 @@ const initialValues: OnboardingValues = {
   dataConsent: false,
   programName: "",
   treatments: [{ name: "", priceEuro: "" }],
-  tierRewards: defaultTiers.map((tier) => ({ ...tier })),
-  milestoneRewards: {
-    milestoneCount: "10",
-    pointsToNextMilestone: "2000",
-    priceAmount: "10",
-    pointsAwarded: "100",
-  },
   vooneTemplateId: "",
   presetId: "",
   heroImageUrl: "",
@@ -197,8 +157,8 @@ const templateOptionsFor = (presets: TemplatePreset[], templates: VooneTemplate[
     description: index === 0 ? DEFAULT_WALLET_TEMPLATE_DESCRIPTION : "Preset starting design",
     programName: index === 0 ? DEFAULT_WALLET_PROGRAM_NAME : `${preset.name} Club`,
     hexBackgroundColor: index === 0 ? DEFAULT_WALLET_BACKGROUND_COLOR : preset.hexBackgroundColor,
-    logoUrl: DEFAULT_WALLET_LOGO_URL,
-    heroImageUrl: DEFAULT_WALLET_HERO_IMAGE_URL,
+    logoUrl: "",
+    heroImageUrl: "",
     pointsLabel: initialValues.pointsLabel,
     tierLabel: initialValues.tierLabel,
     benefitsText: initialValues.benefitsText,
@@ -213,23 +173,12 @@ const intOrDefault = (value: string, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-/** Zero is a legitimate floor for the lowest tier, so this cannot reuse intOrDefault. */
-const intOrZero = (value: string) => {
-  const parsed = Number.parseInt(value, 10);
-
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-};
-
-const milestonePayload = (values: OnboardingValues) => ({
-  milestoneCount: intOrDefault(values.milestoneRewards.milestoneCount, 10),
-  pointsToNextMilestone: intOrDefault(values.milestoneRewards.pointsToNextMilestone, 2000),
-  priceAmount: intOrDefault(values.milestoneRewards.priceAmount, 10),
-  pointsAwarded: intOrDefault(values.milestoneRewards.pointsAwarded, 100),
-});
-
+/**
+ * Treatment points use the ratio the programme shows clients (see lib/points). Tiers and milestone
+ * rewards are not asked for here; the backend applies its defaults and the programme builder is the
+ * only place they change afterwards.
+ */
 const treatmentsPayload = (values: OnboardingValues) => {
-  const milestone = milestonePayload(values);
-  const pointsForPrice = (priceEuro: number) => Math.round((priceEuro / milestone.priceAmount) * milestone.pointsAwarded);
   const treatments = values.treatments
     .map((treatment) => ({
       name: treatment.name.trim(),
@@ -238,27 +187,11 @@ const treatmentsPayload = (values: OnboardingValues) => {
     .filter((treatment) => treatment.name.length > 0)
     .map((treatment) => ({
       ...treatment,
-      pointsAllotted: pointsForPrice(treatment.priceEuro),
+      pointsAllotted: toPoints(treatment.priceEuro),
     }));
 
   return treatments;
 };
-
-const tierRewardsPayload = (values: OnboardingValues) =>
-  values.tierRewards
-    .map((tier) => ({
-      name: tier.name.trim(),
-      rewardText: tier.rewardText.trim(),
-      // A tier without points cannot rank anybody, so an empty box means zero rather
-      // than "unset" — and the backend rejects two tiers sharing a floor, which is how
-      // a clinic finds out it left two blank.
-      minLifetimePoints: intOrZero(tier.minLifetimePoints),
-      milestoneCount: intOrDefault(tier.milestoneCount, 5),
-      pointsToNextMilestone: intOrDefault(tier.pointsToNextMilestone, 200),
-    }))
-    .filter((tier) => tier.name.length > 0)
-    // Sorted so the clinic can type them in any order and still get a sane ladder.
-    .sort((a, b) => a.minLifetimePoints - b.minLifetimePoints);
 
 export function OnboardingWizard({ presets, templates }: { presets: TemplatePreset[]; templates: VooneTemplate[] }) {
   const router = useRouter();
@@ -287,7 +220,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       setStatus("Clinic saved as a draft. Continuing with treatments and program.");
       setSetupLinkCopied(false);
       // The centre now exists as an inactive draft; the rest of onboarding runs against it.
-      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}/setup`);
+      const notice = provisionedClinic.walletWarning ? `?notice=${encodeURIComponent(provisionedClinic.walletWarning)}` : "";
+      router.push(`/admin/clinics/${encodeURIComponent(provisionedClinic.clinic.id)}/setup${notice}`);
     },
     onError: (error) => {
       const detail = error instanceof Error && "detail" in error ? (error as ApiError).detail : undefined;
@@ -351,8 +285,6 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       benefitsText: values.benefitsText,
       infoText: values.infoText,
       treatments: treatmentsPayload(values),
-      tierRewards: tierRewardsPayload(values),
-      milestoneRewards: milestonePayload(values),
     });
   }
 
@@ -371,8 +303,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   return (
     <section className={`mx-auto min-h-[650px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] ${step === 2 ? "max-w-[1180px]" : "max-w-[900px]"}`}>
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
-        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {TOTAL_ONBOARDING_STEPS}</span></div>
-        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / TOTAL_ONBOARDING_STEPS) * 100}%` }} /></div>
+        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {steps.length}</span></div>
+        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
 
         <div className="my-auto pt-10">
           {step === 0 ? <OwnerStep values={values} update={update} /> : null}
@@ -469,7 +401,7 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 <WizardField label="Card color">
                   <Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} className="h-10 rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Logo URL">
+                <WizardField label="Clinic logo URL">
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
                 <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2">
@@ -496,13 +428,12 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
               </div>
             </form>
 
-            <WalletCardPreview
+            <CardPreviewPanel
               centerName={cardName}
               color={values.colors[0]}
               logoUrl={values.logo}
               programName={values.programName}
               heroImageUrl={values.heroImageUrl}
-              buttonText={values.appLinkText}
               benefitsText={values.benefitsText}
               infoText={values.infoText}
             />
@@ -515,44 +446,12 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
   );
 }
 
-function WalletCardPreview({ centerName, color, logoUrl, programName, heroImageUrl, buttonText, benefitsText, infoText }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; buttonText: string; benefitsText: string; infoText: string }) {
-  const clubName = programName.trim() || "Club Diamante";
-  const cta = buttonText.trim() || "Ver beneficios";
-
+function CardPreviewPanel({ centerName, color, logoUrl, programName, heroImageUrl, benefitsText, infoText }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; benefitsText: string; infoText: string }) {
   return (
     <aside className="rounded-[22px] border border-[#ded2cb] bg-[#fffaf6] p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Live preview</p>
-      <div className="mt-4 mx-auto w-[260px] rounded-[30px] border-[7px] border-[#161616] bg-[#f7f7f7] p-2 shadow-[0_22px_48px_rgba(0,0,0,0.35)]">
-        <div className="rounded-[24px] bg-white px-3 pb-3 pt-2">
-          <div className="flex items-center justify-between px-1 text-[10px] font-semibold text-[#1e1e1e]"><span>9:30</span><span>5G ▰</span></div>
-          <div className="mt-4 text-lg leading-none text-[#1e1e1e]">‹</div>
-          <div className="mt-3 overflow-hidden rounded-[22px] text-white shadow-lg" style={{ backgroundColor: color }}>
-            <div className="border-b border-white/20 px-4 py-3">
-              <div className="flex items-center gap-3">
-                {logoUrl ? <span aria-label="Logo preview" className="h-8 w-16 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${logoUrl})` }} /> : <span className="h-8 w-16 shrink-0 rounded bg-white/10" />}
-                <p className="truncate text-[11px] font-bold">{centerName}</p>
-              </div>
-            </div>
-            <div className="px-4 py-4">
-              <p className="text-[10px] font-semibold">Club de fidelización</p>
-              <h3 className="mt-1 font-serif text-[26px] leading-none">{clubName}</h3>
-              <div className="mt-5 grid grid-cols-[1fr_auto] gap-3 border-b border-white/20 pb-3">
-                <div><p className="text-[9px] opacity-70">Nombre de socia</p><p className="text-[11px] font-bold">Nombre de la clienta</p></div>
-                <div className="text-right"><p className="text-[9px] opacity-70">Puntos</p><p className="text-[11px] font-bold">250</p></div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
-                <div><p className="opacity-70">N.º de socia</p><p className="mt-1 font-bold">SOCIO-123</p></div>
-                <div className="text-center"><p className="opacity-70">Nivel</p><p className="mt-1 font-bold">Diamante</p></div>
-                <div className="text-right"><p className="opacity-70">Beneficio</p><p className="mt-1 font-bold">{cta}</p></div>
-              </div>
-              <div className="mt-6 flex justify-center">
-                <QrCode value="https://voone.example/member/SOCIO-123" size={92} className="rounded-xl p-2" title="Preview QR" />
-              </div>
-            </div>
-            <div className="h-28 bg-[#c9a88f]/40 bg-cover bg-center" style={heroImageUrl ? { backgroundImage: `linear-gradient(90deg,rgba(46,36,33,0.45),rgba(46,36,33,0.12)),url(${heroImageUrl})` } : undefined} />
-          </div>
-          <button type="button" className="mt-3 h-8 w-full rounded-full border border-[#bfb7b2] text-[11px] font-semibold text-[#1d5fd1]">Detalles</button>
-        </div>
+      <div className="mt-4 flex justify-center">
+        <WalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} />
       </div>
       <div className="mt-4 space-y-2 text-xs text-[#806d63]">
         <p><span className="font-semibold text-[#2e2421]">Benefits:</span> {benefitsText || "Member benefits appear in pass details."}</p>

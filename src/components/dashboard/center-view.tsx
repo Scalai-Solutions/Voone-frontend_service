@@ -5,11 +5,14 @@ import Link from "next/link";
 import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
-import type { Clinic, MilestoneRewardsInput, TierRewardInput, Treatment } from "@/lib/api-client";
+import { useStaffProgram } from "@/features/program/api/useStaffProgram";
+import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
+import type { Clinic, MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
+import type { PresentedProgram } from "@/lib/onboarding-api";
+import { toPoints } from "@/lib/points";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
-  treatments?: Treatment[];
   canEdit: boolean;
 }
 
@@ -22,21 +25,47 @@ interface SetupItem {
   value: string;
 }
 
-const EMPTY_TREATMENTS: Treatment[] = [];
-
 const ownerEmailFor = (clinic: Clinic) =>
   clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
   clinic.users[0]?.email;
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
-function toTreatmentRows(treatments: Treatment[]): SetupItem[] {
-  return treatments.map((treatment) => ({
-    id: treatment.id,
-    name: treatment.name,
-    detail: typeof treatment.priceEuro === "number" ? `Precio: ${formatNumber(treatment.priceEuro)} euro` : "Precio no configurado",
-    value: `${formatNumber(treatment.points)} puntos`,
-  }));
+/** The live programme's rewards and perks, in the order a client reaches them. Tier-ups are the Niveles tab's. */
+function programRewardRows(program: PresentedProgram): SetupItem[] {
+  return program.ladder
+    .filter((step) => step.type !== "nivel")
+    .map((step) => {
+      const name = step.reward?.name ?? step.perk?.name ?? `Paso ${step.n}`;
+      const detail = step.perk?.description || step.reward?.items.map((item) => item.name).join(", ") || "Sin descripción guardada";
+
+      return {
+        id: `program-step-${step.n}`,
+        name,
+        detail,
+        value: `${formatNumber(toPoints(step.threshold))} puntos`,
+      };
+    });
+}
+
+/**
+ * A tier's floor is the PROGRESS at which the ladder promotes a member, which is the `threshold` of
+ * the "nivel" step for that tier. `PresentedTier.threshold` is real spend (what a client has paid),
+ * not progress, so it would show the upper levels too low. The first tier has no promotion step: it
+ * starts at zero.
+ */
+function programTierRows(program: PresentedProgram): SetupItem[] {
+  return program.tiers.map((tier) => {
+    const promotion = program.ladder.find((step) => step.type === "nivel" && step.tier?.key === tier.key);
+    const floor = promotion ? toPoints(promotion.threshold) : 0;
+
+    return {
+      id: `program-tier-${tier.key}`,
+      name: tier.label,
+      detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
+      value: floor === 0 ? "Desde el inicio" : `Desde ${formatNumber(floor)} puntos`,
+    };
+  });
 }
 
 function toRewardRows(rewards: TierRewardInput[] | undefined): SetupItem[] {
@@ -67,7 +96,7 @@ function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
     {
       id: "points-conversion",
       name: "Conversión de puntos",
-      detail: `Por cada ${formatNumber(milestone.priceAmount)} euro`,
+      detail: `Por cada ${formatNumber(milestone.priceAmount)} €`,
       value: `${formatNumber(milestone.pointsAwarded)} puntos`,
     },
   ];
@@ -83,7 +112,7 @@ function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; val
     { label: "Dirección", value: clinic.addressLine },
     { label: "Código postal", value: clinic.pincode },
     ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
-    { label: "Programa Wallet", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Programa Wallet", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
     { label: "Plan Voone", value: clinic.voonePlan },
     { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
     {
@@ -93,15 +122,21 @@ function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; val
   ];
 }
 
-export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterViewProps) {
+export function CenterView({ canEdit }: CenterViewProps) {
   const currentClinic = useCurrentClinic();
   const clinic = currentClinic.data;
   const [tab, setTab] = React.useState<CenterTab>("tratamientos");
-  const treatmentRowsFromClinic = React.useMemo(() => toTreatmentRows(clinic?.treatments ?? treatments), [clinic?.treatments, treatments]);
-  const rewardRowsFromClinic = React.useMemo(() => toRewardRows(clinic?.template?.tierRewards), [clinic?.template?.tierRewards]);
-  const tierRowsFromClinic = React.useMemo(() => toTierRows(clinic?.template?.milestoneRewards), [clinic?.template?.milestoneRewards]);
+  // A centre with a live programme reads its rewards and levels from it; a 404 (null) means it is still
+  // on the card design's own figures, which stay as the fallback.
+  const staffProgram = useStaffProgram();
+  const liveProgram = staffProgram.data?.program ?? null;
+  const rewardRowsFromClinic = React.useMemo(() => liveProgram ? programRewardRows(liveProgram) : toRewardRows(clinic?.template?.tierRewards), [liveProgram, clinic?.template?.tierRewards]);
+  const tierRowsFromClinic = React.useMemo(() => liveProgram ? programTierRows(liveProgram) : toTierRows(clinic?.template?.milestoneRewards), [liveProgram, clinic?.template?.milestoneRewards]);
+  const programLoading = staffProgram.isPending;
+  // Only a 404 (null above) means "no live programme". Any other failure is shown, not papered over
+  // with the card design's figures, which may not match what the centre actually runs.
+  const programFailed = staffProgram.isError;
   const clinicDetails = React.useMemo(() => toClinicDetails(clinic), [clinic]);
-  const treatmentRowsKey = React.useMemo(() => rowsKey(treatmentRowsFromClinic), [treatmentRowsFromClinic]);
   const rewardRowsKey = React.useMemo(() => rowsKey(rewardRowsFromClinic), [rewardRowsFromClinic]);
   const tierRowsKey = React.useMemo(() => rowsKey(tierRowsFromClinic), [tierRowsFromClinic]);
 
@@ -121,9 +156,9 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
         {canEdit && clinic?.template?.id ? <button type="button" onClick={() => setTab("tarjeta")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tarjeta" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tarjeta Wallet</button> : null}
       </div>
 
-      {tab === "tratamientos" ? <SetupList key={`treatments-${treatmentRowsKey}`} title="Catálogo de tratamientos" description="Servicios disponibles para tu equipo y tu programa de fidelización." valueLabel="Puntos" initialRows={treatmentRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
-      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios creados durante el onboarding. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
-      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Tiers del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending} /> : null}
+      {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} /> : null}
+      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
@@ -151,6 +186,10 @@ export function CenterView({ treatments = EMPTY_TREATMENTS, canEdit }: CenterVie
       ) : null}
     </section>
   );
+}
+
+function ProgramLoadError() {
+  return <p role="alert" className="mt-4 rounded-2xl border border-[#ead0bd] bg-[#fff8f2] px-4 py-3 text-sm font-semibold text-[#8a4d2a]">No se ha podido cargar el programa.</p>;
 }
 
 function rowsKey(rows: SetupItem[]) {

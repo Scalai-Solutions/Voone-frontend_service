@@ -28,8 +28,6 @@ import {
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
   DEFAULT_WALLET_BUTTONS,
-  DEFAULT_WALLET_HERO_IMAGE_URL,
-  DEFAULT_WALLET_LOGO_URL,
   DEFAULT_WALLET_POINTS_LABEL,
   DEFAULT_WALLET_PROGRAM_NAME,
   DEFAULT_WALLET_TEMPLATE_DESCRIPTION,
@@ -37,6 +35,9 @@ import {
   DEFAULT_WALLET_TEXT_MODULES,
   DEFAULT_WALLET_TIER_LABEL,
 } from "@/lib/default-wallet-template";
+
+/** Public Voone logo, drawn in previews only when no logo URL is entered. Never saved. */
+const PREVIEW_FALLBACK_LOGO = "/voone-logo.png";
 
 type DesignOption = {
   id: string;
@@ -159,10 +160,10 @@ export function AdminTemplateEditor({
     template?.tierLabel ?? DEFAULT_WALLET_TIER_LABEL,
   );
   const [logoUrl, setLogoUrl] = React.useState(
-    template?.logoUrl ?? DEFAULT_WALLET_LOGO_URL,
+    template?.logoUrl ?? "",
   );
   const [heroImageUrl, setHeroImageUrl] = React.useState(
-    template?.heroImageUrl ?? DEFAULT_WALLET_HERO_IMAGE_URL,
+    template?.heroImageUrl ?? "",
   );
   const [buttons, setButtons] = React.useState<VooneTemplateButton[]>(
     template?.buttons ??
@@ -294,7 +295,8 @@ export function AdminTemplateEditor({
                 pointsLabel,
                 tierLabel,
                 detail: description,
-                logoUrl,
+                // Display only: with no logo entered the preview draws the Voone logo; it is never saved.
+                logoUrl: logoUrl.trim() || PREVIEW_FALLBACK_LOGO,
                 heroImageUrl,
               }}
             />

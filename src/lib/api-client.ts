@@ -292,6 +292,11 @@ export interface Clinic {
   } | null;
   treatments?: Treatment[];
   template?: AdminClinicTemplate | null;
+  /**
+   * True when the card is not fully the clinic's own: the backend sets it when there is no own
+   * logo, no template, or a borrowed hero image or dark-background logo.
+   */
+  usesDefaultLogo?: boolean;
 }
 
 export type NotificationType =
@@ -426,8 +431,8 @@ const mockTemplates: Template[] = [
     presetId: "classic-gold",
     programName: "Gold Beauty Club",
     hexBackgroundColor: "#ead0bd",
-    pointsLabel: "Saldo Beauty",
-    tierLabel: "Miembro Gold",
+    pointsLabel: "Puntos",
+    tierLabel: "Nivel",
     benefitsText:
       "Reservas prioritarias, bonos de tratamiento para miembros y crédito de cumpleaños.",
     infoText: "Muestra este pase en recepción antes de pagar.",
@@ -892,6 +897,80 @@ export function getTreatments() {
 }
 
 /**
+ * Where a card design change stands. Every count is MEMBERS, so "synced of eligible" is a real
+ * ratio. "synced" means the member's cards are all up to date on the server since the last change;
+ * it says nothing about the phone having received it.
+ */
+export interface TemplateRefreshStatus {
+  eligible: number;
+  lastChange: { at: string; by: string | null; cardsAtSave: number } | null;
+  syncedSince: number;
+  failedSince: number;
+}
+
+export function getTemplateRefreshStatus() {
+  return staffProxyFetch<TemplateRefreshStatus>("/templates/refresh-status", { method: "GET" });
+}
+
+/** One treatment as the centre manages it in My center. Old rows can have no price. */
+export interface ManagedTreatment {
+  id: string;
+  name: string;
+  priceEuro: number | null;
+  points: number;
+  categoryId: string | null;
+}
+
+export interface TreatmentCatalogue {
+  /** True when treatments come from the catalogue: a category is required and cents are allowed. */
+  usesCatalogue: boolean;
+  items: ManagedTreatment[];
+}
+
+export interface TreatmentCategory {
+  id: string;
+  label: string;
+}
+
+/** `priceEuro` is always a number, never a string; the backend rejects anything else. */
+export interface CreateTreatmentInput {
+  name: string;
+  priceEuro: number;
+  categoryId?: string;
+}
+
+export type UpdateTreatmentInput = Partial<CreateTreatmentInput>;
+
+/** The signed-in centre's treatments, through the session-scoped proxy. No mock fallback: these are writes' source of truth. */
+export function getTreatmentCatalogue() {
+  return staffProxyFetch<TreatmentCatalogue>("/treatments", { method: "GET" });
+}
+
+export function getTreatmentCategories() {
+  return staffProxyFetch<TreatmentCategory[]>("/treatments/categories", { method: "GET" });
+}
+
+export function createTreatment(input: CreateTreatmentInput) {
+  return staffProxyFetch<ManagedTreatment>("/treatments", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateTreatment(id: string, input: UpdateTreatmentInput) {
+  return staffProxyFetch<ManagedTreatment>(`/treatments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteTreatment(id: string) {
+  return staffProxyFetch<{ status: "deleted" }>(`/treatments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/**
  * Credits a member, exactly once.
  *
  * `idempotencyKey` is REQUIRED and must be minted by the caller. That is the whole
@@ -1213,8 +1292,6 @@ export interface ProvisionClinicInput {
   benefitsText?: string;
   infoText?: string;
   treatments?: TemplateTreatmentInput[];
-  tierRewards?: TierRewardInput[];
-  milestoneRewards?: MilestoneRewardsInput;
 }
 
 export interface ProvisionedClinic {
@@ -1237,6 +1314,10 @@ export interface ProvisionedClinic {
     setupTokenExpiresAt: string;
     hasPassword: boolean;
   };
+  /** Set when the Google Wallet card could not be created yet. */
+  walletWarning?: "google_pending";
+  /** Spanish text from the server explaining `walletWarning`. */
+  walletWarningMessage?: string;
 }
 
 /**

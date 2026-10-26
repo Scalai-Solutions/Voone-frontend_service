@@ -22,12 +22,12 @@ export default async function SettingsPage() {
   const canManageTeam = hasPermission(session, PERMISSIONS.teamManage);
   const clinicFields = [
     { label: "Nombre del centro", value: clinic.name },
-    { label: "Propietaria", value: owner?.email ?? "Sin propietario guardado" },
+    { label: "Propietario/a", value: owner?.email ?? "Sin propietario guardado" },
     { label: "Dirección", value: clinic.addressLine },
     { label: "Código postal", value: clinic.pincode },
     { label: "Plan", value: clinic.voonePlan },
     { label: "Miembros activos", value: formatNumber(clinic.members) },
-    { label: "Plantilla predeterminada", value: clinic.template?.programName ?? "Sin plantilla Wallet" },
+    { label: "Diseño de tarjeta predeterminado", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
     { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
   ];
 
@@ -101,7 +101,7 @@ export default async function SettingsPage() {
           <section className="rounded-3xl bg-[#2d211e] p-5 text-white">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Soporte</p>
             <h2 className="mt-2 font-serif text-2xl font-semibold">Necesitas ayuda?</h2>
-            <p className="mt-3 text-sm leading-6 text-[#c9b7ad]">Escríbenos para facturación, problemas de acceso, plantillas Wallet o solicitudes legales.</p>
+            <p className="mt-3 text-sm leading-6 text-[#c9b7ad]">Escríbenos para facturación, problemas de acceso, diseños de tarjeta o solicitudes legales.</p>
             <a href="mailto:support@voone.ai" className="mt-5 inline-flex rounded-full bg-[#f5e8dd] px-4 py-2 text-sm font-semibold text-[#35241f]">Abrir email</a>
           </section>
         </aside>

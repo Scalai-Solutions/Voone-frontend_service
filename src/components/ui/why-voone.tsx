@@ -29,7 +29,7 @@ export function WhyVoone() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/reserva-de-nuevo.png"
-            alt="Aviso de la clínica en el móvil de una socia"
+            alt="Aviso de la clínica en el móvil de un miembro"
             className="w-full max-w-[380px] md:w-1/2 md:max-w-[440px] mx-auto object-contain drop-shadow-[0_30px_60px_rgba(67,48,43,0.35)]"
           />
 

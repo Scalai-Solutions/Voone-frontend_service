@@ -204,7 +204,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             <div key={item.id} className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3 text-sm">
               <div>
                 <p className="font-medium">{item.label}</p>
-                <p className="text-muted-foreground">{item.date} · Registro bloqueado</p>
+                <p className="text-muted-foreground">{item.date} · Movimiento permanente</p>
               </div>
               <span className="font-semibold text-success">+{item.points}</span>
             </div>
@@ -245,7 +245,7 @@ function ReaddCard({ memberId }: { memberId: string }) {
         <div className="grid justify-items-start gap-2">
           <QrCode value={url} size={192} title="Enlace para añadir la tarjeta a Wallet" />
           <p className="text-xs text-muted-foreground">
-            Pide a la clienta que escanee el código con la cámara del móvil y pulse «Añadir a Wallet».
+            Pide al cliente que escanee el código con la cámara del móvil y pulse «Añadir a Wallet».
           </p>
           <Button type="button" variant="outline" size="sm" onClick={() => setUrl(null)}>
             Ocultar
