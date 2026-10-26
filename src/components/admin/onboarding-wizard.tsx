@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
+import { toPoints } from "@/lib/points";
 import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
@@ -173,14 +174,11 @@ const intOrDefault = (value: string, fallback: number) => {
 };
 
 /**
- * Treatment points use the same ratio the programme shows clients: ten points per euro. Tiers and
- * milestone rewards are not asked for here; the backend applies its defaults and the programme
- * builder is the only place they change afterwards.
+ * Treatment points use the ratio the programme shows clients (see lib/points). Tiers and milestone
+ * rewards are not asked for here; the backend applies its defaults and the programme builder is the
+ * only place they change afterwards.
  */
-const POINTS_PER_EURO = 10;
-
 const treatmentsPayload = (values: OnboardingValues) => {
-  const pointsForPrice = (priceEuro: number) => Math.round(priceEuro * POINTS_PER_EURO);
   const treatments = values.treatments
     .map((treatment) => ({
       name: treatment.name.trim(),
@@ -189,7 +187,7 @@ const treatmentsPayload = (values: OnboardingValues) => {
     .filter((treatment) => treatment.name.length > 0)
     .map((treatment) => ({
       ...treatment,
-      pointsAllotted: pointsForPrice(treatment.priceEuro),
+      pointsAllotted: toPoints(treatment.priceEuro),
     }));
 
   return treatments;

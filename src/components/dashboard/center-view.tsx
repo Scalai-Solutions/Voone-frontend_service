@@ -9,6 +9,7 @@ import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
 import type { Clinic, MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import type { PresentedProgram } from "@/lib/onboarding-api";
+import { toPoints } from "@/lib/points";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
@@ -30,13 +31,6 @@ const ownerEmailFor = (clinic: Clinic) =>
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
-/**
- * What a client sees as "points": the programme counts progress in euros and shows it ten times
- * larger, the same constant the backend applies at the edge (POINTS_PER_EURO = 10).
- */
-const POINTS_PER_EURO = 10;
-const toPoints = (progress: number) => Math.round(progress * POINTS_PER_EURO);
-
 /** The live programme's rewards and perks, in the order a client reaches them. Tier-ups are the Niveles tab's. */
 function programRewardRows(program: PresentedProgram): SetupItem[] {
   return program.ladder
@@ -54,13 +48,24 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
     });
 }
 
+/**
+ * A tier's floor is the PROGRESS at which the ladder promotes a member, which is the `threshold` of
+ * the "nivel" step for that tier. `PresentedTier.threshold` is real spend (what a client has paid),
+ * not progress, so it would show the upper levels too low. The first tier has no promotion step: it
+ * starts at zero.
+ */
 function programTierRows(program: PresentedProgram): SetupItem[] {
-  return program.tiers.map((tier) => ({
-    id: `program-tier-${tier.key}`,
-    name: tier.label,
-    detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
-    value: tier.threshold === 0 ? "Desde el inicio" : `Desde ${formatNumber(toPoints(tier.threshold))} puntos`,
-  }));
+  return program.tiers.map((tier) => {
+    const promotion = program.ladder.find((step) => step.type === "nivel" && step.tier?.key === tier.key);
+    const floor = promotion ? toPoints(promotion.threshold) : 0;
+
+    return {
+      id: `program-tier-${tier.key}`,
+      name: tier.label,
+      detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
+      value: floor === 0 ? "Desde el inicio" : `Desde ${formatNumber(floor)} puntos`,
+    };
+  });
 }
 
 function toRewardRows(rewards: TierRewardInput[] | undefined): SetupItem[] {
@@ -128,6 +133,9 @@ export function CenterView({ canEdit }: CenterViewProps) {
   const rewardRowsFromClinic = React.useMemo(() => liveProgram ? programRewardRows(liveProgram) : toRewardRows(clinic?.template?.tierRewards), [liveProgram, clinic?.template?.tierRewards]);
   const tierRowsFromClinic = React.useMemo(() => liveProgram ? programTierRows(liveProgram) : toTierRows(clinic?.template?.milestoneRewards), [liveProgram, clinic?.template?.milestoneRewards]);
   const programLoading = staffProgram.isPending;
+  // Only a 404 (null above) means "no live programme". Any other failure is shown, not papered over
+  // with the card design's figures, which may not match what the centre actually runs.
+  const programFailed = staffProgram.isError;
   const clinicDetails = React.useMemo(() => toClinicDetails(clinic), [clinic]);
   const rewardRowsKey = React.useMemo(() => rowsKey(rewardRowsFromClinic), [rewardRowsFromClinic]);
   const tierRowsKey = React.useMemo(() => rowsKey(tierRowsFromClinic), [tierRowsFromClinic]);
@@ -149,8 +157,8 @@ export function CenterView({ canEdit }: CenterViewProps) {
       </div>
 
       {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} /> : null}
-      {tab === "recompensas" ? <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} /> : null}
-      {tab === "niveles" ? <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} /> : null}
+      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
@@ -178,6 +186,10 @@ export function CenterView({ canEdit }: CenterViewProps) {
       ) : null}
     </section>
   );
+}
+
+function ProgramLoadError() {
+  return <p role="alert" className="mt-4 rounded-2xl border border-[#ead0bd] bg-[#fff8f2] px-4 py-3 text-sm font-semibold text-[#8a4d2a]">No se ha podido cargar el programa.</p>;
 }
 
 function rowsKey(rows: SetupItem[]) {

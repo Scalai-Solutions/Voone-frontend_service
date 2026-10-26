@@ -1292,8 +1292,6 @@ export interface ProvisionClinicInput {
   benefitsText?: string;
   infoText?: string;
   treatments?: TemplateTreatmentInput[];
-  tierRewards?: TierRewardInput[];
-  milestoneRewards?: MilestoneRewardsInput;
 }
 
 export interface ProvisionedClinic {

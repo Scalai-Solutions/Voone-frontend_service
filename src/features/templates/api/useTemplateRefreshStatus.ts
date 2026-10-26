@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 const POLL_EVERY_MS = 10_000;
 
-/** After a save: keep checking until a window closes, or until every card of the new change is synced. */
+/** After a save: keep checking until a window closes, or until every member of the new change is either synced or failed. */
 export interface RefreshPolling {
   /** Epoch ms when checking stops, whatever the counts say. */
   until: number;
@@ -26,7 +26,7 @@ export function useTemplateRefreshStatus(options: { enabled: boolean; polling?: 
       const status = query.state.data;
       const isNewChange = status?.lastChange && status.lastChange.at !== polling.previousChangeAt;
 
-      if (status?.lastChange && isNewChange && status.syncedSince >= status.lastChange.cardsAtSave) {
+      if (status?.lastChange && isNewChange && status.syncedSince + status.failedSince >= status.lastChange.cardsAtSave) {
         return false;
       }
 

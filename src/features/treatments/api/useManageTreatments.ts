@@ -30,7 +30,7 @@ export function useTreatmentCategories(enabled: boolean) {
 }
 
 /**
- * After any write, refresh the list, the clinic summary and the visit screen's treatments.
+ * After any write, refresh the list, the clinic summary and the treatments the visit screens read.
  * Also runs after a failed write: a 404 means the list is stale and should reload.
  */
 function useRefreshTreatments() {
@@ -41,6 +41,8 @@ function useRefreshTreatments() {
       queryClient.invalidateQueries({ queryKey: queryKeys.treatmentCatalogue() }),
       queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() }),
       queryClient.invalidateQueries({ queryKey: queryKeys.treatments() }),
+      // The visit form of a programme centre reads its own catalogue.
+      queryClient.invalidateQueries({ queryKey: queryKeys.staffCatalog() }),
     ]);
 }
 

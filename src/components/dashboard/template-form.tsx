@@ -34,7 +34,11 @@ const optionalUrlSchema = z
   .optional()
   .or(z.literal(""));
 
-const templateSchema = z.object({
+const treatmentSchema = z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), priceEuro: z.number().optional(), pointsAllotted: z.number().int().min(0) });
+
+type TreatmentValue = z.infer<typeof treatmentSchema>;
+
+const designFields = {
   presetId: z.string().min(1, "Selecciona un diseño inicial"),
   programName: z.string().trim().min(2, "Añade el nombre del programa").max(120, "Máximo 120 caracteres"),
   hexBackgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Elige un color hexadecimal válido"),
@@ -45,10 +49,14 @@ const templateSchema = z.object({
   tierLabel: z.string().trim().min(2, "Añade la etiqueta de nivel").max(80, "Máximo 80 caracteres"),
   benefitsText: z.string().trim().min(8, "Añade un mensaje breve de beneficios").max(1200, "Máximo 1200 caracteres"),
   infoText: z.string().trim().min(8, "Añade un mensaje breve de información").max(1200, "Máximo 1200 caracteres"),
-  treatments: z.array(z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), priceEuro: z.number().optional(), pointsAllotted: z.number().int().min(0) })).min(1, "Añade al menos un tratamiento"),
-});
+};
 
-type TemplateFormValues = z.infer<typeof templateSchema>;
+// A new design starts with a treatment, so it is validated. An existing design's treatments are
+// managed in My center and not shown here, so an error about them would have no field to sit on.
+const createSchema = z.object({ ...designFields, treatments: z.array(treatmentSchema).min(1, "Añade al menos un tratamiento") });
+const updateSchema = z.object({ ...designFields, treatments: z.array(z.custom<TreatmentValue>()) });
+
+type TemplateFormValues = z.infer<typeof createSchema>;
 type TemplateTab = "edit" | "preview";
 
 const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -133,17 +141,15 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [heroUnchecked, setHeroUnchecked] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
-  // A validated save waiting for the person to confirm how many cards it reaches.
-  const [pendingInput, setPendingInput] = React.useState<SaveTemplateInput | null>(null);
+  // True while the person is asked to confirm how many cards a save reaches.
+  const [confirming, setConfirming] = React.useState(false);
   const [polling, setPolling] = React.useState<RefreshPolling | null>(null);
-  const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
+  const form = useForm<TemplateFormValues>({ resolver: zodResolver(initialTemplate ? updateSchema : createSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
 
   // Saving the design must not rewrite the catalogue. Treatments are edited in My center, not here,
   // so they go along only when this form creates the template (with its starter treatment).
   const saveInput = (input: TemplateFormValues): SaveTemplateInput =>
-    initialTemplate && !form.formState.dirtyFields.treatments
-      ? { ...input, treatments: undefined }
-      : input;
+    initialTemplate ? { ...input, treatments: undefined } : input;
   const values = form.watch();
 
   // Only the centre's own session can read its card status; the admin route has no such view.
@@ -238,7 +244,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   });
 
   function save(input: SaveTemplateInput) {
-    setPendingInput(null);
+    setConfirming(false);
     setStatusMessage(null);
     // Remember what the last change was, so the progress that follows is for this one.
     setPolling({ until: 0, previousChangeAt: lastChange?.at ?? null });
@@ -247,15 +253,13 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
   // Changing an existing design reaches cards that are already out, so it is confirmed first.
   function submit(input: TemplateFormValues) {
-    const payload = saveInput(input);
-
     if (statusEnabled) {
       void refreshStatus.refetch();
-      setPendingInput(payload);
+      setConfirming(true);
       return;
     }
 
-    save(payload);
+    save(saveInput(input));
   }
 
   function selectPreset(preset: TemplatePreset) {
@@ -373,20 +377,22 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
         </section>
       ) : null}
 
-      {pendingInput ? (
+      {confirming ? (
         <section role="alertdialog" aria-labelledby="template-confirm-title" className="rounded-3xl border border-[#d9b98f] bg-[#fff8ed] p-4">
           <p id="template-confirm-title" className="font-semibold text-[#2e2421]">
             {refreshStatus.isPending
               ? "Comprobando cuántas tarjetas se actualizarán..."
               : status
                 ? status.eligible > 0
-                  ? `Se actualizarán ${status.eligible.toLocaleString("es-ES")} tarjetas`
+                  ? status.eligible === 1
+                    ? "Se actualizará 1 tarjeta"
+                    : `Se actualizarán ${status.eligible.toLocaleString("es-ES")} tarjetas`
                   : "Todavía no hay tarjetas emitidas; el cambio se aplicará a las nuevas."
                 : "No se pudo comprobar cuántas tarjetas se actualizarán."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" className="rounded-2xl" disabled={mutation.isPending} onClick={() => save(pendingInput)}>Guardar y actualizar</Button>
-            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setPendingInput(null)}>Cancelar</Button>
+            <Button type="button" className="rounded-2xl" disabled={mutation.isPending} onClick={() => void form.handleSubmit((input) => save(saveInput(input)), () => setConfirming(false))()}>Guardar y actualizar</Button>
+            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setConfirming(false)}>Cancelar</Button>
           </div>
         </section>
       ) : null}
@@ -403,7 +409,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               </p>
               {status.failedSince > 0 ? (
                 <p className="mt-1 text-destructive">
-                  {status.failedSince.toLocaleString("es-ES")} tarjetas con error: se reintentarán al guardar de nuevo.
+                  {status.failedSince === 1 ? "1 tarjeta con error" : `${status.failedSince.toLocaleString("es-ES")} tarjetas con error`}: se reintentarán al guardar de nuevo.
                 </p>
               ) : null}
             </>

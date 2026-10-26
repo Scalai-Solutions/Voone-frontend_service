@@ -37,11 +37,14 @@ function messageFor(error: unknown): string {
 type PriceResult = { value: number } | { error: string };
 
 /**
- * Reads the price as typed. Accepts "60", "60,5" and "60.50". The result is a number, which is
- * what the API wants. Centres on the catalogue may use cents; the others only whole euros.
+ * Reads the price as typed. Accepts "60", "60,5" and "60.50". A dot followed by exactly three
+ * digits is Spanish thousands grouping ("1.500" is 1500, "1.234,50" is 1234.5). The result is a
+ * number, which is what the API wants. Centres on the catalogue may use cents; the others only whole euros.
  */
 function parsePrice(raw: string, usesCatalogue: boolean): PriceResult {
-  const text = raw.replace(/[\s€]/g, "");
+  let text = raw.replace(/[\s€]/g, "");
+
+  if (/^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(text)) text = text.replace(/\./g, "");
 
   if (!text) return { error: "Indica el precio." };
   if (!/^\d+([.,]\d+)?$/.test(text)) return { error: "El precio debe ser un número, por ejemplo 60 o 60,50." };
@@ -188,7 +191,7 @@ function TreatmentForm({
 export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
   const catalogue = useTreatmentCatalogue();
   const usesCatalogue = catalogue.data?.usesCatalogue ?? false;
-  const categoriesQuery = useTreatmentCategories(canEdit && usesCatalogue);
+  const categoriesQuery = useTreatmentCategories(usesCatalogue);
   const categories = React.useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const categoryLabels = React.useMemo(
     () => new Map(categories.map((category) => [category.id, category.label])),
