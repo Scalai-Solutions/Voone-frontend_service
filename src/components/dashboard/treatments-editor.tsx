@@ -4,6 +4,8 @@ import * as React from "react";
 import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
 import { Field } from "@/components/ui/field";
+import { BonoPlansEditor } from "@/components/shared/bono-plans-editor";
+import { useStaffBonoPlansStore } from "@/features/bonos/api/useBonos";
 import {
   useCreateTreatment,
   useDeleteTreatment,
@@ -200,6 +202,7 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
   const createMutation = useCreateTreatment();
   const updateMutation = useUpdateTreatment();
   const deleteMutation = useDeleteTreatment();
+  const bonoStore = useStaffBonoPlansStore();
   // "new", a treatment id (edit or removal), or null. The error shows next to that form or row.
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
@@ -396,6 +399,12 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
           </div>
         );
       })}
+
+      {canEdit ? (
+        <div className="border-t border-[#eadfd8] p-5">
+          <BonoPlansEditor store={bonoStore} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -345,3 +345,34 @@ export const getCalculator = (clinicId: string, programId: string, input: Partia
     method: "POST",
     ...json(input),
   });
+
+/* ---------------------------------------------------------------------------- bonos */
+
+import type {
+  BonoPlanRow,
+  CreateBonoPlanInput,
+  UpdateBonoPlanInput,
+} from "@/lib/bono-api";
+
+export const getBonoPlans = (clinicId: string) =>
+  request<{ plans: BonoPlanRow[] }>(clinicId, "/bonos").then((r) => r.plans);
+
+export const createBonoPlan = (clinicId: string, input: CreateBonoPlanInput) =>
+  request<BonoPlanRow>(clinicId, "/bonos", { method: "POST", ...json(input) });
+
+export const updateBonoPlan = (
+  clinicId: string,
+  id: string,
+  patch: UpdateBonoPlanInput,
+) =>
+  request<BonoPlanRow>(clinicId, `/bonos/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    ...json(patch),
+  });
+
+export const deleteBonoPlan = (clinicId: string, id: string) =>
+  request<{ status: "deleted" | "retired" }>(
+    clinicId,
+    `/bonos/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );

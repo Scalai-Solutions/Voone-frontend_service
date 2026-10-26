@@ -25,11 +25,21 @@ export type VisitInput =
       kind: "PAYMENT";
       lines: VisitLineInput[];
       discountedProducts?: number;
+      /** Optional hand-awarded gift, in points (multiples of 10). */
+      bonusPoints?: number;
       idempotencyKey: string;
     }
   | {
       kind: "BONO_SESSION";
-      package: { name?: string; priceEuro: number; sessions: number };
+      /** The plan to start, or the member's active bono from it. */
+      planId?: string;
+      /** The member's bono directly. */
+      memberBonoId?: string;
+      /** Legacy free-text package, recorded with no bono to track. */
+      package?: { name?: string; priceEuro: number; sessions: number };
+      /** For a client who already did sessions elsewhere before tracking started here. */
+      startAtSession?: number;
+      bonusPoints?: number;
       idempotencyKey: string;
     };
 
@@ -54,6 +64,17 @@ export interface VisitOutcome {
   tier: string | null;
   issued: IssuedReward[];
   discountRemaining: number;
+  /** The bono the session came out of; null for a payment visit or a legacy package. */
+  bono: {
+    id: string;
+    name: string;
+    session: number;
+    total: number;
+    remaining: number;
+    status: "ACTIVE" | "COMPLETED";
+  } | null;
+  /** Whole points the progress gained from the bonus field, 0 when there was none. */
+  bonusPoints: number;
 }
 
 export interface MemberReward {

@@ -18,6 +18,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const allMembersAudience = "all";
+/** The auto-created segment: members holding a bono with sessions left. */
+const activeBonoAudience = "activeBono";
+type Audience = typeof allMembersAudience | typeof activeBonoAudience;
 const finalNotificationStatuses = new Set<NotificationStatus>([
   "SENT",
   "PARTIAL_FAILED",
@@ -27,6 +30,9 @@ const finalNotificationStatuses = new Set<NotificationStatus>([
 const defaultBirthdayHeader = "¡Feliz cumpleaños!";
 const defaultBirthdayBody =
   "¡Feliz cumpleaños! Disfruta de un 10% de descuento en nuestros servicios. Esperamos verte pronto.";
+const defaultBonoReminderHeader = "Tienes sesiones pendientes";
+const defaultBonoReminderBody =
+  "Te quedan sesiones de tu bono. Reserva tu próxima cita cuando quieras.";
 const manualQuotaLowThreshold = 5;
 
 export function CommunicationsPageClient() {
@@ -37,7 +43,7 @@ export function CommunicationsPageClient() {
   );
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
-  const [audience, setAudience] = React.useState(allMembersAudience);
+  const [audience, setAudience] = React.useState<Audience>(allMembersAudience);
   const [sendWhen, setSendWhen] = React.useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = React.useState("");
   const [sendState, setSendState] = React.useState<
@@ -59,6 +65,15 @@ export function CommunicationsPageClient() {
   const [birthdayBody, setBirthdayBody] = React.useState(defaultBirthdayBody);
   const [birthdayEnabled, setBirthdayEnabled] = React.useState(true);
   const [birthdayNotify, setBirthdayNotify] = React.useState(true);
+  const [
+    bonoReminderHeader,
+    setBonoReminderHeader,
+  ] = React.useState(defaultBonoReminderHeader);
+  const [bonoReminderBody, setBonoReminderBody] = React.useState(
+    defaultBonoReminderBody,
+  );
+  const [bonoReminderEnabled, setBonoReminderEnabled] = React.useState(true);
+  const [bonoReminderNotify, setBonoReminderNotify] = React.useState(true);
   const [notifyOnCredit, setNotifyOnCredit] = React.useState<NotifyOnCredit>("MILESTONE_AND_TIER");
   const [marketingEnabled, setMarketingEnabled] = React.useState(true);
   const maxLength = 180;
@@ -86,6 +101,10 @@ export function CommunicationsPageClient() {
         setBirthdayBody(value.birthdayBody || defaultBirthdayBody);
         setBirthdayEnabled(value.birthdayEnabled);
         setBirthdayNotify(value.birthdayNotify);
+        setBonoReminderHeader(value.bonoReminderHeader || defaultBonoReminderHeader);
+        setBonoReminderBody(value.bonoReminderBody || defaultBonoReminderBody);
+        setBonoReminderEnabled(value.bonoReminderEnabled);
+        setBonoReminderNotify(value.bonoReminderNotify);
         setNotifyOnCredit(value.notifyOnCredit);
         setMarketingEnabled(value.marketingEnabled);
         setSettingsState("idle");
@@ -141,6 +160,10 @@ export function CommunicationsPageClient() {
       birthdayHeader: birthdayHeader.trim(),
       birthdayBody: birthdayBody.trim(),
       birthdayNotify,
+      bonoReminderEnabled,
+      bonoReminderHeader: bonoReminderHeader.trim(),
+      bonoReminderBody: bonoReminderBody.trim(),
+      bonoReminderNotify,
       ...patch,
     };
 
@@ -157,6 +180,10 @@ export function CommunicationsPageClient() {
       setBirthdayHeader(saved.birthdayHeader || defaultBirthdayHeader);
       setBirthdayBody(saved.birthdayBody || defaultBirthdayBody);
       setBirthdayNotify(saved.birthdayNotify);
+      setBonoReminderHeader(saved.bonoReminderHeader || defaultBonoReminderHeader);
+      setBonoReminderBody(saved.bonoReminderBody || defaultBonoReminderBody);
+      setBonoReminderEnabled(saved.bonoReminderEnabled);
+      setBonoReminderNotify(saved.bonoReminderNotify);
       setSettingsState("saved");
       setSettingsMessage(message);
     } catch (error) {
@@ -182,6 +209,15 @@ export function CommunicationsPageClient() {
     await saveAutomationSettings("Automatización después de visita guardada.", {
       notifyOnCredit,
       marketingEnabled,
+    });
+  };
+
+  const saveBonoReminderAutomation = async () => {
+    await saveAutomationSettings("Automatización de bonos guardada.", {
+      bonoReminderEnabled,
+      bonoReminderHeader: bonoReminderHeader.trim(),
+      bonoReminderBody: bonoReminderBody.trim(),
+      bonoReminderNotify,
     });
   };
 
@@ -220,7 +256,7 @@ export function CommunicationsPageClient() {
             )
           : await sendSegmentNotification(
               currentClinic.data.id,
-              { ...input, segment: { tier: audience } },
+              { ...input, segment: { activeBono: true } },
               idempotencyKey,
             );
 
@@ -392,7 +428,7 @@ export function CommunicationsPageClient() {
             <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">
               {noticeTab === "manuales"
                 ? `${manualQuotaRemaining} disponibles`
-                : "2 automatizaciones"}
+                : "3 automatizaciones"}
             </span>
           </div>
 
@@ -548,6 +584,77 @@ export function CommunicationsPageClient() {
                   {settingsState === "saving" ? "Guardando..." : "Guardar después de visita"}
                 </button>
               </div>
+
+              <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">Recordatorio de bonos</p>
+                    <p className="mt-1 text-sm leading-6 text-[#927e72]">
+                      Se envía el día 1 de cada mes a clientes con un bono
+                      activo y pase Wallet sincronizado.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-[#806d63]">
+                    <input
+                      type="checkbox"
+                      checked={bonoReminderEnabled}
+                      onChange={(event) =>
+                        setBonoReminderEnabled(event.target.checked)
+                      }
+                      className="h-4 w-4 accent-[#b8864b]"
+                    />
+                    Activo
+                  </label>
+                </div>
+
+                <label className="mt-4 block text-sm font-semibold">
+                  Título
+                  <input
+                    value={bonoReminderHeader}
+                    onChange={(event) =>
+                      setBonoReminderHeader(event.target.value.slice(0, 60))
+                    }
+                    maxLength={60}
+                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
+                  />
+                </label>
+                <label className="mt-4 block text-sm font-semibold">
+                  Mensaje de recordatorio
+                  <textarea
+                    value={bonoReminderBody}
+                    onChange={(event) =>
+                      setBonoReminderBody(event.target.value.slice(0, 500))
+                    }
+                    rows={4}
+                    className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
+                  />
+                  <span className="mt-1 block text-right text-xs text-[#927e72]">
+                    {bonoReminderBody.length}/500
+                  </span>
+                </label>
+                <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#806d63]">
+                  <input
+                    type="checkbox"
+                    checked={bonoReminderNotify}
+                    onChange={(event) =>
+                      setBonoReminderNotify(event.target.checked)
+                    }
+                    className="h-4 w-4 accent-[#b8864b]"
+                  />
+                  Enviar como notificación push si el Wallet lo permite
+                </label>
+                <button
+                  onClick={() => void saveBonoReminderAutomation()}
+                  disabled={
+                    settingsState === "saving" ||
+                    !bonoReminderHeader.trim() ||
+                    !bonoReminderBody.trim()
+                  }
+                  className="mt-4 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {settingsState === "saving" ? "Guardando..." : "Guardar recordatorio de bonos"}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -587,10 +694,15 @@ export function CommunicationsPageClient() {
                   Segmento
                   <select
                     value={audience}
-                    onChange={(event) => setAudience(event.target.value)}
+                    onChange={(event) =>
+                      setAudience(event.target.value as Audience)
+                    }
                     className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white py-3 pl-3 pr-10 font-normal"
                   >
                     <option value={allMembersAudience}>Todos los miembros activos</option>
+                    <option value={activeBonoAudience}>
+                      Miembros con bono activo
+                    </option>
                   </select>
                 </label>
                 <label className="text-sm font-semibold">

@@ -5,10 +5,15 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import type { BonoPlansStore } from "@/components/shared/bono-plans-editor";
 import type { TierKey } from "@/lib/onboarding-api";
 import {
+  createBonoPlan,
   createDraft,
+  deleteBonoPlan,
+  getBonoPlans,
   getCalculator,
   getCatalog,
   getEstimates,
@@ -21,6 +26,7 @@ import {
   replaceCatalog,
   setTierBenefits,
   swapMilestone,
+  updateBonoPlan,
   type CalcInput,
   type CatalogInputRow,
   type OnboardingAnswers,
@@ -237,4 +243,56 @@ export function useRecalibration(clinicId: string, enabled: boolean) {
     enabled,
     retry: false,
   });
+}
+
+/**
+ * The shared editor's store over the admin onboarding proxy: what the catalogue step passes
+ * to BonoPlansEditor while a centre is being set up.
+ */
+export function useAdminBonoPlansStore(clinicId: string): BonoPlansStore {
+  const queryClient = useQueryClient();
+  const plans = useQuery({
+    queryKey: queryKeys.onboarding.bonos(clinicId),
+    queryFn: () => getBonoPlans(clinicId),
+    staleTime: 60_000,
+  });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.onboarding.bonos(clinicId),
+    });
+  };
+  const create = useMutation({
+    mutationFn: (input: import("@/lib/bono-api").CreateBonoPlanInput) =>
+      createBonoPlan(clinicId, input),
+    onSuccess: invalidate,
+  });
+  const update = useMutation({
+    mutationFn: ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: import("@/lib/bono-api").UpdateBonoPlanInput;
+    }) => updateBonoPlan(clinicId, id, patch),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteBonoPlan(clinicId, id),
+    onSuccess: invalidate,
+  });
+  const failure = create.error ?? update.error ?? remove.error;
+
+  return {
+    plans: plans.data ?? [],
+    pending: create.isPending || update.isPending || remove.isPending,
+    error:
+      failure instanceof ApiError && failure.detail
+        ? failure.detail
+        : failure
+          ? "No se pudo guardar el bono. Inténtalo de nuevo."
+          : null,
+    create: (input) => create.mutate(input),
+    update: (id, patch) => update.mutate({ id, patch }),
+    remove: (id) => remove.mutate(id),
+  };
 }

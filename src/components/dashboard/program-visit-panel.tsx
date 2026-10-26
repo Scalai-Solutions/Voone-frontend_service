@@ -15,6 +15,12 @@ import {
   SELECTABLE_CATEGORIES,
 } from "@/components/admin/program/categories";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import {
+  useBonoPlans,
+  useCancelMemberBono,
+  useMemberBonos,
+} from "@/features/bonos/api/useBonos";
 import {
   useMemberRewards,
   useRecordVisit,
@@ -41,6 +47,8 @@ interface LineDraft {
   key: number;
   category: CategoryCode | "";
   amount: string;
+  /** The catalogue item picked for this line, so the dropdown shows it as chosen. */
+  picked: string;
 }
 
 /** "12,50" and "12.50" both mean twelve euros fifty; people in Spain type the first. */
@@ -90,13 +98,19 @@ export function ProgramVisitPanel({
 }) {
   const [mode, setMode] = React.useState<"PAYMENT" | "BONO_SESSION">("PAYMENT");
   const [lines, setLines] = React.useState<LineDraft[]>([
-    { key: 1, category: "", amount: "" },
+    { key: 1, category: "", amount: "", picked: "" },
   ]);
   const nextKey = React.useRef(2);
   const [discounted, setDiscounted] = React.useState("");
   const [packageName, setPackageName] = React.useState("");
   const [packagePrice, setPackagePrice] = React.useState("");
   const [packageSessions, setPackageSessions] = React.useState("");
+  /** "", "bono:<id>", "plan:<id>" or "manual" — what the session comes out of. */
+  const [bonoChoice, setBonoChoice] = React.useState("");
+  /** Only for a plan that starts mid-way, for a client who did sessions elsewhere. */
+  const [startAtSession, setStartAtSession] = React.useState("");
+  /** Bonus points, optional, in multiples of ten. */
+  const [bonusPoints, setBonusPoints] = React.useState("");
   const [notice, setNotice] = React.useState<string | null>(null);
   const [outcome, setOutcome] = React.useState<VisitOutcome | null>(null);
   const [recordedVisitId, setVisitId] = React.useState<string | null>(null);
@@ -117,6 +131,17 @@ export function ProgramVisitPanel({
   const catalog = useStaffCatalog();
   const record = useRecordVisit(memberId);
   const rewards = useMemberRewards(memberId, true);
+  const bonoPlans = useBonoPlans();
+  const memberBonos = useMemberBonos(memberId, mode === "BONO_SESSION");
+  const cancelBono = useCancelMemberBono(memberId);
+
+  const activePlans = (bonoPlans.data ?? []).filter((plan) => plan.active);
+  const activeBonos = (memberBonos.data ?? []).filter(
+    (bono) => bono.status === "ACTIVE",
+  );
+  const selectedBono = bonoChoice.startsWith("bono:")
+    ? (activeBonos.find((bono) => bono.id === bonoChoice.slice(5)) ?? null)
+    : null;
 
   const updateLine = (key: number, patch: Partial<LineDraft>) => {
     setNotice(null);
@@ -134,11 +159,14 @@ export function ProgramVisitPanel({
       setOutcome(result);
       setVisitId(result.visitId);
       storeVisit(memberId, result.visitId);
-      setLines([{ key: nextKey.current++, category: "", amount: "" }]);
+      setLines([{ key: nextKey.current++, category: "", amount: "", picked: "" }]);
       setDiscounted("");
       setPackageName("");
       setPackagePrice("");
       setPackageSessions("");
+      setBonoChoice("");
+      setStartAtSession("");
+      setBonusPoints("");
     };
     const onError = (error: unknown) =>
       setNotice(
@@ -151,28 +179,80 @@ export function ProgramVisitPanel({
     visitKeyRef.current ??= newIdempotencyKey();
     const idempotencyKey = visitKeyRef.current;
 
+    // Bonus points: optional, whole multiples of ten — the ledger holds whole euros.
+    const bonus = bonusPoints.trim() === "" ? undefined : Number(bonusPoints.trim());
+
+    if (
+      bonus !== undefined &&
+      (!Number.isInteger(bonus) || bonus < 10 || bonus % 10 !== 0)
+    ) {
+      setNotice("Los puntos extra deben ser múltiplos de 10 (10 puntos = 1 €).");
+      return;
+    }
+
     if (mode === "BONO_SESSION") {
-      const priceEuro = parseAmount(packagePrice);
-      const sessions = Number(packageSessions);
-
-      if (!packageName.trim()) {
-        setNotice("Indica el nombre del bono.");
+      if (bonoChoice.startsWith("bono:")) {
+        record.mutate(
+          {
+            kind: "BONO_SESSION",
+            memberBonoId: bonoChoice.slice(5),
+            ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+            idempotencyKey,
+          },
+          { onSuccess, onError },
+        );
         return;
       }
 
-      if (!(priceEuro > 0) || !Number.isInteger(sessions) || sessions < 1) {
-        setNotice("Indica el precio del bono y cuántas sesiones tiene.");
+      if (bonoChoice.startsWith("plan:")) {
+        const start =
+          startAtSession.trim() === "" ? undefined : Number(startAtSession.trim());
+
+        if (start !== undefined && (!Number.isInteger(start) || start < 1)) {
+          setNotice("La sesión inicial tiene que ser un número entero.");
+          return;
+        }
+
+        record.mutate(
+          {
+            kind: "BONO_SESSION",
+            planId: bonoChoice.slice(5),
+            ...(start !== undefined ? { startAtSession: start } : {}),
+            ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+            idempotencyKey,
+          },
+          { onSuccess, onError },
+        );
         return;
       }
 
-      record.mutate(
-        {
-          kind: "BONO_SESSION",
-          package: { name: packageName.trim(), priceEuro, sessions },
-          idempotencyKey,
-        },
-        { onSuccess, onError },
-      );
+      if (bonoChoice === "manual") {
+        const priceEuro = parseAmount(packagePrice);
+        const sessions = Number(packageSessions);
+
+        if (!packageName.trim()) {
+          setNotice("Indica el nombre del bono.");
+          return;
+        }
+
+        if (!(priceEuro > 0) || !Number.isInteger(sessions) || sessions < 1) {
+          setNotice("Indica el precio del bono y cuántas sesiones tiene.");
+          return;
+        }
+
+        record.mutate(
+          {
+            kind: "BONO_SESSION",
+            package: { name: packageName.trim(), priceEuro, sessions },
+            ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+            idempotencyKey,
+          },
+          { onSuccess, onError },
+        );
+        return;
+      }
+
+      setNotice("Elige el bono de la clienta o un plan para empezar uno nuevo.");
       return;
     }
 
@@ -209,7 +289,13 @@ export function ProgramVisitPanel({
     }
 
     record.mutate(
-      { kind: "PAYMENT", lines: parsed, discountedProducts, idempotencyKey },
+      {
+        kind: "PAYMENT",
+        lines: parsed,
+        discountedProducts,
+        ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+        idempotencyKey,
+      },
       { onSuccess, onError },
     );
   };
@@ -273,30 +359,31 @@ export function ProgramVisitPanel({
                 <label className="text-xs font-medium text-muted-foreground">
                   Qué se ha pagado
                   {(catalog.data ?? []).length > 0 ? (
-                    <select
-                      value=""
-                      onChange={(event) => {
+                    <Combobox
+                      value={line.picked}
+                      onChange={(value) => {
                         const item = (catalog.data ?? []).find(
-                          (entry) => entry.externalId === event.target.value,
+                          (entry) => entry.externalId === value,
                         );
 
                         if (item) {
+                          // The pick fills the line AND stays visible in the dropdown
+                          // itself, so the staff member sees what they chose.
                           updateLine(line.key, {
                             category: item.category ?? "",
                             amount: String(item.priceEuro).replace(".", ","),
+                            picked: item.externalId,
                           });
                         }
                       }}
-                      className={inputClass}
-                    >
-                      <option value="">Elegir del catálogo…</option>
-                      {(catalog.data ?? []).map((item) => (
-                        <option key={item.externalId} value={item.externalId}>
-                          {item.name} · {item.priceEuro.toLocaleString("es-ES")}{" "}
-                          €
-                        </option>
-                      ))}
-                    </select>
+                      options={(catalog.data ?? []).map((item) => ({
+                        value: item.externalId,
+                        label: item.name,
+                        hint: `${item.priceEuro.toLocaleString("es-ES")} €`,
+                      }))}
+                      placeholder="Elegir del catálogo…"
+                      emptyMessage="Nada coincide con esa búsqueda."
+                    />
                   ) : null}
                   <select
                     value={line.category}
@@ -354,7 +441,7 @@ export function ProgramVisitPanel({
                 onClick={() =>
                   setLines((current) => [
                     ...current,
-                    { key: nextKey.current++, category: "", amount: "" },
+                    { key: nextKey.current++, category: "", amount: "", picked: "" },
                   ])
                 }
               >
@@ -377,45 +464,149 @@ export function ProgramVisitPanel({
             </div>
           </div>
         ) : (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-medium text-muted-foreground sm:col-span-2">
-              Nombre del bono
-              <input
-                value={packageName}
-                onChange={(event) => {
-                  setPackageName(event.target.value);
-                  setNotice(null);
-                }}
-                placeholder="Bono facial 5 sesiones"
-                className={inputClass}
-              />
-            </label>
+          <div className="mt-3 grid gap-3">
             <label className="text-xs font-medium text-muted-foreground">
-              Precio del bono (€)
-              <input
-                inputMode="decimal"
-                value={packagePrice}
-                onChange={(event) => {
-                  setPackagePrice(event.target.value);
+              Bono de la clienta
+              <Combobox
+                value={bonoChoice}
+                onChange={(value) => {
+                  setBonoChoice(value);
                   setNotice(null);
                 }}
-                className={inputClass}
+                options={[
+                  ...activeBonos.map((bono) => ({
+                    value: `bono:${bono.id}`,
+                    label: bono.name,
+                    hint: `En curso · sesión ${bono.sessionsUsed + 1} de ${bono.totalSessions} · quedan ${bono.remaining}`,
+                  })),
+                  ...activePlans.map((plan) => ({
+                    value: `plan:${plan.id}`,
+                    label: plan.name,
+                    hint: `${plan.pricePerSessionEuro.toLocaleString("es-ES")} €/sesión · ${plan.totalSessions} sesiones`,
+                  })),
+                  {
+                    value: "manual",
+                    label: "Otro bono",
+                    hint: "Precio y sesiones a mano, sin seguimiento",
+                  },
+                ]}
+                placeholder="Elige el bono…"
+                emptyMessage="No hay bonos que coincidan."
               />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              Sesiones del bono
-              <input
-                inputMode="numeric"
-                value={packageSessions}
-                onChange={(event) => {
-                  setPackageSessions(event.target.value);
-                  setNotice(null);
-                }}
-                className={inputClass}
-              />
-            </label>
+
+            {selectedBono ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background/70 p-3 text-sm">
+                <p>
+                  <span className="font-semibold">{selectedBono.name}:</span>{" "}
+                  sesión {selectedBono.sessionsUsed + 1} de{" "}
+                  {selectedBono.totalSessions} · quedan {selectedBono.remaining}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={cancelBono.isPending}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "¿Cancelar este bono? Las sesiones ya registradas se mantienen.",
+                      )
+                    ) {
+                      cancelBono.mutate(selectedBono.id, {
+                        onSuccess: () => {
+                          setBonoChoice("");
+                          setNotice("Bono cancelado.");
+                        },
+                        onError: (error) =>
+                          setNotice(
+                            messageOf(error, "No se ha podido cancelar el bono."),
+                          ),
+                      });
+                    }
+                  }}
+                >
+                  Cancelar bono
+                </Button>
+              </div>
+            ) : null}
+
+            {bonoChoice.startsWith("plan:") ? (
+              <label className="text-xs font-medium text-muted-foreground">
+                Empezar en la sesión (si ya hizo algunas en otro sitio)
+                <input
+                  inputMode="numeric"
+                  value={startAtSession}
+                  onChange={(event) => {
+                    setStartAtSession(event.target.value);
+                    setNotice(null);
+                  }}
+                  placeholder="1"
+                  className={`${inputClass} w-24`}
+                />
+              </label>
+            ) : null}
+
+            {bonoChoice === "manual" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-medium text-muted-foreground sm:col-span-2">
+                  Nombre del bono
+                  <input
+                    value={packageName}
+                    onChange={(event) => {
+                      setPackageName(event.target.value);
+                      setNotice(null);
+                    }}
+                    placeholder="Bono facial 5 sesiones"
+                    className={inputClass}
+                  />
+                </label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Precio del bono (€)
+                  <input
+                    inputMode="decimal"
+                    value={packagePrice}
+                    onChange={(event) => {
+                      setPackagePrice(event.target.value);
+                      setNotice(null);
+                    }}
+                    className={inputClass}
+                  />
+                </label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Sesiones del bono
+                  <input
+                    inputMode="numeric"
+                    value={packageSessions}
+                    onChange={(event) => {
+                      setPackageSessions(event.target.value);
+                      setNotice(null);
+                    }}
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
         )}
+
+        <label className="mt-3 block text-xs font-medium text-muted-foreground">
+          Puntos extra (opcional)
+          <input
+            inputMode="numeric"
+            value={bonusPoints}
+            onChange={(event) => {
+              setBonusPoints(event.target.value);
+              setNotice(null);
+            }}
+            placeholder="0"
+            className={`${inputClass} w-28`}
+          />
+          <span className="mt-1 block text-[11px] font-normal leading-4 text-muted-foreground">
+            En múltiplos de 10 (10 puntos = 1 €). Se suman al progreso de la
+            visita, sin multiplicadores.
+          </span>
+        </label>
 
         <Button
           type="submit"
@@ -470,6 +661,21 @@ function VisitResult({ outcome }: { outcome: VisitOutcome }) {
         {outcome.pointsTotal.toLocaleString("es-ES")} puntos en total.
         {outcome.tier ? ` Nivel: ${outcome.tier}.` : ""}
       </p>
+      {outcome.bonusPoints > 0 ? (
+        <p className="mt-1 text-muted-foreground">
+          Incluye {outcome.bonusPoints.toLocaleString("es-ES")} puntos extra.
+        </p>
+      ) : null}
+      {outcome.bono ? (
+        <p className="mt-1 text-muted-foreground">
+          {outcome.bono.name}: sesión {outcome.bono.session} de{" "}
+          {outcome.bono.total}
+          {outcome.bono.remaining > 0
+            ? ` · le quedan ${outcome.bono.remaining}`
+            : " · bono completado"}
+          .
+        </p>
+      ) : null}
       {outcome.issued.length > 0 ? (
         <ul className="mt-2 grid gap-1">
           {outcome.issued.map((reward) => (
