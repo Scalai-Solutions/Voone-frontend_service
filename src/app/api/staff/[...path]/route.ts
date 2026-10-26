@@ -1,5 +1,6 @@
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
 import { requireStaffSession } from "@/lib/staff-guard";
+import { isForwardableStaffPath } from "@/lib/staff-proxy-paths";
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -23,6 +24,14 @@ const forward = async (request: Request, context: Context) => {
   }
 
   const { path } = await context.params;
+
+  // Do not remove this check. It was dropped once (ee1e3a8) and every signed-in staff member
+  // could then read or change another clinic through `/clinics/<slug>/...`; the header
+  // comment of staff-proxy-paths.ts explains why. 404, not 403, so a path is not confirmed.
+  if (!isForwardableStaffPath(path)) {
+    return Response.json({ code: "NOT_FOUND", message: "Not found" }, { status: 404 });
+  }
+
   const url = new URL(request.url);
   const body =
     request.method === "GET" || request.method === "HEAD"
