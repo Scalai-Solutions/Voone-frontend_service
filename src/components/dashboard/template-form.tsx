@@ -316,8 +316,8 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                 <ImageUploadButton kind="logo" scope={scope} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
                 {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
-              <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message}>
-                <Input {...form.register("logoOnDarkUrl")} placeholder="https://..." />
+              <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
+                <Input id="template-logo-on-dark-url" {...form.register("logoOnDarkUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="logoOnDark" scope={scope} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
               <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2">
