@@ -28,6 +28,7 @@ export function useSaveTemplate(
       void queryClient.invalidateQueries({ queryKey: queryKeys.templates() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.treatments() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.templateRefreshStatus() });
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });

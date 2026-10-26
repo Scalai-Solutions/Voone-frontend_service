@@ -896,6 +896,22 @@ export function getTreatments() {
   return getCurrentClinic().then((clinic) => clinic.treatments ?? []);
 }
 
+/**
+ * Where a card design change stands. Every count is MEMBERS, so "synced of eligible" is a real
+ * ratio. "synced" means the member's cards are all up to date on the server since the last change;
+ * it says nothing about the phone having received it.
+ */
+export interface TemplateRefreshStatus {
+  eligible: number;
+  lastChange: { at: string; by: string | null; cardsAtSave: number } | null;
+  syncedSince: number;
+  failedSince: number;
+}
+
+export function getTemplateRefreshStatus() {
+  return staffProxyFetch<TemplateRefreshStatus>("/templates/refresh-status", { method: "GET" });
+}
+
 /** One treatment as the centre manages it in My center. Old rows can have no price. */
 export interface ManagedTreatment {
   id: string;

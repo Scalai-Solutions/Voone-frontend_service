@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useSaveTemplate } from "@/features/templates/api/useSaveTemplate";
+import { useTemplateRefreshStatus, type RefreshPolling } from "@/features/templates/api/useTemplateRefreshStatus";
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
 import { ApiError, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -54,6 +55,14 @@ const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.Componen
   { id: "edit", label: "Diseño", icon: Paintbrush },
   { id: "preview", label: "Vista previa", icon: Eye },
 ];
+
+const POLL_WINDOW_MS = 60_000;
+
+const formatChangeTime = (iso: string) => {
+  const date = new Date(iso);
+
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
+};
 
 const emptyValues: TemplateFormValues = {
   presetId: "",
@@ -124,6 +133,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [heroUnchecked, setHeroUnchecked] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+  // A validated save waiting for the person to confirm how many cards it reaches.
+  const [pendingInput, setPendingInput] = React.useState<SaveTemplateInput | null>(null);
+  const [polling, setPolling] = React.useState<RefreshPolling | null>(null);
   const form = useForm<TemplateFormValues>({ resolver: zodResolver(templateSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
 
   // Saving the design must not rewrite the catalogue. Treatments are edited in My center, not here,
@@ -133,6 +145,15 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       ? { ...input, treatments: undefined }
       : input;
   const values = form.watch();
+
+  // Only the centre's own session can read its card status; the admin route has no such view.
+  const statusEnabled = scope === "clinic" && Boolean(initialTemplate);
+  const refreshStatus = useTemplateRefreshStatus({ enabled: statusEnabled, polling });
+  const status = refreshStatus.data;
+  const lastChange = status?.lastChange ?? null;
+  const lastChangeTime = lastChange ? formatChangeTime(lastChange.at) : null;
+  // Progress is shown only for the change just saved, never for an older one.
+  const showProgress = Boolean(polling && lastChange && lastChange.at !== polling.previousChangeAt && lastChange.cardsAtSave > 0);
 
   // Reads the hero image from the URL the user typed and warns when it is too close to the card
   // colour. A link that cannot be read (blocked by CORS, broken, not an image) is not an error:
@@ -197,7 +218,8 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
   const mutation = useSaveTemplate(initialTemplate?.id, clinicId, scope, {
     onSuccess: (template) => {
-      setStatusMessage("Diseño de la tarjeta guardado para los proveedores Wallet disponibles.");
+      setStatusMessage("Diseño de la tarjeta guardado.");
+      setPolling((current) => ({ until: Date.now() + POLL_WINDOW_MS, previousChangeAt: current?.previousChangeAt ?? null }));
 
       if (!initialTemplate) {
         router.replace(`/dashboard/templates/${template.id}`);
@@ -215,6 +237,27 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     },
   });
 
+  function save(input: SaveTemplateInput) {
+    setPendingInput(null);
+    setStatusMessage(null);
+    // Remember what the last change was, so the progress that follows is for this one.
+    setPolling({ until: 0, previousChangeAt: lastChange?.at ?? null });
+    mutation.mutate(input);
+  }
+
+  // Changing an existing design reaches cards that are already out, so it is confirmed first.
+  function submit(input: TemplateFormValues) {
+    const payload = saveInput(input);
+
+    if (statusEnabled) {
+      void refreshStatus.refetch();
+      setPendingInput(payload);
+      return;
+    }
+
+    save(payload);
+  }
+
   function selectPreset(preset: TemplatePreset) {
     form.setValue("presetId", preset.id, { shouldDirty: true, shouldValidate: true });
     form.setValue("hexBackgroundColor", preset.hexBackgroundColor, { shouldDirty: true, shouldValidate: true });
@@ -225,7 +268,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   }
 
   return (
-    <form onSubmit={form.handleSubmit((input) => mutation.mutate(saveInput(input)))} className="mx-auto max-w-[1120px] space-y-3">
+    <form onSubmit={form.handleSubmit(submit)} className="mx-auto max-w-[1120px] space-y-3">
       <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/70 p-1">
         {templateTabs.map((tab) => {
           const Icon = tab.icon;
@@ -327,6 +370,44 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               <p className="mt-2 text-sm text-[#806e66]">{values.infoText || "El texto informativo aparecerá aquí."}</p>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {pendingInput ? (
+        <section role="alertdialog" aria-labelledby="template-confirm-title" className="rounded-3xl border border-[#d9b98f] bg-[#fff8ed] p-4">
+          <p id="template-confirm-title" className="font-semibold text-[#2e2421]">
+            {refreshStatus.isPending
+              ? "Comprobando cuántas tarjetas se actualizarán..."
+              : status
+                ? status.eligible > 0
+                  ? `Se actualizarán ${status.eligible.toLocaleString("es-ES")} tarjetas`
+                  : "Todavía no hay tarjetas emitidas; el cambio se aplicará a las nuevas."
+                : "No se pudo comprobar cuántas tarjetas se actualizarán."}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" className="rounded-2xl" disabled={mutation.isPending} onClick={() => save(pendingInput)}>Guardar y actualizar</Button>
+            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setPendingInput(null)}>Cancelar</Button>
+          </div>
+        </section>
+      ) : null}
+
+      {statusEnabled && (lastChange || showProgress) ? (
+        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-3 text-sm">
+          {lastChange && lastChangeTime ? (
+            <p className="text-[#806e66]">Último cambio: {lastChange.by ? `${lastChange.by} · ${lastChangeTime}` : lastChangeTime}</p>
+          ) : null}
+          {showProgress && status && lastChange ? (
+            <>
+              <p className="mt-1 font-semibold text-[#2e2421]">
+                {status.syncedSince.toLocaleString("es-ES")} de {lastChange.cardsAtSave.toLocaleString("es-ES")} tarjetas actualizadas en el servidor
+              </p>
+              {status.failedSince > 0 ? (
+                <p className="mt-1 text-destructive">
+                  {status.failedSince.toLocaleString("es-ES")} tarjetas con error: se reintentarán al guardar de nuevo.
+                </p>
+              ) : null}
+            </>
+          ) : null}
         </section>
       ) : null}
 

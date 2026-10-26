@@ -14,6 +14,7 @@ export const queryKeys = {
   treatmentCatalogue: () => ["treatment-catalogue"] as const,
   treatmentCategories: () => ["treatment-categories"] as const,
   templates: () => ["templates"] as const,
+  templateRefreshStatus: () => ["template-refresh-status"] as const,
   vooneTemplates: () => ["voone-templates"] as const,
   onboarding: {
     catalog: (clinicId: string) => ["onboarding", clinicId, "catalog"] as const,
