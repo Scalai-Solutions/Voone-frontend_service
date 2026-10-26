@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush } from "lucide-react";
 import { z } from "zod";
 
+import { ImageUploadButton } from "@/components/shared/image-upload-button";
 import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -312,13 +313,16 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               </Field>
               <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
                 <Input {...form.register("logoUrl")} placeholder="https://..." />
+                <ImageUploadButton kind="logo" scope={scope} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
                 {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
               <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message}>
                 <Input {...form.register("logoOnDarkUrl")} placeholder="https://..." />
+                <ImageUploadButton kind="logoOnDark" scope={scope} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
               <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2">
                 <Input {...form.register("heroImageUrl")} placeholder="https://..." />
+                <ImageUploadButton kind="hero" scope={scope} onUploaded={(url) => form.setValue("heroImageUrl", url, { shouldDirty: true, shouldValidate: true })} />
                 {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
                 {heroUnchecked ? <p className="mt-2 text-xs text-[#927e72]">No se pudo comprobar este enlace.</p> : null}
               </Field>

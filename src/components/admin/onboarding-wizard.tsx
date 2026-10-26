@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy } from "lucide-react";
 
+import { ENGLISH_UPLOAD_LABELS, ImageUploadButton } from "@/components/shared/image-upload-button";
 import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -403,15 +404,18 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 </WizardField>
                 <WizardField label="Clinic logo URL">
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
+                  <ImageUploadButton kind="logo" scope="admin" labels={ENGLISH_UPLOAD_LABELS} onUploaded={(url) => update("logo", url)} />
                 </WizardField>
                 <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2">
                   <Input value={values.logoOnDark} onChange={(event) => update("logoOnDark", event.target.value)} placeholder="https://.../logo-light.png" className="rounded-xl bg-[#fffaf6]" />
+                  <ImageUploadButton kind="logoOnDark" scope="admin" labels={ENGLISH_UPLOAD_LABELS} onUploaded={(url) => update("logoOnDark", url)} />
                 </WizardField>
                 <WizardField label="Program / club name" className="sm:col-span-2">
                   <Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Club Diamante" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
                 <WizardField label="Hero image URL (optional)" className="sm:col-span-2">
                   <Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.jpg" className="rounded-xl bg-[#fffaf6]" />
+                  <ImageUploadButton kind="hero" scope="admin" labels={ENGLISH_UPLOAD_LABELS} onUploaded={(url) => update("heroImageUrl", url)} />
                 </WizardField>
                 <WizardField label="Wallet button text">
                   <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Ver beneficios" className="rounded-xl bg-[#fffaf6]" />

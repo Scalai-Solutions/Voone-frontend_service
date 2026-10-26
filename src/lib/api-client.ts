@@ -558,6 +558,51 @@ const staffProxyFetch = <T>(path: string, init: RequestInit) =>
 const adminProxyFetch = <T>(path: string, init: RequestInit = {}) =>
   proxyFetch<T>(`/admin${path}`, init);
 
+export type ImageUploadKind = "logo" | "logoOnDark" | "hero";
+
+/**
+ * Uploads an image through this app's own route handler, which adds the staff key and, for
+ * a clinic, takes the slug from the session. The file goes as the raw request body with its
+ * own Content-Type (not multipart), which is what the backend reads. Errors carry the
+ * backend's Spanish message as `detail`, the same shape proxyFetch produces.
+ */
+export async function uploadImage(
+  file: File,
+  kind: ImageUploadKind,
+  scope: "clinic" | "admin",
+): Promise<{ url: string }> {
+  const response = await fetch(
+    `/api/${scope === "admin" ? "admin" : "staff"}/images?kind=${encodeURIComponent(kind)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": file.type },
+      body: file,
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      code?: string;
+      message?: string;
+    } | null;
+
+    throw new ApiError(
+      `Voone image upload failed: ${response.status}`,
+      response.status,
+      body?.code,
+      body?.message,
+    );
+  }
+
+  const body = (await response.json().catch(() => null)) as { url?: string } | null;
+
+  if (!body?.url) {
+    throw new ApiError("Voone image upload returned no URL", response.status);
+  }
+
+  return { url: body.url };
+}
+
 async function withMockFallback<T>(
   request: () => Promise<T>,
   fallback: T,
