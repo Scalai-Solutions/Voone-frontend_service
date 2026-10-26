@@ -11,12 +11,15 @@ export const queryKeys = {
   clinicTemplate: (clinicId: string) => ["clinic-template", clinicId] as const,
   template: (templateId: string) => ["template", templateId] as const,
   treatments: () => ["treatments"] as const,
+  bonoPlans: () => ["bono-plans"] as const,
+  memberBonos: (memberId: string) => ["member-bonos", memberId] as const,
   treatmentCatalogue: () => ["treatment-catalogue"] as const,
   treatmentCategories: () => ["treatment-categories"] as const,
   templates: () => ["templates"] as const,
   templateRefreshStatus: () => ["template-refresh-status"] as const,
   vooneTemplates: () => ["voone-templates"] as const,
   onboarding: {
+    bonos: (clinicId: string) => ["onboarding", clinicId, "bonos"] as const,
     catalog: (clinicId: string) => ["onboarding", clinicId, "catalog"] as const,
     estimates: (clinicId: string) => ["onboarding", clinicId, "estimates"] as const,
     preview: (clinicId: string, answers: unknown) =>
@@ -31,6 +34,7 @@ export const queryKeys = {
   mutations: {
     addMember: () => ["add-member"] as const,
     creditMember: () => ["credit-member"] as const,
+    updateMember: () => ["update-member"] as const,
     createPasswordSetupLink: () => ["create-password-setup-link"] as const,
     provisionClinic: () => ["provision-clinic"] as const,
     saveAdminTemplate: () => ["save-admin-template"] as const,

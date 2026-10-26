@@ -11,10 +11,12 @@ import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMemberPassLink, newIdempotencyKey } from "@/lib/api-client";
+import { ApiError, getMemberPassLink, newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useDeleteMember } from "@/features/members/api/useDeleteMember";
 import { useMember } from "@/features/members/api/useMember";
+import { useUpdateMember } from "@/features/members/api/useUpdateMember";
+import { normalizeSpanishMobile } from "@/lib/phone-es";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -50,6 +52,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
   const [manualPoints, setManualPoints] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [notice, setNotice] = useState("");
+  const [editing, setEditing] = useState(false);
   const member = useMember(memberId);
   // A centre with an active programme records visits in euros; one without keeps the older
   // points form. Not decided until the lookup has answered, so neither form flashes.
@@ -145,6 +148,26 @@ export function MemberDetail({ memberId }: { memberId: string }) {
               <p className="font-medium">{member.data.birthDate ?? (member.data.birthYear ? String(member.data.birthYear) : "-")}</p>
             </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditing((current) => !current);
+              setNotice("");
+            }}
+          >
+            {editing ? "Cerrar edición" : "Editar datos"}
+          </Button>
+          {editing ? (
+            <MemberEditForm
+              member={member.data}
+              onDone={() => {
+                setEditing(false);
+                setNotice("Datos actualizados.");
+              }}
+            />
+          ) : null}
           <WalletStatusBadges statuses={member.data.walletStatus} />
           <ReaddCard memberId={memberId} />
           {hasProgram ? <ProgramVisitPanel memberId={memberId} /> : null}
@@ -263,5 +286,157 @@ function ReaddCard({ memberId }: { memberId: string }) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Editing a member's own details. The client-side checks mirror the backend's (a cleaned
+ * name, a Spanish mobile, the 16-plus date of birth) only closely enough to catch obvious
+ * typos without a round trip; the backend stays the authority and its Spanish copy is what
+ * a refusal shows. Empty optional fields send null, which clears them.
+ */
+function MemberEditForm({ member, onDone }: { member: Member; onDone: () => void }) {
+  const update = useUpdateMember(member.id);
+  const [values, setValues] = useState({
+    name: member.name,
+    phone: member.phone ?? "",
+    email: member.email ?? "",
+    birthDate: member.birthDate ?? "",
+    sex: member.sex ?? "",
+  });
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const set = (patch: Partial<typeof values>) =>
+    setValues((current) => ({ ...current, ...patch }));
+
+  const fieldClass =
+    "mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring";
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProblem(null);
+
+    const birthDate = values.birthDate.trim();
+    // The youngest date of birth accepted, in UTC like the backend's gate.
+    const minBirth = new Date();
+    minBirth.setUTCFullYear(minBirth.getUTCFullYear() - 16);
+    const minBirthIso = minBirth.toISOString().slice(0, 10);
+
+    if (!values.name.trim()) {
+      setProblem("Escribe el nombre.");
+
+      return;
+    }
+
+    if (values.phone.trim() && normalizeSpanishMobile(values.phone) === null) {
+      setProblem("Introduce un móvil español válido.");
+
+      return;
+    }
+
+    if (
+      values.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
+    ) {
+      setProblem("Introduce un email válido.");
+
+      return;
+    }
+
+    if (birthDate && birthDate > minBirthIso) {
+      setProblem("La clienta tiene que tener al menos 16 años.");
+
+      return;
+    }
+
+    update.mutate(
+      {
+        name: values.name.trim(),
+        phone: values.phone.trim() === "" ? null : values.phone.trim(),
+        email: values.email.trim() === "" ? null : values.email.trim(),
+        birthDate: birthDate === "" ? null : birthDate,
+        sex: (values.sex === "" ? null : values.sex) as Member["sex"] | null,
+      },
+      {
+        onSuccess: onDone,
+        onError: (error) =>
+          setProblem(
+            error instanceof ApiError && error.detail
+              ? error.detail
+              : "No se han podido guardar los datos.",
+          ),
+      },
+    );
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      noValidate
+      className="grid gap-3 rounded-lg border border-border bg-background/70 p-4"
+    >
+      <label className="text-sm font-semibold">
+        Nombre
+        <input
+          value={values.name}
+          onChange={(event) => set({ name: event.target.value })}
+          className={fieldClass}
+        />
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-semibold">
+          Móvil
+          <input
+            inputMode="tel"
+            value={values.phone}
+            onChange={(event) => set({ phone: event.target.value })}
+            placeholder="612 34 56 78"
+            className={fieldClass}
+          />
+        </label>
+        <label className="text-sm font-semibold">
+          Email
+          <input
+            type="email"
+            value={values.email}
+            onChange={(event) => set({ email: event.target.value })}
+            className={fieldClass}
+          />
+        </label>
+        <label className="text-sm font-semibold">
+          Fecha de nacimiento
+          <input
+            type="date"
+            value={values.birthDate}
+            onChange={(event) => set({ birthDate: event.target.value })}
+            className={fieldClass}
+          />
+        </label>
+        <label className="text-sm font-semibold">
+          Sexo
+          <select
+            value={values.sex}
+            onChange={(event) => set({ sex: event.target.value })}
+            className={fieldClass}
+          >
+            <option value="">Sin indicar</option>
+            <option value="mujer">Mujer</option>
+            <option value="hombre">Hombre</option>
+            <option value="otro">Otro</option>
+            <option value="prefiero_no_decirlo">Prefiere no decirlo</option>
+          </select>
+        </label>
+      </div>
+      <div>
+        <Button type="submit" size="sm" disabled={update.isPending}>
+          {update.isPending ? "Guardando" : "Guardar cambios"}
+        </Button>
+      </div>
+      {problem ? (
+        <p role="alert" className="text-sm text-destructive">
+          {problem}
+        </p>
+      ) : null}
+    </form>
   );
 }

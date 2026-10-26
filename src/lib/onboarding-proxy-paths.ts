@@ -10,6 +10,8 @@
  * Order is irrelevant: a request is allowed if ANY entry matches both path and method.
  */
 const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
+  { pattern: ["bonos"], methods: ["GET", "POST"] },
+  { pattern: ["bonos", "*"], methods: ["PATCH", "DELETE"] },
   { pattern: ["catalog"], methods: ["GET", "PUT"] },
   { pattern: ["catalog", "import"], methods: ["POST"] },
   { pattern: ["catalog", "*"], methods: ["PATCH"] },

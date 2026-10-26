@@ -229,6 +229,8 @@ export interface Member {
   name: string;
   code: string | null;
   identity: string;
+  /** Canonical E.164, when the member has one; the edit form prefills it. */
+  phone?: string | null;
   email?: string | null;
   birthDate?: string | null;
   birthYear?: number | null;
@@ -300,7 +302,7 @@ export interface Clinic {
 }
 
 export type NotificationType =
-  "BROADCAST" | "SEGMENT" | "SINGLE" | "POINTS" | "TIER" | "BIRTHDAY";
+  "BROADCAST" | "SEGMENT" | "SINGLE" | "POINTS" | "TIER" | "BIRTHDAY" | "BONO_REMINDER";
 export type NotificationStatus =
   "QUEUED" | "PROCESSING" | "SENT" | "PARTIAL_FAILED" | "FAILED" | "CANCELLED";
 export type NotificationDeliveryStatus =
@@ -320,6 +322,8 @@ export interface NotificationSegmentInput {
   inactiveDays?: number;
   lastVisitBefore?: string;
   categoryNotVisited?: string;
+  /** The auto-created segment: members holding a bono with sessions left. */
+  activeBono?: boolean;
 }
 
 export interface SegmentNotificationInput extends NotificationMessageInput {
@@ -378,6 +382,10 @@ export interface NotificationSettings {
   birthdayHeader: string;
   birthdayBody: string;
   birthdayNotify: boolean;
+  bonoReminderEnabled: boolean;
+  bonoReminderHeader: string;
+  bonoReminderBody: string;
+  bonoReminderNotify: boolean;
 }
 
 export interface ClinicGeoLocation {
@@ -901,6 +909,26 @@ export function deleteMember(memberId: string) {
   return staffProxyFetch<{ status: "deleted" }>(
     `/members/${encodeURIComponent(memberId)}`,
     { method: "DELETE" },
+  );
+}
+
+/**
+ * Editing a member: every field optional, absent meaning unchanged and null clearing where
+ * the column allows it. Consent and provenance are not editable — staff cannot consent on a
+ * client's behalf, and how a member was collected is a fact about their sign-up.
+ */
+export interface UpdateMemberInput {
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+  birthDate?: string | null;
+  sex?: Member["sex"];
+}
+
+export function updateMember(memberId: string, input: UpdateMemberInput) {
+  return staffProxyFetch<Member>(
+    `/members/${encodeURIComponent(memberId)}`,
+    { method: "PATCH", body: JSON.stringify(input) },
   );
 }
 
