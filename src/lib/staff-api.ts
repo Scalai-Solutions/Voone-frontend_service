@@ -74,6 +74,17 @@ export const staffFetch = async (path: string, init: RequestInit = {}): Promise<
  * those errors useful. Nothing is added, so nothing new can leak.
  */
 export const forwardResponse = async (response: Response): Promise<Response> => {
+  /**
+   * 204, 205 and 304 are null-body statuses: the fetch Response constructor throws
+   * "Invalid response status code" if the body is anything but null — including the
+   * empty string text() returns. A successful delete (204) therefore crashed this
+   * proxy AFTER the backend had already deleted the clinic, surfacing to the admin
+   * panel as a 500 on a delete that had in fact succeeded.
+   */
+  if (response.status === 204 || response.status === 205 || response.status === 304) {
+    return new Response(null, { status: response.status });
+  }
+
   const body = await response.text();
 
   return new Response(body, {
