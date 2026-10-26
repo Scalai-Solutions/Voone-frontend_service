@@ -311,18 +311,18 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                   <span className="text-sm text-[#806d63]">{values.hexBackgroundColor}</span>
                 </div>
               </Field>
-              <Field label="URL del logo" error={form.formState.errors.logoUrl?.message}>
-                <Input {...form.register("logoUrl")} placeholder="https://..." />
-                <ImageUploadButton kind="logo" scope={scope} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
+              <Field label="URL del logo" error={form.formState.errors.logoUrl?.message} htmlFor="template-logo-url">
+                <Input id="template-logo-url" aria-describedby={form.formState.errors.logoUrl ? "template-logo-url-error" : undefined} aria-invalid={form.formState.errors.logoUrl ? true : undefined} {...form.register("logoUrl")} placeholder="https://..." />
+                <ImageUploadButton kind="logo" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo" }} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
                 {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
               <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
-                <Input id="template-logo-on-dark-url" {...form.register("logoOnDarkUrl")} placeholder="https://..." />
-                <ImageUploadButton kind="logoOnDark" scope={scope} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
+                <Input id="template-logo-on-dark-url" aria-describedby={form.formState.errors.logoOnDarkUrl ? "template-logo-on-dark-url-error" : undefined} aria-invalid={form.formState.errors.logoOnDarkUrl ? true : undefined} {...form.register("logoOnDarkUrl")} placeholder="https://..." />
+                <ImageUploadButton kind="logoOnDark" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
-              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2">
-                <Input {...form.register("heroImageUrl")} placeholder="https://..." />
-                <ImageUploadButton kind="hero" scope={scope} onUploaded={(url) => form.setValue("heroImageUrl", url, { shouldDirty: true, shouldValidate: true })} />
+              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2" htmlFor="template-hero-image-url">
+                <Input id="template-hero-image-url" aria-describedby={form.formState.errors.heroImageUrl ? "template-hero-image-url-error" : undefined} aria-invalid={form.formState.errors.heroImageUrl ? true : undefined} {...form.register("heroImageUrl")} placeholder="https://..." />
+                <ImageUploadButton kind="hero" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen principal" }} onUploaded={(url) => form.setValue("heroImageUrl", url, { shouldDirty: true, shouldValidate: true })} />
                 {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
                 {heroUnchecked ? <p className="mt-2 text-xs text-[#927e72]">No se pudo comprobar este enlace.</p> : null}
               </Field>

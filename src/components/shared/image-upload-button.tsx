@@ -15,9 +15,20 @@ export interface ImageUploadLabels {
   invalidType: string;
   tooLarge: string;
   failed: string;
-  /** Appended when the backend says uploads are not configured (503). */
+  /** Appended to the backend's message when uploads are not configured. */
   pasteUrl: string;
+  /** Field-specific accessible name for the button, e.g. "Subir imagen del logo". */
+  ariaLabel?: string;
+  /**
+   * Replaces the backend's message for an `IMAGE_*` error code. The backend only speaks
+   * Spanish, so the English admin wizard maps each code here; when null the backend's own
+   * Spanish message is shown.
+   */
+  serverMessages: Partial<Record<string, string>> | null;
 }
+
+/** The backend's code when uploads are not configured; its Spanish message has no "paste a URL" hint. */
+const STORAGE_UNCONFIGURED = "IMAGE_STORAGE_UNCONFIGURED";
 
 /** Spanish by default: everything a clinic user sees is Spanish. The admin wizard passes English. */
 export const SPANISH_UPLOAD_LABELS: ImageUploadLabels = {
@@ -28,6 +39,7 @@ export const SPANISH_UPLOAD_LABELS: ImageUploadLabels = {
   tooLarge: "La imagen supera los 5 MB.",
   failed: "No se ha podido subir la imagen. Inténtalo de nuevo.",
   pasteUrl: "Pega una URL en su lugar.",
+  serverMessages: null,
 };
 
 export const ENGLISH_UPLOAD_LABELS: ImageUploadLabels = {
@@ -38,6 +50,37 @@ export const ENGLISH_UPLOAD_LABELS: ImageUploadLabels = {
   tooLarge: "The image is larger than 5 MB.",
   failed: "The image could not be uploaded. Try again.",
   pasteUrl: "Paste a URL instead.",
+  serverMessages: {
+    IMAGE_TOO_LARGE: "The image is over 5 MB.",
+    IMAGE_MEDIA_TYPE: "Upload a PNG, JPG or WebP image.",
+    IMAGE_UNSUPPORTED: "Upload a PNG, JPG or WebP image.",
+    IMAGE_DIMENSIONS: "The image size is not valid.",
+    IMAGE_KIND_INVALID: "Invalid image type.",
+    IMAGE_UNREADABLE: "The image could not be read. Try again.",
+    IMAGE_STORAGE_FAILED: "The image could not be saved. Try again.",
+    IMAGE_STORAGE_UNCONFIGURED: "Image upload is not configured. Paste a URL instead.",
+  },
+};
+
+/**
+ * What to show for a failed upload. Only the backend's `IMAGE_*` errors carry copy meant for
+ * the user; anything else (a guard's "Forbidden", a 500, a network error) gets the generic
+ * label rather than whatever English text it came with.
+ */
+const describeError = (caught: unknown, text: ImageUploadLabels): string => {
+  if (!(caught instanceof ApiError) || !caught.code?.startsWith("IMAGE_")) {
+    return text.failed;
+  }
+
+  const mapped = text.serverMessages?.[caught.code];
+
+  if (mapped) {
+    return mapped;
+  }
+
+  const message = caught.detail || text.failed;
+
+  return caught.code === STORAGE_UNCONFIGURED ? `${message} ${text.pasteUrl}` : message;
 };
 
 /**
@@ -58,7 +101,7 @@ export function ImageUploadButton({
   labels?: Partial<ImageUploadLabels>;
   disabled?: boolean;
 }) {
-  const text = { ...SPANISH_UPLOAD_LABELS, ...labels };
+  const text: ImageUploadLabels = { ...SPANISH_UPLOAD_LABELS, ...labels };
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -96,9 +139,7 @@ export function ImageUploadButton({
 
       onUploaded(url);
     } catch (caught) {
-      const message = caught instanceof ApiError && caught.detail ? caught.detail : text.failed;
-
-      setError(caught instanceof ApiError && caught.status === 503 ? `${message} ${text.pasteUrl}` : message);
+      setError(describeError(caught, text));
     } finally {
       setUploading(false);
       reset();
@@ -112,6 +153,7 @@ export function ImageUploadButton({
           type="button"
           variant="outline"
           size="sm"
+          aria-label={uploading ? undefined : text.ariaLabel}
           disabled={disabled || uploading}
           onClick={() => inputRef.current?.click()}
         >

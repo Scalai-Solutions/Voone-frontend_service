@@ -402,20 +402,17 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 <WizardField label="Card color">
                   <Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} className="h-10 rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Clinic logo URL">
+                <WizardField label="Clinic logo URL" action={<ImageUploadButton kind="logo" scope="admin" labels={{ ...ENGLISH_UPLOAD_LABELS, ariaLabel: "Upload clinic logo image" }} onUploaded={(url) => update("logo", url)} />}>
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
-                  <ImageUploadButton kind="logo" scope="admin" labels={ENGLISH_UPLOAD_LABELS} onUploaded={(url) => update("logo", url)} />
                 </WizardField>
-                <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2">
+                <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2" action={<ImageUploadButton kind="logoOnDark" scope="admin" labels={{ ...ENGLISH_UPLOAD_LABELS, ariaLabel: "Upload logo image for dark background" }} onUploaded={(url) => update("logoOnDark", url)} />}>
                   <Input value={values.logoOnDark} onChange={(event) => update("logoOnDark", event.target.value)} placeholder="https://.../logo-light.png" className="rounded-xl bg-[#fffaf6]" />
-                  <ImageUploadButton kind="logoOnDark" scope="admin" labels={ENGLISH_UPLOAD_LABELS} onUploaded={(url) => update("logoOnDark", url)} />
                 </WizardField>
                 <WizardField label="Program / club name" className="sm:col-span-2">
                   <Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Club Diamante" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Hero image URL (optional)" className="sm:col-span-2">
+                <WizardField label="Hero image URL (optional)" className="sm:col-span-2" action={<ImageUploadButton kind="hero" scope="admin" labels={{ ...ENGLISH_UPLOAD_LABELS, ariaLabel: "Upload hero image" }} onUploaded={(url) => update("heroImageUrl", url)} />}>
                   <Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.jpg" className="rounded-xl bg-[#fffaf6]" />
-                  <ImageUploadButton kind="hero" scope="admin" labels={ENGLISH_UPLOAD_LABELS} onUploaded={(url) => update("heroImageUrl", url)} />
                 </WizardField>
                 <WizardField label="Wallet button text">
                   <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Ver beneficios" className="rounded-xl bg-[#fffaf6]" />
@@ -469,6 +466,11 @@ function StepContent({ title, detail, children }: { title: string; detail: strin
   return <div><h1 className="text-3xl font-semibold tracking-tight text-[#201715] sm:text-4xl">{title}</h1><p className="mt-3 max-w-xl text-sm leading-6 text-[#806d63]">{detail}</p><div className="mt-7">{children}</div></div>;
 }
 
-function WizardField({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function WizardField({ label, children, className, action }: { label: string; children: React.ReactNode; className?: string; action?: React.ReactNode }) {
+  // `action` sits outside the <label> so it does not become part of the input's accessible name.
+  if (action) {
+    return <div className={className}><label className="grid gap-2 text-sm font-semibold">{label}{children}</label>{action}</div>;
+  }
+
   return <label className={`grid gap-2 text-sm font-semibold ${className ?? ""}`}>{label}{children}</label>;
 }
