@@ -31,6 +31,9 @@ const ALLOWED: string[][] = [
 ];
 
 export const isForwardableStaffPath = (segments: string[]): boolean =>
+  // "." and ".." survive encodeURIComponent and are resolved by URL parsing in fetch, so
+  // `clinics/../users` would otherwise reach `/v1/users` while matching a pattern here.
+  !segments.some((segment) => segment === "." || segment === "..") &&
   ALLOWED.some(
     (pattern) =>
       pattern.length === segments.length &&
