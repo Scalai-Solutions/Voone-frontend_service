@@ -43,6 +43,9 @@ import type { MemberReward, VisitOutcome } from "@/lib/staff-program-api";
 const inputClass =
   "mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring";
 
+/** The slider's options, in the order it offers them. */
+const POINT_MULTIPLIERS = [2, 3, 5, 10] as const;
+
 interface LineDraft {
   key: number;
   category: CategoryCode | "";
@@ -111,6 +114,8 @@ export function ProgramVisitPanel({
   const [startAtSession, setStartAtSession] = React.useState("");
   /** Bonus points, optional, in multiples of ten. */
   const [bonusPoints, setBonusPoints] = React.useState("");
+  /** The chosen points multiplier: 0 = none, then an index into POINT_MULTIPLIERS. */
+  const [multiplierIndex, setMultiplierIndex] = React.useState(0);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [outcome, setOutcome] = React.useState<VisitOutcome | null>(null);
   const [recordedVisitId, setVisitId] = React.useState<string | null>(null);
@@ -143,6 +148,62 @@ export function ProgramVisitPanel({
     ? (activeBonos.find((bono) => bono.id === bonoChoice.slice(5)) ?? null)
     : null;
 
+  /**
+   * The visit's own points, before any tier multiplier the backend applies: the payment
+   * lines, or the bono's price per session. It is what the slider multiplies, so it is
+   * recomputed as the staff member types.
+   */
+  const originalPoints = (() => {
+    if (mode === "PAYMENT") {
+      const total = lines.reduce((sum, line) => {
+        const amount = parseAmount(line.amount);
+
+        return sum + (Number.isFinite(amount) ? amount : 0);
+      }, 0);
+
+      return Math.round(total * 10);
+    }
+
+    if (bonoChoice.startsWith("bono:") && selectedBono) {
+      return Math.round(selectedBono.pricePerSessionEuro * 10);
+    }
+
+    if (bonoChoice.startsWith("plan:")) {
+      const plan = activePlans.find((item) => item.id === bonoChoice.slice(5));
+
+      return plan ? Math.round(plan.pricePerSessionEuro * 10) : 0;
+    }
+
+    if (bonoChoice === "manual") {
+      const price = parseAmount(packagePrice);
+      const sessions = Number(packageSessions);
+
+      if (price > 0 && Number.isInteger(sessions) && sessions > 0) {
+        return Math.round((price / sessions) * 10);
+      }
+    }
+
+    return 0;
+  })();
+
+  /** The slider's choice; null when it sits on "sin extra". */
+  const multiplier =
+    multiplierIndex > 0
+      ? (POINT_MULTIPLIERS[multiplierIndex - 1] ?? null)
+      : null;
+
+  /**
+   * The extra the slider grants, DERIVED from the visit's own points so it can never drift
+   * from them: change the amount or the bono and the figure follows without anyone retyping
+   * it. It is the part ABOVE the original — the visit always awards its own points, so x2
+   * means the client ends with double — rounded to the nearest ten, because the ledger
+   * only holds whole euros of progress.
+   */
+  const multipliedBonus =
+    multiplier !== null && originalPoints > 0
+      ? Math.round((originalPoints * (multiplier - 1)) / 10) * 10
+      : null;
+
   const updateLine = (key: number, patch: Partial<LineDraft>) => {
     setNotice(null);
     setLines((current) =>
@@ -169,6 +230,7 @@ export function ProgramVisitPanel({
       setBonoChoice("");
       setStartAtSession("");
       setBonusPoints("");
+      setMultiplierIndex(0);
     };
     const onError = (error: unknown) =>
       setNotice(
@@ -182,8 +244,13 @@ export function ProgramVisitPanel({
     const idempotencyKey = visitKeyRef.current;
 
     // Bonus points: optional, whole multiples of ten — the ledger holds whole euros.
+    // The slider wins while it is chosen; the typed figure is what remains otherwise.
     const bonus =
-      bonusPoints.trim() === "" ? undefined : Number(bonusPoints.trim());
+      multiplier !== null && multipliedBonus !== null
+        ? multipliedBonus
+        : bonusPoints.trim() === ""
+          ? undefined
+          : Number(bonusPoints.trim());
 
     if (
       bonus !== undefined &&
@@ -611,9 +678,14 @@ export function ProgramVisitPanel({
           Puntos extra (opcional)
           <input
             inputMode="numeric"
-            value={bonusPoints}
+            value={
+              multiplier !== null && multipliedBonus !== null
+                ? String(multipliedBonus)
+                : bonusPoints
+            }
             onChange={(event) => {
               setBonusPoints(event.target.value);
+              setMultiplierIndex(0);
               setNotice(null);
             }}
             placeholder="0"
@@ -621,9 +693,50 @@ export function ProgramVisitPanel({
           />
           <span className="mt-1 block text-[11px] font-normal leading-4 text-muted-foreground">
             En múltiplos de 10 (10 puntos = 1 €). Se suman al progreso de la
-            visita, sin multiplicadores.
+            visita, sin multiplicador de nivel.
           </span>
         </label>
+
+        {originalPoints > 0 ? (
+          <div className="mt-2 rounded-md border border-border bg-background/70 p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Multiplicar los {originalPoints.toLocaleString("es-ES")} puntos de
+              esta visita
+            </p>
+            <input
+              type="range"
+              min={0}
+              max={4}
+              step={1}
+              value={multiplierIndex}
+              onChange={(event) => {
+                setMultiplierIndex(Number(event.target.value));
+                setNotice(null);
+              }}
+              aria-label="Multiplicador de puntos"
+              className="mt-2 w-full"
+            />
+            <div className="mt-1 flex justify-between text-[11px] font-medium text-muted-foreground">
+              {["sin extra", "x2", "x3", "x5", "x10"].map((label, index) => (
+                <span
+                  key={label}
+                  className={
+                    multiplierIndex === index ? "font-bold text-foreground" : ""
+                  }
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            {multiplier !== null && multipliedBonus !== null ? (
+              <p className="mt-1 text-[11px] font-normal text-muted-foreground">
+                Se añadirán {multipliedBonus.toLocaleString("es-ES")} puntos
+                extra a los {originalPoints.toLocaleString("es-ES")} de la
+                visita.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <Button
           type="submit"
