@@ -242,6 +242,12 @@ export interface Member {
   lastVisitedAt: string | null;
   tier: string;
   walletStatus: Record<WalletProvider, ProviderStatus>;
+  /**
+   * Whether the member's Apple card can update by itself. null: no Apple card, or Apple is
+   * unavailable. false: the card is added but no phone is registered for updates. Absent on
+   * older backends; treat absent like null.
+   */
+  appleUpdatesRegistered?: boolean | null;
   history: Array<{ id: string; label: string; points: number; date: string }>;
 }
 

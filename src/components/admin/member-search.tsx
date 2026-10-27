@@ -39,7 +39,7 @@ export function AdminMemberSearch() {
                   </td>
                   <td className="px-4 py-3">{member.templateName}</td>
                   <td className="px-4 py-3">{member.points.toLocaleString()}</td>
-                  <td className="px-4 py-3"><WalletStatusBadges statuses={member.walletStatus} /></td>
+                  <td className="min-w-[14rem] max-w-[22rem] px-4 py-3"><WalletStatusBadges statuses={member.walletStatus} appleUpdatesRegistered={member.appleUpdatesRegistered} /></td>
                 </tr>
               ))}
             </tbody>
