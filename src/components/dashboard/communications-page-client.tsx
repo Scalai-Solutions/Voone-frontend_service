@@ -449,7 +449,7 @@ export function CommunicationsPageClient() {
           {noticeTab === "manuales" ? (
             <>
               <label className="mt-5 block text-sm font-semibold">
-                Header / título de Google Wallet
+                Título del mensaje
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
@@ -458,13 +458,12 @@ export function CommunicationsPageClient() {
                   className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
                 />
                 <span className="mt-1 block text-xs font-normal text-[#927e72]">
-                  Se envía como{" "}
-                  <span className="font-mono">message.header</span> en Google
-                  Wallet.
+                  Se muestra como título en Google Wallet y como primera parte
+                  del aviso en Apple Wallet.
                 </span>
               </label>
               <label className="mt-4 block text-sm font-semibold">
-                Body / cuerpo del mensaje
+                Texto del mensaje
                 <textarea
                   value={body}
                   onChange={(event) =>
@@ -683,7 +682,11 @@ export function CommunicationsPageClient() {
             </div>
           )}
         </div>
-        <Preview title={title} body={body} />
+        <Preview
+          title={title}
+          body={body}
+          clinicName={currentClinic.data?.name}
+        />
       </div>
 
       {composeOpen ? (
@@ -758,7 +761,7 @@ export function CommunicationsPageClient() {
                 </label>
               ) : null}
               <label className="mt-4 block text-sm font-semibold">
-                Header / título de Google Wallet
+                Título del mensaje
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
@@ -767,12 +770,12 @@ export function CommunicationsPageClient() {
                   className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal"
                 />
                 <span className="mt-1 block text-xs font-normal text-[#927e72]">
-                  Se envía como{" "}
-                  <span className="font-mono">message.header</span>.
+                  Se muestra como título en Google Wallet y como primera parte
+                  del aviso en Apple Wallet.
                 </span>
               </label>
               <label className="mt-4 block text-sm font-semibold">
-                Body / cuerpo del mensaje
+                Texto del mensaje
                 <textarea
                   value={body}
                   onChange={(event) =>
@@ -803,7 +806,12 @@ export function CommunicationsPageClient() {
                     : "Programar comunicación"}
               </button>
             </div>
-            <Preview title={title} body={body} compact />
+            <Preview
+              title={title}
+              body={body}
+              clinicName={currentClinic.data?.name}
+              compact
+            />
           </div>
         </div>
       ) : null}
@@ -811,38 +819,109 @@ export function CommunicationsPageClient() {
   );
 }
 
+const noopSubscribe = () => () => {};
+
+/** Same abbreviations the backend uses for the Apple card line. */
+const spanishMonthAbbreviations = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sept",
+  "oct",
+  "nov",
+  "dic",
+];
+const madridDayMonthFormat = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  day: "numeric",
+  month: "numeric",
+});
+
+/** Today in Europe/Madrid as "d MMM" (e.g. "27 oct", "5 sept"). */
+function formatMadridDayMonth(date: Date) {
+  const parts = madridDayMonthFormat.formatToParts(date);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+
+  return `${day} ${spanishMonthAbbreviations[month - 1]}`;
+}
+
+/** Today's label; "hoy" while server-rendering. */
+function useTodayLabel() {
+  return React.useSyncExternalStore(
+    noopSubscribe,
+    () => formatMadridDayMonth(new Date()),
+    () => "hoy",
+  );
+}
+
 function Preview({
   title,
   body,
+  clinicName,
   compact = false,
 }: {
   title: string;
   body: string;
+  clinicName?: string;
   compact?: boolean;
 }) {
+  const today = useTodayLabel();
+  const shownTitle = title.trim() || "Título del mensaje";
+  const shownBody =
+    body.trim() || "El contenido aparecerá aquí mientras escribes.";
+
   return (
     <div
+      role="group"
+      aria-label="Vista previa del mensaje"
       className={cn(
-        "rounded-3xl bg-[#2d211e] p-5 text-white",
+        "min-w-0 rounded-3xl bg-[#2d211e] p-5 text-white",
         !compact && "min-h-[300px]",
       )}
     >
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">
         Vista previa
       </p>
-      <div className="mt-4 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]">
-        <p className="font-semibold">Voone Wallet</p>
-        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9a755f]">
-          Header
-        </p>
-        <p className="mt-1 font-semibold">{title || "Header del mensaje"}</p>
-        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9a755f]">
-          Body
-        </p>
-        <p className="mt-2 text-sm leading-5 text-[#806e66]">
-          {body || "El contenido aparecerá aquí mientras escribes."}
+
+      <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.16em] text-[#c9b7ad]">
+        Google Wallet
+      </p>
+      <div
+        aria-hidden="true"
+        className="mt-2 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]"
+      >
+        <p className="break-words font-semibold">{shownTitle}</p>
+        <p className="mt-2 break-words text-sm leading-5 text-[#806e66]">
+          {shownBody}
         </p>
       </div>
+
+      <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#c9b7ad]">
+        Apple Wallet
+      </p>
+      <div
+        aria-hidden="true"
+        className="mt-2 rounded-2xl bg-white/15 p-3 text-white backdrop-blur"
+      >
+        <div className="flex items-center justify-between gap-2 text-[11px] text-white/70">
+          <span className="min-w-0 truncate font-semibold uppercase tracking-[0.08em]">
+            {clinicName || "Tu centro"}
+          </span>
+          <span className="shrink-0">ahora</span>
+        </div>
+        <p className="mt-1 truncate text-sm leading-5">
+          {today} · {shownTitle}: {shownBody}
+        </p>
+      </div>
+      <p className="mt-2 text-xs text-[#c9b7ad]">
+        Apple muestra una sola línea de texto.
+      </p>
     </div>
   );
 }
