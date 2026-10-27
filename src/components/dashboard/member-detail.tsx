@@ -200,8 +200,14 @@ export function MemberDetail({ memberId }: { memberId: string }) {
               }}
             />
           ) : null}
-          <WalletStatusBadges statuses={member.data.walletStatus} />
-          <ReaddCard memberId={memberId} />
+          <WalletStatusBadges
+            statuses={member.data.walletStatus}
+            appleUpdatesRegistered={member.data.appleUpdatesRegistered}
+          />
+          <ReaddCard
+            memberId={memberId}
+            appleUpdatesRegistered={member.data.appleUpdatesRegistered}
+          />
           {hasProgram ? <ProgramVisitPanel memberId={memberId} /> : null}
           {!hasProgram && !staffProgram.isLoading ? (
             <form
@@ -314,7 +320,13 @@ export function MemberDetail({ memberId }: { memberId: string }) {
  * the same add-to-wallet page they were sent at sign-up. Generated only when asked, because
  * building it re-issues the card with the member's current points.
  */
-function ReaddCard({ memberId }: { memberId: string }) {
+function ReaddCard({
+  memberId,
+  appleUpdatesRegistered,
+}: {
+  memberId: string;
+  appleUpdatesRegistered?: boolean | null;
+}) {
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -335,6 +347,12 @@ function ReaddCard({ memberId }: { memberId: string }) {
   return (
     <div className="grid gap-3 rounded-lg border border-border bg-background/70 p-4">
       <p className="text-sm font-semibold">¿Ha perdido la tarjeta?</p>
+      {appleUpdatesRegistered === false ? (
+        <p className="text-xs text-muted-foreground">
+          La tarjeta de Apple de este cliente no se actualiza sola. Vuelve a
+          añadirla con el código QR.
+        </p>
+      ) : null}
       {url ? (
         <div className="grid justify-items-start gap-2">
           <QrCode
