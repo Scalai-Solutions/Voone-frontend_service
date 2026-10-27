@@ -821,15 +821,41 @@ export function CommunicationsPageClient() {
 
 const noopSubscribe = () => () => {};
 
-/** Today as "d MMM" in es-ES (e.g. "27 oct"); "hoy" while server-rendering. */
+/** Same abbreviations the backend uses for the Apple card line. */
+const spanishMonthAbbreviations = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sept",
+  "oct",
+  "nov",
+  "dic",
+];
+const madridDayMonthFormat = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  day: "numeric",
+  month: "numeric",
+});
+
+/** Today in Europe/Madrid as "d MMM" (e.g. "27 oct", "5 sept"). */
+function formatMadridDayMonth(date: Date) {
+  const parts = madridDayMonthFormat.formatToParts(date);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+
+  return `${day} ${spanishMonthAbbreviations[month - 1]}`;
+}
+
+/** Today's label; "hoy" while server-rendering. */
 function useTodayLabel() {
   return React.useSyncExternalStore(
     noopSubscribe,
-    () =>
-      new Date().toLocaleDateString("es-ES", {
-        day: "numeric",
-        month: "short",
-      }),
+    () => formatMadridDayMonth(new Date()),
     () => "hoy",
   );
 }
@@ -846,11 +872,14 @@ function Preview({
   compact?: boolean;
 }) {
   const today = useTodayLabel();
-  const shownTitle = title || "Título del mensaje";
-  const shownBody = body || "El contenido aparecerá aquí mientras escribes.";
+  const shownTitle = title.trim() || "Título del mensaje";
+  const shownBody =
+    body.trim() || "El contenido aparecerá aquí mientras escribes.";
 
   return (
     <div
+      role="group"
+      aria-label="Vista previa del mensaje"
       className={cn(
         "min-w-0 rounded-3xl bg-[#2d211e] p-5 text-white",
         !compact && "min-h-[300px]",
@@ -863,7 +892,10 @@ function Preview({
       <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.16em] text-[#c9b7ad]">
         Google Wallet
       </p>
-      <div className="mt-2 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]">
+      <div
+        aria-hidden="true"
+        className="mt-2 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]"
+      >
         <p className="break-words font-semibold">{shownTitle}</p>
         <p className="mt-2 break-words text-sm leading-5 text-[#806e66]">
           {shownBody}
@@ -873,14 +905,17 @@ function Preview({
       <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#c9b7ad]">
         Apple Wallet
       </p>
-      <div className="mt-2 rounded-2xl bg-white/15 p-3 text-white backdrop-blur">
+      <div
+        aria-hidden="true"
+        className="mt-2 rounded-2xl bg-white/15 p-3 text-white backdrop-blur"
+      >
         <div className="flex items-center justify-between gap-2 text-[11px] text-white/70">
           <span className="min-w-0 truncate font-semibold uppercase tracking-[0.08em]">
             {clinicName || "Tu centro"}
           </span>
           <span className="shrink-0">ahora</span>
         </div>
-        <p className="mt-1 break-words text-sm leading-5">
+        <p className="mt-1 truncate text-sm leading-5">
           {today} · {shownTitle}: {shownBody}
         </p>
       </div>
