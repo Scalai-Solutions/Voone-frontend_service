@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/incompatible-library */
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +24,8 @@ import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets"
 import { ApiError, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { WALLET_TEXT_MAX, WALLET_TEXT_MAX_MESSAGE, clampChars, countChars } from "@/lib/wallet-text";
+import { CharCounter } from "@/components/shared/char-counter";
 
 // One URL and nothing else: a pasted line such as "foto.jpg  logo  https://..." is rejected here
 // instead of being sent to Google Wallet, which refuses it.
@@ -34,6 +37,13 @@ const optionalUrlSchema = z
   .refine((value) => !/\s/.test(value), "Pon solo una URL, sin espacios ni texto extra")
   .optional()
   .or(z.literal(""));
+
+// Counted like the backend (code points), on the raw text, so what the counter shows is what is checked.
+const walletText = (emptyMessage: string) =>
+  z
+    .string()
+    .refine((value) => countChars(value) <= WALLET_TEXT_MAX, WALLET_TEXT_MAX_MESSAGE)
+    .refine((value) => value.trim().length >= 8, emptyMessage);
 
 const treatmentSchema = z.object({ name: z.string().trim().min(1, "Añade un tratamiento").max(120), priceEuro: z.number().optional(), pointsAllotted: z.number().int().min(0) });
 
@@ -48,14 +58,22 @@ const designFields = {
   heroImageUrl: optionalUrlSchema,
   pointsLabel: z.string().trim().min(2, "Añade la etiqueta de puntos").max(80, "Máximo 80 caracteres"),
   tierLabel: z.string().trim().min(2, "Añade la etiqueta de nivel").max(80, "Máximo 80 caracteres"),
-  benefitsText: z.string().trim().min(8, "Añade un mensaje breve de beneficios").max(1200, "Máximo 1200 caracteres"),
-  infoText: z.string().trim().min(8, "Añade un mensaje breve de información").max(1200, "Máximo 1200 caracteres"),
+  benefitsText: walletText("Añade un mensaje breve de beneficios"),
+  infoText: walletText("Añade un mensaje breve de información"),
 };
 
 // A new design starts with a treatment, so it is validated. An existing design's treatments are
 // managed in My center and not shown here, so an error about them would have no field to sit on.
 const createSchema = z.object({ ...designFields, treatments: z.array(treatmentSchema).min(1, "Añade al menos un tratamiento") });
 const updateSchema = z.object({ ...designFields, treatments: z.array(z.custom<TreatmentValue>()) });
+
+// With a live programme the Beneficios field is not shown, so its "at least 8 characters" rule has no
+// field to sit on and must not block saving. The length cap stays: the stored text is still sent.
+const updateSchemaWithProgramme = z.object({
+  ...designFields,
+  benefitsText: z.string().refine((value) => countChars(value) <= WALLET_TEXT_MAX, WALLET_TEXT_MAX_MESSAGE),
+  treatments: z.array(z.custom<TreatmentValue>()),
+});
 
 type TemplateFormValues = z.infer<typeof createSchema>;
 type TemplateTab = "edit" | "preview";
@@ -145,13 +163,30 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   // True while the person is asked to confirm how many cards a save reaches.
   const [confirming, setConfirming] = React.useState(false);
   const [polling, setPolling] = React.useState<RefreshPolling | null>(null);
-  const form = useForm<TemplateFormValues>({ resolver: zodResolver(initialTemplate ? updateSchema : createSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
+  // A clinic with a live programme shows each client their tier's benefits, so the typed text is only a
+  // fallback and is not offered. Its value stays in form state, so a save still submits it unchanged.
+  const hasActiveProgramme = initialTemplate?.hasActiveProgramme === true;
+  const form = useForm<TemplateFormValues>({ resolver: zodResolver(initialTemplate ? (hasActiveProgramme ? updateSchemaWithProgramme : updateSchema) : createSchema), defaultValues: toFormValues(initialTemplate, initialPreset) });
 
   // Saving the design must not rewrite the catalogue. Treatments are edited in My center, not here,
   // so they go along only when this form creates the template (with its starter treatment).
   const saveInput = (input: TemplateFormValues): SaveTemplateInput =>
     initialTemplate ? { ...input, treatments: undefined } : input;
   const values = form.watch();
+
+  // Registers a text field that cannot grow past the backend cap. Counting in code points, a native
+  // maxLength (UTF-16 units) would stop emoji text early while the counter still showed room.
+  const limitedRegister = (name: "benefitsText" | "infoText") => {
+    const field = form.register(name);
+
+    return {
+      ...field,
+      onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        event.target.value = clampChars(event.target.value);
+        return field.onChange(event);
+      },
+    };
+  };
 
   // Only the centre's own session can read its card status; the admin route has no such view.
   const statusEnabled = scope === "clinic" && Boolean(initialTemplate);
@@ -237,6 +272,16 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
         setStatusMessage("Este centro ya tiene un diseño de tarjeta: edítalo en lugar de crear otro.");
         queryClient.invalidateQueries({ queryKey: queryKeys.clinicTemplate(clinicId) });
         window.setTimeout(() => router.replace(scope === "admin" ? `/admin/clinics/${clinicId}` : "/dashboard/templates"), 1200);
+        return;
+      }
+
+      // The backend refuses these two texts above its cap with a 422; show that on the field itself.
+      if (error instanceof ApiError && error.status === 422 && /\b500\b/.test(error.detail ?? "")) {
+        const message = error.detail ?? WALLET_TEXT_MAX_MESSAGE;
+        const over = (["benefitsText", "infoText"] as const).filter((name) => countChars(form.getValues(name)) > WALLET_TEXT_MAX);
+        // The API does not say which text it meant, so a text under the cap is never blamed.
+        (over.length ? over : (["benefitsText", "infoText"] as const)).forEach((name) => form.setError(name, { type: "server", message }));
+        setStatusMessage(message);
         return;
       }
 
@@ -338,11 +383,29 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
                 <Input {...form.register("tierLabel")} placeholder="Nivel" />
               </Field>
-              <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                <Textarea rows={2} className="min-h-16" {...form.register("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
-              </Field>
-              <Field label="Texto informativo" error={form.formState.errors.infoText?.message} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                <Textarea rows={2} className="min-h-16" {...form.register("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
+              {hasActiveProgramme ? (
+                <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2" data-testid="template-benefits-from-programme">
+                  <p className="text-sm font-medium text-[#2e2421]">Beneficios</p>
+                  <p className="mt-1 rounded-xl border border-[#eadfd8] bg-white/60 p-3 text-xs leading-5 text-[#806e66]">
+                    Los beneficios de tu tarjeta se toman del programa de fidelización: cada cliente ve los de su nivel. Se editan en el programa.
+                    {scope === "admin" ? (
+                      <>
+                        {" "}
+                        <Link href={`/admin/clinics/${clinicId}/program`} className="font-semibold text-[#b7874a] underline underline-offset-2">Edítalos en Programa</Link>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+              ) : (
+                <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} htmlFor="template-benefits-text" className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                  <Textarea id="template-benefits-text" rows={2} className="min-h-16" aria-describedby="template-benefits-text-note" aria-invalid={form.formState.errors.benefitsText ? true : undefined} {...limitedRegister("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
+                  <CharCounter text={values.benefitsText ?? ""} />
+                  <p id="template-benefits-text-note" className="mt-1 text-xs leading-5 text-[#927e72]">Se muestra en la tarjeta de tus clientes.</p>
+                </Field>
+              )}
+              <Field label="Texto informativo" error={form.formState.errors.infoText?.message} htmlFor="template-info-text" className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                <Textarea id="template-info-text" rows={2} className="min-h-16" aria-invalid={form.formState.errors.infoText ? true : undefined} {...limitedRegister("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
+                <CharCounter text={values.infoText ?? ""} />
               </Field>
             </div>
           </div>
@@ -365,7 +428,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                 levelLabel={values.tierLabel}
                 pointsLabel={values.pointsLabel}
               />
-              <p className="mt-4 text-xs leading-5 text-[#806e66]"><span className="font-semibold text-[#2e2421]">Beneficios:</span> {values.benefitsText || "Los beneficios aparecerán aquí."}</p>
+              <p className="mt-4 text-xs leading-5 text-[#806e66]"><span className="font-semibold text-[#2e2421]">Beneficios:</span> {hasActiveProgramme ? "Cada cliente ve los de su nivel del programa." : values.benefitsText || "Los beneficios aparecerán aquí."}</p>
             </div>
           </div>
           <div className="rounded-3xl bg-[#2d211e] p-5 text-white">

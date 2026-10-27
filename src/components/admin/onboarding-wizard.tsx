@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
+import { CharCounter } from "@/components/shared/char-counter";
 import { toPoints } from "@/lib/points";
+import { WALLET_TEXT_MAX, clampChars, countChars } from "@/lib/wallet-text";
 import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
@@ -70,6 +72,9 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
     const bad = fields.find(([, value]) => !isSingleUrl(value));
 
     if (bad) return `${bad[0]} must be a single web address, with no extra text or spaces.`;
+  }
+  if (step === 2 && (countChars(values.benefitsText) > WALLET_TEXT_MAX || countChars(values.infoText) > WALLET_TEXT_MAX)) {
+    return `Member benefits and pass information are limited to ${WALLET_TEXT_MAX} characters each.`;
   }
 
   return null;
@@ -420,11 +425,11 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 <WizardField label="Button URL">
                   <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/benefits" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Member benefits" className="sm:col-span-2">
-                  <Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", event.target.value)} className="min-h-20 rounded-xl bg-[#fffaf6]" />
+                <WizardField label="Member benefits" className="sm:col-span-2" action={<CharCounter text={values.benefitsText} />}>
+                  <Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", clampChars(event.target.value))} className="min-h-20 rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Pass information" className="sm:col-span-2">
-                  <Textarea value={values.infoText} onChange={(event) => update("infoText", event.target.value)} className="min-h-20 rounded-xl bg-[#fffaf6]" />
+                <WizardField label="Pass information" className="sm:col-span-2" action={<CharCounter text={values.infoText} />}>
+                  <Textarea value={values.infoText} onChange={(event) => update("infoText", clampChars(event.target.value))} className="min-h-20 rounded-xl bg-[#fffaf6]" />
                 </WizardField>
               </div>
             </form>

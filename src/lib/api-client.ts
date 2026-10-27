@@ -127,6 +127,11 @@ export interface Template {
   tierLabel: string;
   benefitsText: string;
   infoText: string;
+  /**
+   * True when the clinic has a live (ACTIVO) onboarding programme. The pass then shows each
+   * member's tier benefits, and benefitsText is only a fallback the editor should not offer.
+   */
+  hasActiveProgramme?: boolean;
   status?: "PENDING" | "ACTIVE" | "FAILED";
   preset?: TemplatePreset;
   clinic?: { id: string; name: string };
