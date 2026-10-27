@@ -349,8 +349,9 @@ function ReaddCard({
       <p className="text-sm font-semibold">¿Ha perdido la tarjeta?</p>
       {appleUpdatesRegistered === false ? (
         <p className="text-xs text-muted-foreground">
-          La tarjeta de Apple de este cliente no se actualiza sola. Vuelve a
-          añadirla con el código QR.
+          La tarjeta de Apple de este cliente no se actualiza sola. Genera un
+          código nuevo con este botón y pídele que la añada de nuevo; si ya la
+          tiene en el iPhone, que la elimine antes.
         </p>
       ) : null}
       {url ? (

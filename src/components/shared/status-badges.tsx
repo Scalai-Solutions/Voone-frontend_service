@@ -14,7 +14,7 @@ const STATUS_LABELS: Record<ProviderStatus, string> = {
 };
 
 const APPLE_NO_UPDATES_HINT =
-  "Esta tarjeta no está registrada para recibir actualizaciones. El cliente puede volver a añadirla con «Volver a añadir la tarjeta a Wallet», o activar «Actualizaciones automáticas» en los ajustes de la tarjeta en su iPhone.";
+  "Esta tarjeta no está registrada para recibir actualizaciones. Se puede volver a añadir generando un código nuevo, o el cliente puede activar las actualizaciones automáticas de la tarjeta en su iPhone.";
 
 export function WalletStatusBadges({
   statuses,
@@ -32,7 +32,7 @@ export function WalletStatusBadges({
               key={provider}
               variant="outline"
               title={APPLE_NO_UPDATES_HINT}
-              className="border-warning bg-warning/15 text-foreground"
+              className="max-w-full whitespace-normal break-words rounded-2xl border-warning bg-warning/15 text-left text-foreground"
             >
               {PROVIDER_LABELS[provider]} - {STATUS_LABELS[status]} · sin actualización automática
             </Badge>
