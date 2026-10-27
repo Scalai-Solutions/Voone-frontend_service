@@ -159,7 +159,9 @@ export function ProgramVisitPanel({
       setOutcome(result);
       setVisitId(result.visitId);
       storeVisit(memberId, result.visitId);
-      setLines([{ key: nextKey.current++, category: "", amount: "", picked: "" }]);
+      setLines([
+        { key: nextKey.current++, category: "", amount: "", picked: "" },
+      ]);
       setDiscounted("");
       setPackageName("");
       setPackagePrice("");
@@ -180,13 +182,16 @@ export function ProgramVisitPanel({
     const idempotencyKey = visitKeyRef.current;
 
     // Bonus points: optional, whole multiples of ten — the ledger holds whole euros.
-    const bonus = bonusPoints.trim() === "" ? undefined : Number(bonusPoints.trim());
+    const bonus =
+      bonusPoints.trim() === "" ? undefined : Number(bonusPoints.trim());
 
     if (
       bonus !== undefined &&
       (!Number.isInteger(bonus) || bonus < 10 || bonus % 10 !== 0)
     ) {
-      setNotice("Los puntos extra deben ser múltiplos de 10 (10 puntos = 1 €).");
+      setNotice(
+        "Los puntos extra deben ser múltiplos de 10 (10 puntos = 1 €).",
+      );
       return;
     }
 
@@ -206,7 +211,9 @@ export function ProgramVisitPanel({
 
       if (bonoChoice.startsWith("plan:")) {
         const start =
-          startAtSession.trim() === "" ? undefined : Number(startAtSession.trim());
+          startAtSession.trim() === ""
+            ? undefined
+            : Number(startAtSession.trim());
 
         if (start !== undefined && (!Number.isInteger(start) || start < 1)) {
           setNotice("La sesión inicial tiene que ser un número entero.");
@@ -252,7 +259,9 @@ export function ProgramVisitPanel({
         return;
       }
 
-      setNotice("Elige el bono de la clienta o un plan para empezar uno nuevo.");
+      setNotice(
+        "Elige el bono de la clienta o un plan para empezar uno nuevo.",
+      );
       return;
     }
 
@@ -441,7 +450,12 @@ export function ProgramVisitPanel({
                 onClick={() =>
                   setLines((current) => [
                     ...current,
-                    { key: nextKey.current++, category: "", amount: "", picked: "" },
+                    {
+                      key: nextKey.current++,
+                      category: "",
+                      amount: "",
+                      picked: "",
+                    },
                   ])
                 }
               >
@@ -520,7 +534,10 @@ export function ProgramVisitPanel({
                         },
                         onError: (error) =>
                           setNotice(
-                            messageOf(error, "No se ha podido cancelar el bono."),
+                            messageOf(
+                              error,
+                              "No se ha podido cancelar el bono.",
+                            ),
                           ),
                       });
                     }

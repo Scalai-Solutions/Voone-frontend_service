@@ -142,9 +142,9 @@ export const recordVisit = (memberId: string, input: VisitInput) =>
   });
 
 export const getMemberRewards = (memberId: string) =>
-  request<{ rewards: MemberReward[] }>(`/members/${encodeURIComponent(memberId)}/rewards`).then(
-    (r) => r.rewards,
-  );
+  request<{ rewards: MemberReward[] }>(
+    `/members/${encodeURIComponent(memberId)}/rewards`,
+  ).then((r) => r.rewards);
 
 export const redeemReward = (
   memberId: string,

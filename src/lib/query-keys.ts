@@ -21,13 +21,16 @@ export const queryKeys = {
   onboarding: {
     bonos: (clinicId: string) => ["onboarding", clinicId, "bonos"] as const,
     catalog: (clinicId: string) => ["onboarding", clinicId, "catalog"] as const,
-    estimates: (clinicId: string) => ["onboarding", clinicId, "estimates"] as const,
+    estimates: (clinicId: string) =>
+      ["onboarding", clinicId, "estimates"] as const,
     preview: (clinicId: string, answers: unknown) =>
       ["onboarding", clinicId, "preview", answers] as const,
-    programs: (clinicId: string) => ["onboarding", clinicId, "programs"] as const,
+    programs: (clinicId: string) =>
+      ["onboarding", clinicId, "programs"] as const,
     program: (clinicId: string, programId: string) =>
       ["onboarding", clinicId, "program", programId] as const,
-    recalibration: (clinicId: string) => ["onboarding", clinicId, "recalibration"] as const,
+    recalibration: (clinicId: string) =>
+      ["onboarding", clinicId, "recalibration"] as const,
     calculator: (clinicId: string, programId: string, input: unknown) =>
       ["onboarding", clinicId, "calculator", programId, input] as const,
   },

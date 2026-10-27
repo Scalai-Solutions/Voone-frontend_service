@@ -75,7 +75,8 @@ export interface CsvImportResult {
 
 /* -------------------------------------------------------------------------- answers */
 
-export type Objective = "equilibrado" | "mas_visitas" | "mas_gasto" | "mas_clientes_nuevos";
+export type Objective =
+  "equilibrado" | "mas_visitas" | "mas_gasto" | "mas_clientes_nuevos";
 export type Investment = "conservador" | "equilibrado" | "generoso";
 export type Occupancy = "o1" | "o2" | "o3" | "o4";
 export type MembersBucket = "m1" | "m2" | "m3" | "m4";
@@ -105,7 +106,10 @@ export interface OnboardingEstimates {
   preselectedTicketBucket: string;
   preselectedFreqBucket: string;
   /** The ranges the exact figures may take; the backend refuses anything outside them. */
-  limits: { ticket: { min: number; max: number }; visits: { min: number; max: number } };
+  limits: {
+    ticket: { min: number; max: number };
+    visits: { min: number; max: number };
+  };
   ticketBuckets: Array<{ id: string; label: string; value: number }>;
   freqBuckets: Array<{ id: string; label: string }>;
   /** Rows the engine could not file, which the centre must categorise. */
@@ -154,7 +158,12 @@ export interface PresentedTier {
 }
 
 export interface PresentedProgram {
-  estimates: { segment: string; ticket: number; visitsPerYear: number; annualSpend: number };
+  estimates: {
+    segment: string;
+    ticket: number;
+    visitsPerYear: number;
+    annualSpend: number;
+  };
   tiers: PresentedTier[];
   ladder: PresentedMilestone[];
   /** After Diamante: one reward for every `every` euros a client pays. */
@@ -247,7 +256,11 @@ export interface RecalibrationAdvice {
 
 /* ---------------------------------------------------------------------------- calls */
 
-async function request<T>(clinicId: string, path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(
+  clinicId: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const response = await fetch(
     `/api/admin/clinics/${encodeURIComponent(clinicId)}/onboarding${path}`,
     {
@@ -286,27 +299,45 @@ export const replaceCatalog = (clinicId: string, items: CatalogInputRow[]) =>
   }).then((r) => r.items);
 
 export const importCatalogCsv = (clinicId: string, csv: string) =>
-  request<CsvImportResult>(clinicId, "/catalog/import", { method: "POST", ...json({ csv }) });
+  request<CsvImportResult>(clinicId, "/catalog/import", {
+    method: "POST",
+    ...json({ csv }),
+  });
 
 export const getEstimates = (clinicId: string) =>
   request<OnboardingEstimates>(clinicId, "/estimates");
 
 export const previewProgram = (clinicId: string, answers: OnboardingAnswers) =>
-  request<ProgramPreview>(clinicId, "/preview", { method: "POST", ...json(answers) });
+  request<ProgramPreview>(clinicId, "/preview", {
+    method: "POST",
+    ...json(answers),
+  });
 
 export const listPrograms = (clinicId: string) =>
-  request<{ programs: ProgramListItem[] }>(clinicId, "/programs").then((r) => r.programs);
+  request<{ programs: ProgramListItem[] }>(clinicId, "/programs").then(
+    (r) => r.programs,
+  );
 
 export const getProgram = (clinicId: string, programId: string) =>
-  request<ProgramEnvelope>(clinicId, `/programs/${encodeURIComponent(programId)}`);
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}`,
+  );
 
 export const createDraft = (clinicId: string, answers: OnboardingAnswers) =>
-  request<ProgramEnvelope>(clinicId, "/programs", { method: "POST", ...json(answers) });
+  request<ProgramEnvelope>(clinicId, "/programs", {
+    method: "POST",
+    ...json(answers),
+  });
 
 export const publishProgram = (clinicId: string, programId: string) =>
-  request<ProgramEnvelope>(clinicId, `/programs/${encodeURIComponent(programId)}/publish`, {
-    method: "POST",
-  });
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/publish`,
+    {
+      method: "POST",
+    },
+  );
 
 /** One of the engine's two alternatives, or any catalogue item by its id. */
 export type SwapChoice = { alternative: number } | { itemId: string };
@@ -340,11 +371,19 @@ export const getRecalibration = (clinicId: string) =>
 
 /** Five years of what the programme costs and brings in. Computed on the server, which holds the
  *  costs; only yearly totals come back. Absent fields mean the programme's own defaults. */
-export const getCalculator = (clinicId: string, programId: string, input: Partial<CalcInput>) =>
-  request<CalcResult>(clinicId, `/programs/${encodeURIComponent(programId)}/calculator`, {
-    method: "POST",
-    ...json(input),
-  });
+export const getCalculator = (
+  clinicId: string,
+  programId: string,
+  input: Partial<CalcInput>,
+) =>
+  request<CalcResult>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/calculator`,
+    {
+      method: "POST",
+      ...json(input),
+    },
+  );
 
 /* ---------------------------------------------------------------------------- bonos */
 

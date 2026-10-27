@@ -132,7 +132,10 @@ export function Combobox({
         <span className={selected ? "" : "text-muted-foreground"}>
           {selected ? selected.label : placeholder}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <ChevronDown
+          className="h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
       </button>
 
       {open ? (
@@ -159,7 +162,9 @@ export function Combobox({
             className="max-h-60 overflow-y-auto py-1"
           >
             {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">{emptyMessage}</li>
+              <li className="px-3 py-2 text-sm text-muted-foreground">
+                {emptyMessage}
+              </li>
             ) : (
               filtered.map((option, index) => (
                 <li
