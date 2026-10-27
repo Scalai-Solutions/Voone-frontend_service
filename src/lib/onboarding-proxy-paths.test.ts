@@ -24,6 +24,8 @@ const USED_BY_ONBOARDING_API: Array<[method: string, path: string]> = [
   ["POST", "programs/prog_1/publish"],
   ["PATCH", "programs/prog_1/milestones/3"],
   ["PUT", "programs/prog_1/tiers/oro/benefits"],
+  ["PATCH", "programs/prog_1/texts"],
+  ["POST", "programs/prog_1/draft"],
   ["POST", "programs/prog_1/calculator"],
   ["GET", "recalibration"],
   ["GET", "bonos"],
@@ -77,6 +79,27 @@ describe("onboarding proxy allowlist", () => {
         false,
         path,
       );
+    }
+  });
+
+  it("forwards texts only as PATCH and draft only as POST", () => {
+    for (const method of ["GET", "POST", "PUT", "DELETE"]) {
+      assert.equal(
+        isForwardableOnboardingPath(segments("programs/p/texts"), method),
+        false,
+        `texts ${method}`,
+      );
+    }
+    for (const method of ["GET", "PUT", "PATCH", "DELETE"]) {
+      assert.equal(
+        isForwardableOnboardingPath(segments("programs/p/draft"), method),
+        false,
+        `draft ${method}`,
+      );
+    }
+    for (const path of ["programs/p/texts/extra", "programs//texts", "programs/p/draft/x"]) {
+      assert.equal(isForwardableOnboardingPath(segments(path), "PATCH"), false, path);
+      assert.equal(isForwardableOnboardingPath(segments(path), "POST"), false, path);
     }
   });
 
