@@ -11,6 +11,7 @@ import type { BonoPlansStore } from "@/components/shared/bono-plans-editor";
 import type { TierKey } from "@/lib/onboarding-api";
 import {
   createBonoPlan,
+  cloneProgramDraft,
   createDraft,
   deleteBonoPlan,
   getBonoPlans,
@@ -24,6 +25,7 @@ import {
   previewProgram,
   publishProgram,
   replaceCatalog,
+  setProgramTexts,
   setTierBenefits,
   swapMilestone,
   updateBonoPlan,
@@ -31,6 +33,7 @@ import {
   type CatalogInputRow,
   type OnboardingAnswers,
   type SwapChoice,
+  type TextEdits,
 } from "@/lib/onboarding-api";
 
 /**
@@ -232,6 +235,48 @@ export function useSetTierBenefits(clinicId: string, programId: string) {
         queryKeys.onboarding.program(clinicId, draft.id),
         draft,
       );
+    },
+  });
+}
+
+export function useSetProgramTexts(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (edits: TextEdits) =>
+      setProgramTexts(clinicId, programId, edits),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+    },
+  });
+}
+
+/** Copies a programme into a new draft. The new draft is what the screen opens next. */
+export function useCloneDraft(clinicId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (programId: string) => cloneProgramDraft(clinicId, programId),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.programs(clinicId),
+      });
+    },
+    onError: (error) => {
+      // 409: a draft already exists and the list on screen is out of date. Refetching it is what
+      // makes the screen switch to that draft.
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.onboarding.programs(clinicId),
+        });
+      }
     },
   });
 }

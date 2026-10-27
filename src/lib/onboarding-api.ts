@@ -366,6 +366,39 @@ export const setTierBenefits = (
     { method: "PUT", ...json({ benefits }) },
   );
 
+/**
+ * The words of a DRAFT, by what they are attached to. Anything omitted is left as it is.
+ * `index` is the 0-based position in `program.referrals`; `milestone` is the ladder number `n`
+ * of a `ventaja` row (perks) or a `premio` row (rewards). A `null` label restores the engine's
+ * own name. No lock field travels: the backend checks the draft's `updatedAt` itself and
+ * answers 409 if it changed meanwhile, exactly as for the benefits PUT.
+ */
+export interface TextEdits {
+  referral?: Array<{ index: number; name: string }>;
+  perks?: Array<{ milestone: number; name?: string; desc?: string }>;
+  rewards?: Array<{ milestone: number; label: string | null }>;
+  recurring?: { label: string | null };
+}
+
+export const setProgramTexts = (
+  clinicId: string,
+  programId: string,
+  edits: TextEdits,
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/texts`,
+    { method: "PATCH", ...json(edits) },
+  );
+
+/** Copies a programme, verbatim, into a new draft. 409 when a draft already exists. */
+export const cloneProgramDraft = (clinicId: string, programId: string) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/draft`,
+    { method: "POST" },
+  );
+
 export const getRecalibration = (clinicId: string) =>
   request<RecalibrationAdvice>(clinicId, "/recalibration");
 

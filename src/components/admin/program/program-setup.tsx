@@ -9,12 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCatalog,
+  useCloneDraft,
   useCreateDraft,
   useEstimates,
   useProgram,
   usePrograms,
   usePublishProgram,
   useRecalibration,
+  useSetProgramTexts,
   useSetTierBenefits,
   useSwapMilestone,
 } from "@/features/onboarding/api/useOnboarding";
@@ -144,6 +146,8 @@ function ProgramSetupLoaded({
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
   const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
+  const programTexts = useSetProgramTexts(clinicId, shownId ?? "");
+  const cloneDraft = useCloneDraft(clinicId);
 
   const estimates = useEstimates(clinicId, step === 1);
   const recalibration = useRecalibration(clinicId, Boolean(active));
@@ -157,6 +161,21 @@ function ProgramSetupLoaded({
       },
       onError: (error) =>
         setProblem(messageOf(error, "No se ha podido generar el programa.")),
+    });
+  };
+
+  const editCopy = () => {
+    if (!shownId) return;
+
+    setProblem(null);
+    cloneDraft.mutate(shownId, {
+      // The copy is what is shown from now on, on this same screen.
+      onSuccess: (draft) => {
+        setDraftId(draft.id);
+        setStep(2);
+      },
+      onError: (error) =>
+        setProblem(messageOf(error, "No se ha podido crear el borrador.")),
     });
   };
 
@@ -300,6 +319,28 @@ function ProgramSetupLoaded({
                 </p>
               ) : null}
 
+              {program.status === "ACTIVO" && !latestDraft ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-secondary/60 p-4 text-sm">
+                  <p className="max-w-xl text-muted-foreground">
+                    Este programa está activo y no se edita directamente. Los
+                    cambios se hacen en un borrador y no tienen efecto hasta
+                    que lo actives.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={cloneDraft.isPending}
+                    onClick={editCopy}
+                  >
+                    {cloneDraft.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    <span>Editar una copia (borrador)</span>
+                  </Button>
+                </div>
+              ) : null}
+
               {recalibration.data?.offer && !isDraft ? (
                 <div
                   role="status"
@@ -336,6 +377,11 @@ function ProgramSetupLoaded({
                 onSetBenefits={
                   isDraft
                     ? (tier, benefits) => tierBenefits.mutateAsync({ tier, benefits })
+                    : undefined
+                }
+                onSetTexts={
+                  isDraft
+                    ? (edits) => programTexts.mutateAsync(edits)
                     : undefined
                 }
               />

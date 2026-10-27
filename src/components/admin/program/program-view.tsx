@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
 import type {
   SwapChoice,
+  TextEdits,
   PresentedMilestone,
   PresentedProgram,
   PresentedTier,
@@ -26,7 +27,17 @@ import type {
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
 import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
+import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuro, formatProgress } from "./format";
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_TEXT_LENGTH,
+  perkDescriptionEdit,
+  perkNameEdit,
+  recurringLabelEdit,
+  referralTextEdit,
+  rewardLabelEdit,
+} from "./texts";
 
 /**
  * A programme, as a centre reads it.
@@ -50,6 +61,7 @@ export function ProgramView({
   program,
   onSwap,
   onSetBenefits,
+  onSetTexts,
   catalogItems = [],
 }: {
   program: PresentedProgram;
@@ -59,7 +71,27 @@ export function ProgramView({
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
+  /** Present only while the programme is a draft: edits the words of referrals, perks and rewards. */
+  onSetTexts?: (edits: TextEdits) => Promise<unknown>;
 }) {
+  const [textsBusy, setTextsBusy] = React.useState(false);
+  // One text save at a time, screen-wide: each one rewrites the same draft.
+  const texts: TextsEditing | undefined = onSetTexts
+    ? {
+        busy: textsBusy,
+        save: async (edits) => {
+          if (textsBusy) return;
+
+          setTextsBusy(true);
+
+          try {
+            await onSetTexts(edits);
+          } finally {
+            setTextsBusy(false);
+          }
+        },
+      }
+    : undefined;
   const bands = [1, 2, 3, 4].map((band) => ({
     band,
     // A band is held while the client sits in the tier BEFORE the one it ends at.
@@ -96,6 +128,16 @@ export function ProgramView({
             </p>
           ))}
         </div>
+      ) : null}
+
+      {texts ? (
+        <p className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">
+          Puedes cambiar los textos de los premios, las ventajas y los premios
+          por referido con el lápiz. Los umbrales y los artículos no se pueden
+          editar aquí. Los cambios en los textos se aplican a los premios que
+          se emitan a partir de la publicación; los ya emitidos conservan su
+          texto.
+        </p>
       ) : null}
 
       <dl className="grid gap-4 rounded-lg border border-border bg-card p-5 sm:grid-cols-3">
@@ -174,6 +216,7 @@ export function ProgramView({
                   key={milestone.n}
                   milestone={milestone}
                   onSwap={onSwap}
+                  texts={texts}
                   catalogItems={catalogItems}
                 />
               ))}
@@ -183,10 +226,28 @@ export function ProgramView({
 
         <div className="rounded-lg border border-dashed border-border p-4 text-sm leading-6">
           <p className="font-semibold">Después de Diamante</p>
-          <p className="mt-1 text-muted-foreground">
-            Por cada {formatProgress(program.recurring.every)} que gasta el
-            cliente: {program.recurring.name}.
-          </p>
+          {texts ? (
+            <div className="mt-1 grid gap-1 text-muted-foreground">
+              <p>
+                Por cada {formatProgress(program.recurring.every)} que gasta el
+                cliente:
+              </p>
+              <EditableText
+                value={program.recurring.name}
+                label="el premio de después de Diamante"
+                maxLength={MAX_TEXT_LENGTH}
+                build={recurringLabelEdit}
+                editing={texts}
+                restorable
+                className="font-semibold text-foreground"
+              />
+            </div>
+          ) : (
+            <p className="mt-1 text-muted-foreground">
+              Por cada {formatProgress(program.recurring.every)} que gasta el
+              cliente: {program.recurring.name}.
+            </p>
+          )}
         </div>
       </section>
 
@@ -206,14 +267,20 @@ export function ProgramView({
         </p>
         <ColumnHeader>Has generado como mínimo</ColumnHeader>
         <ol className="overflow-hidden rounded-lg border border-border bg-card">
-          {program.referrals.map((referral) => (
+          {program.referrals.map((referral, index) => (
             <li
               key={referral.n}
               className="flex items-baseline justify-between gap-4 border-t border-border px-4 py-3 text-sm first:border-t-0"
             >
-              <span>
+              <span className="min-w-0">
                 <strong>Al {ordinal(referral.n)} referido:</strong>{" "}
-                {referral.name}
+                <EditableText
+                  value={referral.name}
+                  label={`el premio del ${ordinal(referral.n)} referido`}
+                  maxLength={MAX_TEXT_LENGTH}
+                  build={(text) => referralTextEdit(index, text ?? "")}
+                  editing={texts}
+                />
               </span>
               <span className="shrink-0 text-right font-semibold">
                 {formatProgress(referral.minRevenue)}
@@ -530,11 +597,13 @@ function Fact({ label, value }: { label: string; value: string }) {
 function MilestoneRow({
   milestone,
   onSwap,
+  texts,
   catalogItems,
 }: {
   catalogItems: Array<{ externalId: string; name: string; priceEuro: number }>;
   milestone: PresentedMilestone;
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
+  texts?: TextsEditing;
 }) {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -595,17 +664,40 @@ function MilestoneRow({
           />
           <div className="min-w-0">
             <p className="font-semibold">
-              {reward ? reward.name : milestone.perk?.name}
+              {reward ? (
+                <EditableText
+                  value={reward.name}
+                  label="el título del premio"
+                  maxLength={MAX_TEXT_LENGTH}
+                  build={(text) => rewardLabelEdit(milestone.n, text)}
+                  editing={texts}
+                  restorable
+                />
+              ) : milestone.perk ? (
+                <EditableText
+                  value={milestone.perk.name}
+                  label="el nombre de la ventaja"
+                  maxLength={MAX_TEXT_LENGTH}
+                  build={(text) => perkNameEdit(milestone.n, text ?? "")}
+                  editing={texts}
+                />
+              ) : null}
             </p>
             {reward ? (
               <p className="text-xs text-muted-foreground">
                 Premio · mes {milestone.month}
               </p>
-            ) : (
+            ) : milestone.perk ? (
               <p className="text-xs leading-5 text-muted-foreground">
-                {milestone.perk?.description}
+                <EditableText
+                  value={milestone.perk.description}
+                  label="la descripción de la ventaja"
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  build={(text) => perkDescriptionEdit(milestone.n, text ?? "")}
+                  editing={texts}
+                />
               </p>
-            )}
+            ) : null}
           </div>
         </div>
 
