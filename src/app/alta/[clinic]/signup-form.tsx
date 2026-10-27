@@ -43,7 +43,11 @@ const today = new Date();
 const CURRENT_YEAR = today.getUTCFullYear();
 const TODAY_ISO = today.toISOString().slice(0, 10);
 const MIN_BIRTH_ISO = new Date(
-  Date.UTC(today.getUTCFullYear() - 16, today.getUTCMonth(), today.getUTCDate()),
+  Date.UTC(
+    today.getUTCFullYear() - 16,
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  ),
 )
   .toISOString()
   .slice(0, 10);
@@ -82,7 +86,10 @@ const signupSchema = z.object({
     .trim()
     .superRefine((value, ctx) => {
       if (value === "") {
-        ctx.addIssue({ code: "custom", message: "Introduce tu fecha de nacimiento" });
+        ctx.addIssue({
+          code: "custom",
+          message: "Introduce tu fecha de nacimiento",
+        });
 
         return;
       }
@@ -130,7 +137,12 @@ const signupSchema = z.object({
   // alone: "" is exactly what the second stage rejects with the message below.
   sex: z
     .union([z.enum(SEX_OPTIONS.map((option) => option.value)), z.literal("")])
-    .pipe(z.enum(SEX_OPTIONS.map((option) => option.value), "Selecciona una opción")),
+    .pipe(
+      z.enum(
+        SEX_OPTIONS.map((option) => option.value),
+        "Selecciona una opción",
+      ),
+    ),
   // Both tick boxes are required to move forward (2026-10 product decision). Marketing
   // consent included — note that conditioning sign-up on marketing consent is the GDPR
   // Art 7(4) bundling the backend's schema comments warn about; the decision is the

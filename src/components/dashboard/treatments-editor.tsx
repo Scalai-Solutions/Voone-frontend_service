@@ -30,7 +30,8 @@ function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 422 && error.detail) return error.detail;
     if (error.status === 404) return "No se ha encontrado ese tratamiento.";
-    if (error.status === 403) return "No tienes permiso para cambiar los tratamientos.";
+    if (error.status === 403)
+      return "No tienes permiso para cambiar los tratamientos.";
   }
 
   return "No se pudo guardar. Inténtalo de nuevo.";
@@ -46,14 +47,17 @@ type PriceResult = { value: number } | { error: string };
 function parsePrice(raw: string, usesCatalogue: boolean): PriceResult {
   let text = raw.replace(/[\s€]/g, "");
 
-  if (/^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(text)) text = text.replace(/\./g, "");
+  if (/^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(text))
+    text = text.replace(/\./g, "");
 
   if (!text) return { error: "Indica el precio." };
-  if (!/^\d+([.,]\d+)?$/.test(text)) return { error: "El precio debe ser un número, por ejemplo 60 o 60,50." };
+  if (!/^\d+([.,]\d+)?$/.test(text))
+    return { error: "El precio debe ser un número, por ejemplo 60 o 60,50." };
 
   const value = Number(text.replace(",", "."));
 
-  if (!Number.isFinite(value)) return { error: "El precio debe ser un número, por ejemplo 60 o 60,50." };
+  if (!Number.isFinite(value))
+    return { error: "El precio debe ser un número, por ejemplo 60 o 60,50." };
   if (Math.abs(value * 100 - Math.round(value * 100)) > 1e-6) {
     return { error: "El precio admite como máximo dos decimales." };
   }
@@ -64,7 +68,8 @@ function parsePrice(raw: string, usesCatalogue: boolean): PriceResult {
   return { value };
 }
 
-const priceToText = (price: number | null) => (price === null ? "" : String(price).replace(".", ","));
+const priceToText = (price: number | null) =>
+  price === null ? "" : String(price).replace(".", ",");
 
 interface TreatmentFormValues {
   name: string;
@@ -99,7 +104,11 @@ function TreatmentForm({
   onCancel: () => void;
 }) {
   const [values, setValues] = React.useState(initial);
-  const [errors, setErrors] = React.useState<{ name?: string; price?: string; category?: string }>({});
+  const [errors, setErrors] = React.useState<{
+    name?: string;
+    price?: string;
+    category?: string;
+  }>({});
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,11 +122,13 @@ function TreatmentForm({
       if ("error" in price) next.price = price.error;
     }
 
-    if (usesCatalogue && !values.categoryId && !keepMissing) next.category = "Elige una categoría.";
+    if (usesCatalogue && !values.categoryId && !keepMissing)
+      next.category = "Elige una categoría.";
 
     setErrors(next);
 
-    if (Object.keys(next).length === 0) onSubmit({ ...values, name: values.name.trim() });
+    if (Object.keys(next).length === 0)
+      onSubmit({ ...values, name: values.name.trim() });
   }
 
   return (
@@ -131,32 +142,54 @@ function TreatmentForm({
           id={`${idPrefix}-name`}
           value={values.name}
           maxLength={120}
-          onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
+          onChange={(event) =>
+            setValues((current) => ({ ...current, name: event.target.value }))
+          }
           placeholder="Hydrafacial"
           className={inputClass}
         />
       </Field>
-      <Field label={usesCatalogue ? "Precio (€)" : "Precio (€ enteros)"} error={errors.price}>
+      <Field
+        label={usesCatalogue ? "Precio (€)" : "Precio (€ enteros)"}
+        error={errors.price}
+      >
         <input
           id={`${idPrefix}-price`}
           inputMode="decimal"
           value={values.price}
-          onChange={(event) => setValues((current) => ({ ...current, price: event.target.value }))}
+          onChange={(event) =>
+            setValues((current) => ({ ...current, price: event.target.value }))
+          }
           placeholder={usesCatalogue ? "60,00" : "60"}
           className={inputClass}
         />
       </Field>
       {usesCatalogue ? (
-        <Field label="Categoría" error={errors.category ?? (categoriesFailed ? "No se pudieron cargar las categorías." : undefined)}>
+        <Field
+          label="Categoría"
+          error={
+            errors.category ??
+            (categoriesFailed
+              ? "No se pudieron cargar las categorías."
+              : undefined)
+          }
+        >
           <select
             id={`${idPrefix}-category`}
             value={values.categoryId}
-            onChange={(event) => setValues((current) => ({ ...current, categoryId: event.target.value }))}
+            onChange={(event) =>
+              setValues((current) => ({
+                ...current,
+                categoryId: event.target.value,
+              }))
+            }
             className={inputClass}
           >
             <option value="">Elige una categoría</option>
             {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.label}</option>
+              <option key={category.id} value={category.id}>
+                {category.label}
+              </option>
             ))}
           </select>
         </Field>
@@ -167,7 +200,8 @@ function TreatmentForm({
           disabled={isPending}
           className="inline-flex h-11 items-center rounded-xl bg-[#2d211e] px-3 text-sm font-semibold text-white disabled:opacity-60"
         >
-          <Save size={15} className="mr-1" />{isPending ? "Guardando..." : submitLabel}
+          <Save size={15} className="mr-1" />
+          {isPending ? "Guardando..." : submitLabel}
         </button>
         <button
           type="button"
@@ -179,7 +213,12 @@ function TreatmentForm({
         </button>
       </div>
       {serverError ? (
-        <p role="alert" className="text-sm font-semibold text-[#b94135] md:col-span-full">{serverError}</p>
+        <p
+          role="alert"
+          className="text-sm font-semibold text-[#b94135] md:col-span-full"
+        >
+          {serverError}
+        </p>
       ) : null}
     </form>
   );
@@ -194,7 +233,10 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
   const catalogue = useTreatmentCatalogue();
   const usesCatalogue = catalogue.data?.usesCatalogue ?? false;
   const categoriesQuery = useTreatmentCategories(usesCatalogue);
-  const categories = React.useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
+  const categories = React.useMemo(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data],
+  );
   const categoryLabels = React.useMemo(
     () => new Map(categories.map((category) => [category.id, category.label])),
     [categories],
@@ -206,10 +248,14 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
   // "new", a treatment id (edit or removal), or null. The error shows next to that form or row.
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<{ scope: string; text: string } | null>(null);
+  const [error, setError] = React.useState<{
+    scope: string;
+    text: string;
+  } | null>(null);
 
   const items = catalogue.data?.items ?? [];
-  const errorFor = (scope: string) => (error?.scope === scope ? error.text : null);
+  const errorFor = (scope: string) =>
+    error?.scope === scope ? error.text : null;
 
   function open(id: string | null) {
     setEditingId(id);
@@ -226,11 +272,14 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
       {
         name: values.name,
         priceEuro: price.value,
-        ...(usesCatalogue && values.categoryId ? { categoryId: values.categoryId } : {}),
+        ...(usesCatalogue && values.categoryId
+          ? { categoryId: values.categoryId }
+          : {}),
       },
       {
         onSuccess: () => setEditingId(null),
-        onError: (failure) => setError({ scope: "new", text: messageFor(failure) }),
+        onError: (failure) =>
+          setError({ scope: "new", text: messageFor(failure) }),
       },
     );
   }
@@ -247,7 +296,11 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
       if (price.value !== treatment.priceEuro) patch.priceEuro = price.value;
     }
 
-    if (usesCatalogue && values.categoryId && values.categoryId !== treatment.categoryId) {
+    if (
+      usesCatalogue &&
+      values.categoryId &&
+      values.categoryId !== treatment.categoryId
+    ) {
       patch.categoryId = values.categoryId;
     }
 
@@ -261,7 +314,8 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
       { id: treatment.id, input: patch },
       {
         onSuccess: () => setEditingId(null),
-        onError: (failure) => setError({ scope: treatment.id, text: messageFor(failure) }),
+        onError: (failure) =>
+          setError({ scope: treatment.id, text: messageFor(failure) }),
       },
     );
   }
@@ -270,7 +324,8 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
     setError(null);
     deleteMutation.mutate(treatment.id, {
       onSuccess: () => setConfirmingId(null),
-      onError: (failure) => setError({ scope: treatment.id, text: messageFor(failure) }),
+      onError: (failure) =>
+        setError({ scope: treatment.id, text: messageFor(failure) }),
     });
   }
 
@@ -278,7 +333,9 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
     <div className="mt-4 overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eadfd8] p-5">
         <div>
-          <h2 className="font-serif text-2xl font-semibold">Catálogo de tratamientos</h2>
+          <h2 className="font-serif text-2xl font-semibold">
+            Catálogo de tratamientos
+          </h2>
           <p className="mt-1 text-sm text-[#927e72]">
             {canEdit
               ? "Los servicios que registra tu equipo en cada visita. Los cambios se ven al momento en la pantalla de escaneo."
@@ -291,7 +348,8 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
             onClick={() => open("new")}
             className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"
           >
-            <Plus size={15} className="mr-1 inline" />Añadir
+            <Plus size={15} className="mr-1 inline" />
+            Añadir
           </button>
         ) : null}
       </div>
@@ -313,9 +371,24 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
         />
       ) : null}
 
-      {catalogue.isPending ? <p className="px-5 py-4 text-sm text-[#927e72]">Cargando tratamientos...</p> : null}
-      {catalogue.isError ? <p role="alert" className="px-5 py-4 text-sm font-semibold text-[#b94135]">No se pudieron cargar los tratamientos.</p> : null}
-      {catalogue.data && items.length === 0 ? <p className="px-5 py-4 text-sm text-[#927e72]">Todavía no hay tratamientos.</p> : null}
+      {catalogue.isPending ? (
+        <p className="px-5 py-4 text-sm text-[#927e72]">
+          Cargando tratamientos...
+        </p>
+      ) : null}
+      {catalogue.isError ? (
+        <p
+          role="alert"
+          className="px-5 py-4 text-sm font-semibold text-[#b94135]"
+        >
+          No se pudieron cargar los tratamientos.
+        </p>
+      ) : null}
+      {catalogue.data && items.length === 0 ? (
+        <p className="px-5 py-4 text-sm text-[#927e72]">
+          Todavía no hay tratamientos.
+        </p>
+      ) : null}
 
       {items.map((treatment) => {
         if (canEdit && editingId === treatment.id) {
@@ -323,34 +396,59 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
             <TreatmentForm
               key={treatment.id}
               idPrefix={`treatment-${treatment.id}`}
-              initial={{ name: treatment.name, price: priceToText(treatment.priceEuro), categoryId: treatment.categoryId ?? "" }}
+              initial={{
+                name: treatment.name,
+                price: priceToText(treatment.priceEuro),
+                categoryId: treatment.categoryId ?? "",
+              }}
               usesCatalogue={usesCatalogue}
               categories={categories}
               categoriesFailed={categoriesQuery.isError}
               isPending={updateMutation.isPending}
               serverError={errorFor(treatment.id)}
               submitLabel="Guardar"
-              keepMissing={treatment.priceEuro === null || (usesCatalogue && treatment.categoryId === null)}
+              keepMissing={
+                treatment.priceEuro === null ||
+                (usesCatalogue && treatment.categoryId === null)
+              }
               onSubmit={(values) => update(treatment, values)}
               onCancel={() => open(null)}
             />
           );
         }
 
-        const categoryLabel = usesCatalogue && treatment.categoryId ? categoryLabels.get(treatment.categoryId) : undefined;
-        const price = typeof treatment.priceEuro === "number" ? `Precio: ${formatNumber(treatment.priceEuro)} €` : "sin precio";
+        const categoryLabel =
+          usesCatalogue && treatment.categoryId
+            ? categoryLabels.get(treatment.categoryId)
+            : undefined;
+        const price =
+          typeof treatment.priceEuro === "number"
+            ? `Precio: ${formatNumber(treatment.priceEuro)} €`
+            : "sin precio";
 
         return (
-          <div key={treatment.id} className="border-b border-[#eadfd8] px-5 py-4 last:border-0">
+          <div
+            key={treatment.id}
+            className="border-b border-[#eadfd8] px-5 py-4 last:border-0"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{treatment.name}</p>
-                <p className="mt-1 text-xs text-[#927e72]">{categoryLabel ? `${price} · ${categoryLabel}` : price}</p>
+                <p className="mt-1 text-xs text-[#927e72]">
+                  {categoryLabel ? `${price} · ${categoryLabel}` : price}
+                </p>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{formatNumber(treatment.points)} puntos</span>
+                <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">
+                  {formatNumber(treatment.points)} puntos
+                </span>
                 {canEdit ? (
-                  <button type="button" onClick={() => open(treatment.id)} className="text-[#9b633e]" aria-label={`Editar ${treatment.name}`}>
+                  <button
+                    type="button"
+                    onClick={() => open(treatment.id)}
+                    className="text-[#9b633e]"
+                    aria-label={`Editar ${treatment.name}`}
+                  >
                     <Pencil size={15} />
                   </button>
                 ) : null}
@@ -372,7 +470,10 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
             </div>
             {canEdit && confirmingId === treatment.id ? (
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl bg-[#fff3ef] px-4 py-3 text-sm">
-                <p className="font-semibold text-[#8a3a30]">¿Eliminar «{treatment.name}»? Esta acción no se puede deshacer.</p>
+                <p className="font-semibold text-[#8a3a30]">
+                  ¿Eliminar «{treatment.name}»? Esta acción no se puede
+                  deshacer.
+                </p>
                 <button
                   type="button"
                   onClick={() => remove(treatment)}
@@ -394,7 +495,12 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
               </div>
             ) : null}
             {errorFor(treatment.id) && editingId !== treatment.id ? (
-              <p role="alert" className="mt-2 text-sm font-semibold text-[#b94135]">{errorFor(treatment.id)}</p>
+              <p
+                role="alert"
+                className="mt-2 text-sm font-semibold text-[#b94135]"
+              >
+                {errorFor(treatment.id)}
+              </p>
             ) : null}
           </div>
         );

@@ -25,10 +25,15 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["recalibration"], methods: ["GET"] },
 ];
 
-export const isForwardableOnboardingPath = (segments: string[], method: string): boolean =>
+export const isForwardableOnboardingPath = (
+  segments: string[],
+  method: string,
+): boolean =>
   ALLOWED.some(
     ({ pattern, methods }) =>
       methods.includes(method.toUpperCase()) &&
       pattern.length === segments.length &&
-      pattern.every((part, i) => (part === "*" ? segments[i].length > 0 : part === segments[i])),
+      pattern.every((part, i) =>
+        part === "*" ? segments[i].length > 0 : part === segments[i],
+      ),
   );

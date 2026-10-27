@@ -15,9 +15,12 @@ export async function GET() {
   }
 
   return forwardResponse(
-    await staffFetch(`/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/bonos`, {
-      method: "GET",
-    }),
+    await staffFetch(
+      `/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/bonos`,
+      {
+        method: "GET",
+      },
+    ),
   );
 }
 
@@ -29,9 +32,12 @@ export async function POST(request: Request) {
   }
 
   return forwardResponse(
-    await staffFetch(`/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/bonos`, {
-      method: "POST",
-      body: await request.text(),
-    }),
+    await staffFetch(
+      `/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/bonos`,
+      {
+        method: "POST",
+        body: await request.text(),
+      },
+    ),
   );
 }

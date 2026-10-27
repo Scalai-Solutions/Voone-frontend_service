@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { updateMember, type Member, type UpdateMemberInput } from "@/lib/api-client";
+import {
+  updateMember,
+  type Member,
+  type UpdateMemberInput,
+} from "@/lib/api-client";
 
 /**
  * Editing a member's own details. The updated summary is written straight into the member

@@ -50,9 +50,7 @@ export function CommunicationsPageClient() {
     "idle" | "sending" | "sent" | "error"
   >("idle");
   const [sendMessage, setSendMessage] = React.useState<string | null>(null);
-  const [, setSettings] = React.useState<NotificationSettings | null>(
-    null,
-  );
+  const [, setSettings] = React.useState<NotificationSettings | null>(null);
   const [settingsState, setSettingsState] = React.useState<
     "idle" | "loading" | "saving" | "saved" | "error"
   >("idle");
@@ -65,16 +63,16 @@ export function CommunicationsPageClient() {
   const [birthdayBody, setBirthdayBody] = React.useState(defaultBirthdayBody);
   const [birthdayEnabled, setBirthdayEnabled] = React.useState(true);
   const [birthdayNotify, setBirthdayNotify] = React.useState(true);
-  const [
-    bonoReminderHeader,
-    setBonoReminderHeader,
-  ] = React.useState(defaultBonoReminderHeader);
+  const [bonoReminderHeader, setBonoReminderHeader] = React.useState(
+    defaultBonoReminderHeader,
+  );
   const [bonoReminderBody, setBonoReminderBody] = React.useState(
     defaultBonoReminderBody,
   );
   const [bonoReminderEnabled, setBonoReminderEnabled] = React.useState(true);
   const [bonoReminderNotify, setBonoReminderNotify] = React.useState(true);
-  const [notifyOnCredit, setNotifyOnCredit] = React.useState<NotifyOnCredit>("MILESTONE_AND_TIER");
+  const [notifyOnCredit, setNotifyOnCredit] =
+    React.useState<NotifyOnCredit>("MILESTONE_AND_TIER");
   const [marketingEnabled, setMarketingEnabled] = React.useState(true);
   const maxLength = 180;
   const manualQuotaTotal = currentClinic.data?.notificationsMonthlyQuota ?? 0;
@@ -101,7 +99,9 @@ export function CommunicationsPageClient() {
         setBirthdayBody(value.birthdayBody || defaultBirthdayBody);
         setBirthdayEnabled(value.birthdayEnabled);
         setBirthdayNotify(value.birthdayNotify);
-        setBonoReminderHeader(value.bonoReminderHeader || defaultBonoReminderHeader);
+        setBonoReminderHeader(
+          value.bonoReminderHeader || defaultBonoReminderHeader,
+        );
         setBonoReminderBody(value.bonoReminderBody || defaultBonoReminderBody);
         setBonoReminderEnabled(value.bonoReminderEnabled);
         setBonoReminderNotify(value.bonoReminderNotify);
@@ -146,7 +146,10 @@ export function CommunicationsPageClient() {
     return "QUEUED" as NotificationStatus;
   };
 
-  const saveAutomationSettings = async (message: string, patch: Partial<NotificationSettings>) => {
+  const saveAutomationSettings = async (
+    message: string,
+    patch: Partial<NotificationSettings>,
+  ) => {
     if (!currentClinic.data) {
       setSettingsState("error");
       setSettingsMessage("No se pudo resolver la clínica actual.");
@@ -180,7 +183,9 @@ export function CommunicationsPageClient() {
       setBirthdayHeader(saved.birthdayHeader || defaultBirthdayHeader);
       setBirthdayBody(saved.birthdayBody || defaultBirthdayBody);
       setBirthdayNotify(saved.birthdayNotify);
-      setBonoReminderHeader(saved.bonoReminderHeader || defaultBonoReminderHeader);
+      setBonoReminderHeader(
+        saved.bonoReminderHeader || defaultBonoReminderHeader,
+      );
       setBonoReminderBody(saved.bonoReminderBody || defaultBonoReminderBody);
       setBonoReminderEnabled(saved.bonoReminderEnabled);
       setBonoReminderNotify(saved.bonoReminderNotify);
@@ -232,7 +237,9 @@ export function CommunicationsPageClient() {
 
     if (scheduledDate === null) {
       setSendState("error");
-      setSendMessage("Elige una fecha y hora válidas para programar la comunicación.");
+      setSendMessage(
+        "Elige una fecha y hora válidas para programar la comunicación.",
+      );
       return;
     }
 
@@ -262,7 +269,9 @@ export function CommunicationsPageClient() {
 
       if (scheduledDate) {
         setSendState("sent");
-        setSendMessage(`Comunicación programada para ${scheduledDate.toLocaleString("es-ES")}.`);
+        setSendMessage(
+          `Comunicación programada para ${scheduledDate.toLocaleString("es-ES")}.`,
+        );
         setComposeOpen(false);
         void currentClinic.refetch();
         return;
@@ -270,7 +279,11 @@ export function CommunicationsPageClient() {
 
       const finalStatus = await waitForFinalStatus(response.notificationId);
 
-      setSendState(finalStatus === "FAILED" || finalStatus === "CANCELLED" ? "error" : "sent");
+      setSendState(
+        finalStatus === "FAILED" || finalStatus === "CANCELLED"
+          ? "error"
+          : "sent",
+      );
       setSendMessage(
         finalStatus === "QUEUED" || finalStatus === "PROCESSING"
           ? "Comunicación guardada y pendiente de entrega."
@@ -337,7 +350,9 @@ export function CommunicationsPageClient() {
             Estado de envíos
           </p>
           <p className="mt-3 font-serif text-4xl font-semibold">
-            {currentClinic.isLoading ? "..." : currentClinic.data?.notificationsUsedThisMonth ?? 0}
+            {currentClinic.isLoading
+              ? "..."
+              : (currentClinic.data?.notificationsUsedThisMonth ?? 0)}
           </p>
           <p className="mt-2 text-sm text-[#927e72]">Envíos reales este mes</p>
         </div>
@@ -405,8 +420,7 @@ export function CommunicationsPageClient() {
               : "text-[#806d63]",
           )}
         >
-          Automáticos{" "}
-          <span className="ml-1 text-xs opacity-70">2 activos</span>
+          Automáticos <span className="ml-1 text-xs opacity-70">2 activos</span>
         </button>
       </div>
 
@@ -551,14 +565,17 @@ export function CommunicationsPageClient() {
                   <div>
                     <p className="font-semibold">Después de una visita</p>
                     <p className="mt-1 text-sm leading-6 text-[#927e72]">
-                      Actualiza el pase cuando se registran puntos y decide cuándo enviar push.
+                      Actualiza el pase cuando se registran puntos y decide
+                      cuándo enviar push.
                     </p>
                   </div>
                   <label className="flex items-center gap-2 text-xs font-semibold text-[#806d63]">
                     <input
                       type="checkbox"
                       checked={marketingEnabled}
-                      onChange={(event) => setMarketingEnabled(event.target.checked)}
+                      onChange={(event) =>
+                        setMarketingEnabled(event.target.checked)
+                      }
                       className="h-4 w-4 accent-[#b8864b]"
                     />
                     Marketing activo
@@ -568,11 +585,15 @@ export function CommunicationsPageClient() {
                   Notificación push
                   <select
                     value={notifyOnCredit}
-                    onChange={(event) => setNotifyOnCredit(event.target.value as NotifyOnCredit)}
+                    onChange={(event) =>
+                      setNotifyOnCredit(event.target.value as NotifyOnCredit)
+                    }
                     className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
                   >
                     <option value="NEVER">Nunca, solo actualizar puntos</option>
-                    <option value="MILESTONE_AND_TIER">Solo hitos y cambios de nivel</option>
+                    <option value="MILESTONE_AND_TIER">
+                      Solo hitos y cambios de nivel
+                    </option>
                     <option value="ALWAYS">Después de cada visita</option>
                   </select>
                 </label>
@@ -581,7 +602,9 @@ export function CommunicationsPageClient() {
                   disabled={settingsState === "saving"}
                   className="mt-4 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {settingsState === "saving" ? "Guardando..." : "Guardar después de visita"}
+                  {settingsState === "saving"
+                    ? "Guardando..."
+                    : "Guardar después de visita"}
                 </button>
               </div>
 
@@ -652,7 +675,9 @@ export function CommunicationsPageClient() {
                   }
                   className="mt-4 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {settingsState === "saving" ? "Guardando..." : "Guardar recordatorio de bonos"}
+                  {settingsState === "saving"
+                    ? "Guardando..."
+                    : "Guardar recordatorio de bonos"}
                 </button>
               </div>
             </div>
@@ -699,7 +724,9 @@ export function CommunicationsPageClient() {
                     }
                     className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white py-3 pl-3 pr-10 font-normal"
                   >
-                    <option value={allMembersAudience}>Todos los miembros activos</option>
+                    <option value={allMembersAudience}>
+                      Todos los miembros activos
+                    </option>
                     <option value={activeBonoAudience}>
                       Miembros con bono activo
                     </option>
@@ -709,7 +736,9 @@ export function CommunicationsPageClient() {
                   Cuándo
                   <select
                     value={sendWhen}
-                    onChange={(event) => setSendWhen(event.target.value as "now" | "scheduled")}
+                    onChange={(event) =>
+                      setSendWhen(event.target.value as "now" | "scheduled")
+                    }
                     className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white py-3 pl-3 pr-10 font-normal"
                   >
                     <option value="now">Ahora</option>

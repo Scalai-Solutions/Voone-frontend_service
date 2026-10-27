@@ -76,7 +76,9 @@ export function useCancelMemberBono(memberId: string) {
   return useMutation({
     mutationFn: (bonoId: string) => cancelMemberBono(memberId, bonoId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.memberBonos(memberId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.memberBonos(memberId),
+      });
     },
   });
 }

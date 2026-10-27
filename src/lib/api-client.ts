@@ -302,7 +302,13 @@ export interface Clinic {
 }
 
 export type NotificationType =
-  "BROADCAST" | "SEGMENT" | "SINGLE" | "POINTS" | "TIER" | "BIRTHDAY" | "BONO_REMINDER";
+  | "BROADCAST"
+  | "SEGMENT"
+  | "SINGLE"
+  | "POINTS"
+  | "TIER"
+  | "BIRTHDAY"
+  | "BONO_REMINDER";
 export type NotificationStatus =
   "QUEUED" | "PROCESSING" | "SENT" | "PARTIAL_FAILED" | "FAILED" | "CANCELLED";
 export type NotificationDeliveryStatus =
@@ -602,7 +608,9 @@ export async function uploadImage(
     );
   }
 
-  const body = (await response.json().catch(() => null)) as { url?: string } | null;
+  const body = (await response.json().catch(() => null)) as {
+    url?: string;
+  } | null;
 
   if (!body?.url) {
     throw new ApiError("Voone image upload returned no URL", response.status);
@@ -872,14 +880,19 @@ export function saveClinicGeoLocations(
   );
 }
 
-export function getMembers(params: { q?: string; limit?: number; offset?: number } = {}) {
+export function getMembers(
+  params: { q?: string; limit?: number; offset?: number } = {},
+) {
   const query = new URLSearchParams();
 
   if (params.q) query.set("q", params.q);
   if (params.limit !== undefined) query.set("limit", String(params.limit));
   if (params.offset !== undefined) query.set("offset", String(params.offset));
 
-  return staffProxyFetch<Member[]>(`/members${query.toString() ? `?${query}` : ""}`, { method: "GET" });
+  return staffProxyFetch<Member[]>(
+    `/members${query.toString() ? `?${query}` : ""}`,
+    { method: "GET" },
+  );
 }
 
 export function getAdminMembers() {
@@ -926,10 +939,10 @@ export interface UpdateMemberInput {
 }
 
 export function updateMember(memberId: string, input: UpdateMemberInput) {
-  return staffProxyFetch<Member>(
-    `/members/${encodeURIComponent(memberId)}`,
-    { method: "PATCH", body: JSON.stringify(input) },
-  );
+  return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
 }
 
 export function createMember(input: CreateMemberInput) {
@@ -982,7 +995,9 @@ export interface TemplateRefreshStatus {
 }
 
 export function getTemplateRefreshStatus() {
-  return staffProxyFetch<TemplateRefreshStatus>("/templates/refresh-status", { method: "GET" });
+  return staffProxyFetch<TemplateRefreshStatus>("/templates/refresh-status", {
+    method: "GET",
+  });
 }
 
 /** One treatment as the centre manages it in My center. Old rows can have no price. */
@@ -1020,7 +1035,9 @@ export function getTreatmentCatalogue() {
 }
 
 export function getTreatmentCategories() {
-  return staffProxyFetch<TreatmentCategory[]>("/treatments/categories", { method: "GET" });
+  return staffProxyFetch<TreatmentCategory[]>("/treatments/categories", {
+    method: "GET",
+  });
 }
 
 export function createTreatment(input: CreateTreatmentInput) {
@@ -1031,16 +1048,22 @@ export function createTreatment(input: CreateTreatmentInput) {
 }
 
 export function updateTreatment(id: string, input: UpdateTreatmentInput) {
-  return staffProxyFetch<ManagedTreatment>(`/treatments/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
-  });
+  return staffProxyFetch<ManagedTreatment>(
+    `/treatments/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function deleteTreatment(id: string) {
-  return staffProxyFetch<{ status: "deleted" }>(`/treatments/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return staffProxyFetch<{ status: "deleted" }>(
+    `/treatments/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 /**
@@ -1103,7 +1126,15 @@ export function getDashboardOverview() {
   );
 }
 
-export function getClinics(params: { q?: string; limit?: number; offset?: number; status?: "active" | "setup"; plan?: VoonePlan } = {}) {
+export function getClinics(
+  params: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+    status?: "active" | "setup";
+    plan?: VoonePlan;
+  } = {},
+) {
   const query = new URLSearchParams();
 
   if (params.q) query.set("q", params.q);
@@ -1112,7 +1143,9 @@ export function getClinics(params: { q?: string; limit?: number; offset?: number
   if (params.limit !== undefined) query.set("limit", String(params.limit));
   if (params.offset !== undefined) query.set("offset", String(params.offset));
 
-  return adminProxyFetch<Clinic[]>(`/clinics${query.toString() ? `?${query}` : ""}`);
+  return adminProxyFetch<Clinic[]>(
+    `/clinics${query.toString() ? `?${query}` : ""}`,
+  );
 }
 
 export function getCurrentClinic() {

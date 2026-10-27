@@ -39,7 +39,9 @@ export interface CreateBonoPlanInput {
   totalSessions: number;
 }
 
-export type UpdateBonoPlanInput = Partial<CreateBonoPlanInput> & { active?: boolean };
+export type UpdateBonoPlanInput = Partial<CreateBonoPlanInput> & {
+  active?: boolean;
+};
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api/staff${path}`, {
@@ -68,7 +70,10 @@ export const getBonoPlans = () =>
   request<{ plans: BonoPlanRow[] }>("/bonos").then((r) => r.plans);
 
 export const createBonoPlan = (input: CreateBonoPlanInput) =>
-  request<BonoPlanRow>("/bonos", { method: "POST", body: JSON.stringify(input) });
+  request<BonoPlanRow>("/bonos", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 
 export const updateBonoPlan = (id: string, patch: UpdateBonoPlanInput) =>
   request<BonoPlanRow>(`/bonos/${encodeURIComponent(id)}`, {
@@ -77,15 +82,18 @@ export const updateBonoPlan = (id: string, patch: UpdateBonoPlanInput) =>
   });
 
 export const deleteBonoPlan = (id: string) =>
-  request<{ status: "deleted" | "retired" }>(`/bonos/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  request<{ status: "deleted" | "retired" }>(
+    `/bonos/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+    },
+  );
 
 /** A member's bonos, with how far through each they are. */
 export const getMemberBonos = (memberId: string) =>
-  request<{ bonos: MemberBonoRow[] }>(`/members/${encodeURIComponent(memberId)}/bonos`).then(
-    (r) => r.bonos,
-  );
+  request<{ bonos: MemberBonoRow[] }>(
+    `/members/${encodeURIComponent(memberId)}/bonos`,
+  ).then((r) => r.bonos);
 
 export const cancelMemberBono = (memberId: string, bonoId: string) =>
   request<MemberBonoRow>(

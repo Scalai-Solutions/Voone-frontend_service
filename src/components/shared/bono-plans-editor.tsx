@@ -4,7 +4,11 @@ import * as React from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { BonoPlanRow, CreateBonoPlanInput, UpdateBonoPlanInput } from "@/lib/bono-api";
+import type {
+  BonoPlanRow,
+  CreateBonoPlanInput,
+  UpdateBonoPlanInput,
+} from "@/lib/bono-api";
 
 /**
  * The bono plans editor, presentational: the same table for the admin onboarding flow and
@@ -46,9 +50,11 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
 
   const priceValue = parsePrice(price);
   const sessionsValue = Number(sessions.trim());
-  const total =
+  // The price typed IS the pack's total; the per-session figure is the split of it.
+  const total = priceValue;
+  const perSession =
     priceValue !== null && Number.isInteger(sessionsValue) && sessionsValue > 0
-      ? priceValue * sessionsValue
+      ? Math.round((priceValue / sessionsValue) * 100) / 100
       : null;
 
   const add = () => {
@@ -66,7 +72,11 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
       return;
     }
 
-    if (!Number.isInteger(sessionsValue) || sessionsValue < 1 || sessionsValue > 100) {
+    if (
+      !Number.isInteger(sessionsValue) ||
+      sessionsValue < 1 ||
+      sessionsValue > 100
+    ) {
       setProblem("El bono tiene entre 1 y 100 sesiones.");
 
       return;
@@ -86,9 +96,9 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
     <div className="rounded-lg border border-border bg-card p-4">
       <p className="text-sm font-semibold">Bonos de sesiones</p>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        Packs de tratamiento que la clienta paga por adelantado y consume en varias
-        visitas. El precio se reparte entre las sesiones: cada visita suma su parte
-        como progreso.
+        Packs de tratamiento que la clienta paga por adelantado y consume en
+        varias visitas. El precio se reparte entre las sesiones: cada visita
+        suma su parte como progreso.
       </p>
 
       {store.plans.length > 0 ? (
@@ -184,13 +194,24 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
             className={inputClass}
           />
         </label>
-        <Button type="button" size="sm" disabled={store.pending} onClick={add} className="h-10">
+        <Button
+          type="button"
+          size="sm"
+          disabled={store.pending}
+          onClick={add}
+          className="h-10"
+        >
           {store.pending ? (
             <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
           ) : (
             <Plus className="mr-1.5 h-4 w-4" />
           )}
-          <span>Añadir{total !== null ? ` (${total.toLocaleString("es-ES")} €)` : ""}</span>
+          <span>
+            Añadir
+            {total !== null
+              ? ` (${total.toLocaleString("es-ES")} €${perSession !== null ? ` · ${perSession.toLocaleString("es-ES")} €/sesión` : ""})`
+              : ""}
+          </span>
         </Button>
       </div>
 

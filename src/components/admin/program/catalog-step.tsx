@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Check, FileUp, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  FileUp,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +19,11 @@ import {
 } from "@/features/onboarding/api/useOnboarding";
 import { BonoPlansEditor } from "@/components/shared/bono-plans-editor";
 import { ApiError } from "@/lib/api-client";
-import type { CatalogRow, CategoryCode, CsvImportResult } from "@/lib/onboarding-api";
+import type {
+  CatalogRow,
+  CategoryCode,
+  CsvImportResult,
+} from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
 import {
   CATEGORY_LABELS,
@@ -20,7 +31,11 @@ import {
   EARNS_NOTHING,
   SELECTABLE_CATEGORIES,
 } from "./categories";
-import { isSendable, useCatalogEditor, type EditorRow } from "./use-catalog-editor";
+import {
+  isSendable,
+  useCatalogEditor,
+  type EditorRow,
+} from "./use-catalog-editor";
 
 const selectClass =
   "h-10 w-full rounded-md border border-input bg-card px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -37,16 +52,16 @@ export function CatalogStep({
   initial: CatalogRow[];
   onContinue: () => void;
 }) {
-  const { rows, save, edit, add, remove, replaceAll, ensureSaved } = useCatalogEditor(
-    clinicId,
-    initial,
-  );
+  const { rows, save, edit, add, remove, replaceAll, ensureSaved } =
+    useCatalogEditor(clinicId, initial);
   const bonoStore = useAdminBonoPlansStore(clinicId);
   const [moving, setMoving] = React.useState(false);
 
   const sendable = rows.filter(isSendable);
   const needsReview = rows.filter((row) => row.needsReview);
-  const products = rows.filter((row) => row.isProduct || row.category === "COS").length;
+  const products = rows.filter(
+    (row) => row.isProduct || row.category === "COS",
+  ).length;
   const hasPresoterapia = rows.some((row) => row.category === "PRE");
 
   const blocked = sendable.length === 0 || needsReview.length > 0;
@@ -65,10 +80,13 @@ export function CatalogStep({
   return (
     <div className="grid gap-6">
       <div>
-        <h3 className="font-serif text-2xl font-semibold">Qué ofrece el centro</h3>
+        <h3 className="font-serif text-2xl font-semibold">
+          Qué ofrece el centro
+        </h3>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Sube la lista de precios o añade los tratamientos y productos a mano. Los premios del
-          programa salen de aquí, y se valoran a lo que cuestan de verdad al centro.
+          Sube la lista de precios o añade los tratamientos y productos a mano.
+          Los premios del programa salen de aquí, y se valoran a lo que cuestan
+          de verdad al centro.
         </p>
       </div>
 
@@ -89,10 +107,12 @@ export function CatalogStep({
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <p>
             <strong>
-              {needsReview.length} {needsReview.length === 1 ? "fila necesita" : "filas necesitan"}{" "}
+              {needsReview.length}{" "}
+              {needsReview.length === 1 ? "fila necesita" : "filas necesitan"}{" "}
               categoría.
             </strong>{" "}
-            No hemos podido deducirla por el nombre: elígela en la lista para continuar.
+            No hemos podido deducirla por el nombre: elígela en la lista para
+            continuar.
           </p>
         </div>
       ) : null}
@@ -165,11 +185,17 @@ function CatalogRowEditor({
   onRemove: () => void;
 }) {
   const label = row.name.trim() || `fila ${index + 1}`;
-  const incomplete = !isSendable(row) && (row.name.trim() !== "" || row.price.trim() !== "");
+  const incomplete =
+    !isSendable(row) && (row.name.trim() !== "" || row.price.trim() !== "");
   const detected = row.category && row.categoryId === "" ? row.category : null;
 
   return (
-    <tr className={cn("border-t border-border align-top", row.needsReview && "bg-destructive/5")}>
+    <tr
+      className={cn(
+        "border-t border-border align-top",
+        row.needsReview && "bg-destructive/5",
+      )}
+    >
       <td className="px-3 py-2">
         <Input
           aria-label={`Nombre de ${label}`}
@@ -197,7 +223,9 @@ function CatalogRowEditor({
           aria-label={`Tipo de ${label}`}
           className={selectClass}
           value={row.isProduct ? "producto" : "tratamiento"}
-          onChange={(event) => onEdit({ isProduct: event.target.value === "producto" })}
+          onChange={(event) =>
+            onEdit({ isProduct: event.target.value === "producto" })
+          }
         >
           <option value="tratamiento">Tratamiento</option>
           <option value="producto">Producto de venta</option>
@@ -208,7 +236,9 @@ function CatalogRowEditor({
           aria-label={`Categoría de ${label}`}
           className={cn(selectClass, row.needsReview && "border-destructive")}
           value={row.categoryId}
-          onChange={(event) => onEdit({ categoryId: event.target.value as CategoryCode | "" })}
+          onChange={(event) =>
+            onEdit({ categoryId: event.target.value as CategoryCode | "" })
+          }
         >
           <option value="">Automática</option>
           {SELECTABLE_CATEGORIES.map((code) => (
@@ -218,11 +248,15 @@ function CatalogRowEditor({
           ))}
         </select>
         {row.needsReview ? (
-          <p className="mt-1 text-xs font-medium text-destructive">Sin categoría: elige una.</p>
+          <p className="mt-1 text-xs font-medium text-destructive">
+            Sin categoría: elige una.
+          </p>
         ) : detected ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {CATEGORY_LABELS[detected]}
-            {row.classifiedBy ? ` · ${CLASSIFIED_BY_LABEL[row.classifiedBy] ?? row.classifiedBy}` : ""}
+            {row.classifiedBy
+              ? ` · ${CLASSIFIED_BY_LABEL[row.classifiedBy] ?? row.classifiedBy}`
+              : ""}
           </p>
         ) : null}
         {row.category && EARNS_NOTHING.has(row.category) ? (
@@ -262,12 +296,19 @@ function Hint({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   );
 }
 
-function SaveIndicator({ state }: { state: ReturnType<typeof useCatalogEditor>["save"] }) {
+function SaveIndicator({
+  state,
+}: {
+  state: ReturnType<typeof useCatalogEditor>["save"];
+}) {
   if (state.kind === "idle") return null;
 
   if (state.kind === "saving") {
     return (
-      <span key="saving" className="ml-auto inline-flex items-center gap-1.5 text-muted-foreground">
+      <span
+        key="saving"
+        className="ml-auto inline-flex items-center gap-1.5 text-muted-foreground"
+      >
         <Loader2 className="h-3 w-3 animate-spin" /> <span>Guardando…</span>
       </span>
     );
@@ -275,7 +316,10 @@ function SaveIndicator({ state }: { state: ReturnType<typeof useCatalogEditor>["
 
   if (state.kind === "saved") {
     return (
-      <span key="saved" className="ml-auto inline-flex items-center gap-1.5 text-success">
+      <span
+        key="saved"
+        className="ml-auto inline-flex items-center gap-1.5 text-success"
+      >
         <Check className="h-3 w-3" /> <span>Guardado</span>
       </span>
     );
@@ -346,16 +390,32 @@ function CsvImport({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <FileUp className="h-4 w-4" /> <span>Importar desde un archivo CSV</span>
+        <FileUp className="h-4 w-4" />{" "}
+        <span>Importar desde un archivo CSV</span>
       </button>
 
       {open ? (
         <div className="mt-4 grid gap-3">
           <p className="text-xs leading-5 text-muted-foreground">
-            Dos columnas como mínimo: nombre y precio, separadas por punto y coma o tabulador. Una
-            tercera columna opcional puede decir &quot;producto&quot; o una categoría. Las filas que
-            no se puedan leer se saltan y te las enseñamos.
+            Hacen falta un nombre y un precio, separados por punto y coma o
+            tabulador. Si el archivo tiene una fila de encabezados, las columnas
+            pueden ir en cualquier orden y se admiten &quot;producto&quot;
+            (sí/no) y &quot;categoria&quot;. Sin encabezados: nombre;precio y
+            una tercera columna opcional. Las filas que no se puedan leer se
+            saltan y te las enseñamos.
           </p>
+
+          <div className="rounded-md border border-border bg-card p-3">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Así puede ser el archivo
+            </p>
+            <pre className="overflow-x-auto font-mono text-xs leading-5 text-muted-foreground">
+              {`nombre;precio;producto;categoria
+Limpieza facial;60;no;FAC
+Mascarilla monodosis;12;sí;COS
+Presoterapia 30 min;35;no;PRE`}
+            </pre>
+          </div>
 
           <input
             type="file"
@@ -373,7 +433,9 @@ function CsvImport({
               setConfirming(false);
             }}
             rows={6}
-            placeholder={"Higiene facial;60\nMasaje relajante;45,50\nCrema hidratante;40;producto"}
+            placeholder={
+              "Higiene facial;60\nMasaje relajante;45,50\nCrema hidratante;40;producto"
+            }
             className="w-full rounded-md border border-input bg-card p-3 font-mono text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
 
@@ -385,8 +447,14 @@ function CsvImport({
               disabled={!text.trim() || importer.isPending}
               onClick={run}
             >
-              {importer.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              <span>{confirming ? "Confirmar: reemplaza el catálogo actual" : "Importar"}</span>
+              {importer.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              <span>
+                {confirming
+                  ? "Confirmar: reemplaza el catálogo actual"
+                  : "Importar"}
+              </span>
             </Button>
             {confirming ? (
               <button
@@ -412,7 +480,8 @@ function CsvImport({
           <p className="flex items-center gap-2 font-semibold text-success">
             <Check className="h-4 w-4" />{" "}
             <span>
-              Se han importado {result.imported} {result.imported === 1 ? "fila" : "filas"}.
+              Se han importado {result.imported}{" "}
+              {result.imported === 1 ? "fila" : "filas"}.
             </span>
           </p>
           {result.notes.map((note) => (
@@ -424,7 +493,10 @@ function CsvImport({
             <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
               <p className="text-xs font-semibold">
                 {result.skipped.length}{" "}
-                {result.skipped.length === 1 ? "fila no se pudo leer" : "filas no se pudieron leer"}:
+                {result.skipped.length === 1
+                  ? "fila no se pudo leer"
+                  : "filas no se pudieron leer"}
+                :
               </p>
               <ul className="mt-2 grid gap-1 text-xs">
                 {result.skipped.map((row) => (
