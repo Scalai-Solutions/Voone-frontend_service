@@ -6,6 +6,7 @@ import {
   Check,
   Crown,
   Gift,
+  Pencil,
   Plus,
   Sparkles,
   Stethoscope,
@@ -24,6 +25,7 @@ import type {
   TierKey,
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
+import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { formatEuro, formatProgress } from "./format";
 
 /**
@@ -137,39 +139,7 @@ export function ProgramView({
                     : ""}
                 </p>
               </div>
-              <ul className="grid gap-1.5 text-xs leading-5">
-                {tier.benefits.map((benefit, index) => {
-                  const customIndex =
-                    index - (tier.benefits.length - tier.customBenefits.length);
-
-                  return (
-                    <li key={`${benefit}-${index}`} className="flex gap-2">
-                      <Check className="mt-0.5 h-3 w-3 shrink-0 text-success" />
-                      <span className="min-w-0 flex-1">{benefit}</span>
-                      {onSetBenefits && customIndex >= 0 ? (
-                        <button
-                          type="button"
-                          aria-label={`Quitar ${benefit}`}
-                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() =>
-                            void onSetBenefits(
-                              tier.key,
-                              tier.customBenefits.filter(
-                                (_, i) => i !== customIndex,
-                              ),
-                            )
-                          }
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-              {onSetBenefits ? (
-                <AddBenefit tier={tier} onSetBenefits={onSetBenefits} />
-              ) : null}
+              <TierBenefits tier={tier} onSetBenefits={onSetBenefits} />
             </article>
           ))}
         </div>
@@ -284,22 +254,205 @@ export function ProgramView({
   );
 }
 
-/** Adds one benefit the centre wrote itself to a tier. Text only: it changes nothing at runtime. */
-function AddBenefit({
+/**
+ * A tier's benefit lines. The engine's own lines are read-only; the ones the centre wrote can be
+ * edited or removed, and one can be added. Every change sends the tier's WHOLE list of custom
+ * benefits, so one save at a time: a second one started from the same list would overwrite the
+ * first.
+ */
+function TierBenefits({
   tier,
   onSetBenefits,
 }: {
   tier: PresentedTier;
+  onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
+}) {
+  const [editing, setEditing] = React.useState<number | null>(null);
+  const [draft, setDraft] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [problem, setProblem] = React.useState<string | null>(null);
+  const firstCustom = tier.benefits.length - tier.customBenefits.length;
+
+  const save = async (benefits: string[], failure: string) => {
+    if (!onSetBenefits) return false;
+
+    setBusy(true);
+    setProblem(null);
+
+    try {
+      await onSetBenefits(tier.key, benefits);
+      return true;
+    } catch (error) {
+      setProblem(
+        error instanceof ApiError && error.detail ? error.detail : failure,
+      );
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEditing = (customIndex: number) => {
+    setProblem(null);
+    setDraft(tier.customBenefits[customIndex] ?? "");
+    setEditing(customIndex);
+  };
+
+  const cancelEditing = () => {
+    setEditing(null);
+    setProblem(null);
+  };
+
+  const confirmEditing = async () => {
+    if (editing === null || busy) return;
+
+    const edit = replaceBenefit(tier.customBenefits, editing, draft);
+
+    if (!edit.ok) {
+      setProblem(edit.error);
+      return;
+    }
+
+    // Nothing changed: close without a request.
+    if (edit.benefits[editing] === tier.customBenefits[editing]) {
+      cancelEditing();
+      return;
+    }
+
+    if (await save(edit.benefits, "No se ha podido guardar el cambio.")) {
+      setEditing(null);
+    }
+  };
+
+  const remove = (customIndex: number) => {
+    if (busy) return;
+
+    void save(
+      tier.customBenefits.filter((_, i) => i !== customIndex),
+      "No se ha podido quitar.",
+    ).then((saved) => {
+      if (saved) setEditing(null);
+    });
+  };
+
+  return (
+    <>
+      <ul className="grid gap-1.5 text-xs leading-5">
+        {tier.benefits.map((benefit, index) => {
+          const customIndex = index - firstCustom;
+          const editable = Boolean(onSetBenefits) && customIndex >= 0;
+
+          if (editable && editing === customIndex) {
+            return (
+              <li
+                key={`${benefit}-${index}`}
+                className="flex items-center gap-1.5"
+              >
+                <input
+                  autoFocus
+                  value={draft}
+                  maxLength={MAX_BENEFIT_LENGTH}
+                  disabled={busy}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void confirmEditing();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelEditing();
+                    }
+                  }}
+                  aria-label={`Editar ${benefit}`}
+                  className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7 shrink-0"
+                  disabled={busy || !draft.trim()}
+                  onClick={() => void confirmEditing()}
+                  aria-label="Guardar cambio"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7 shrink-0"
+                  disabled={busy}
+                  onClick={cancelEditing}
+                  aria-label="Cancelar"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </li>
+            );
+          }
+
+          return (
+            <li key={`${benefit}-${index}`} className="flex gap-2">
+              <Check className="mt-0.5 h-3 w-3 shrink-0 text-success" />
+              <span className="min-w-0 flex-1">{benefit}</span>
+              {editable ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label={`Editar ${benefit}`}
+                    disabled={busy}
+                    className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    onClick={() => startEditing(customIndex)}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Quitar ${benefit}`}
+                    disabled={busy}
+                    className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    onClick={() => remove(customIndex)}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {problem ? (
+        <p role="alert" className="text-[11px] text-destructive">
+          {problem}
+        </p>
+      ) : null}
+      {onSetBenefits ? (
+        <AddBenefit tier={tier} onSetBenefits={onSetBenefits} disabled={busy} />
+      ) : null}
+    </>
+  );
+}
+
+/** Adds one benefit the centre wrote itself to a tier. Text only: it changes nothing at runtime. */
+function AddBenefit({
+  tier,
+  onSetBenefits,
+  disabled = false,
+}: {
+  tier: PresentedTier;
   onSetBenefits: (tier: TierKey, benefits: string[]) => Promise<unknown>;
+  /** While another change to this tier is being saved. */
+  disabled?: boolean;
 }) {
   const [text, setText] = React.useState("");
   const [problem, setProblem] = React.useState<string | null>(null);
-  const full = tier.customBenefits.length >= 6;
+  const full = tier.customBenefits.length >= MAX_BENEFITS;
 
   const add = async () => {
     const value = text.trim();
 
-    if (!value) return;
+    if (!value || disabled) return;
 
     setProblem(null);
 
@@ -321,7 +474,7 @@ function AddBenefit({
         <input
           value={text}
           maxLength={80}
-          disabled={full}
+          disabled={full || disabled}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -338,7 +491,7 @@ function AddBenefit({
           size="icon"
           variant="outline"
           className="h-7 w-7"
-          disabled={full || !text.trim()}
+          disabled={full || disabled || !text.trim()}
           onClick={() => void add()}
           aria-label="Añadir"
         >
