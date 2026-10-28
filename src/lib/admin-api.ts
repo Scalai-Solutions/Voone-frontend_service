@@ -62,3 +62,110 @@ export function getAdminClinicPrograms(clinicId: string) {
     `/v1/admin/clinics/${encodeURIComponent(clinicId)}/onboarding/programs`
   ).then((response) => response.programs);
 }
+
+export interface AutomationClinicSettings {
+  marketingEnabled: boolean;
+  birthdayEnabled: boolean;
+  birthdayNotify: boolean;
+  birthdayLastRunDate: string | null;
+  bonoReminderEnabled: boolean;
+  bonoReminderNotify: boolean;
+  usesDefaults: boolean;
+}
+
+export interface ManualNotificationQuota {
+  monthlyQuota: number;
+  usedThisMonth: number;
+  remainingThisMonth: number;
+}
+
+export interface ClinicAutomationOverviewItem {
+  clinicId: string;
+  name: string;
+  addressLine: string;
+  isActive: boolean;
+  settings: AutomationClinicSettings;
+  manualQuota: ManualNotificationQuota;
+  totalNotificationsSent: number;
+  upcomingBirthdayCandidates: number;
+  bonoCandidates: number;
+  recentBirthdayNotifications: number;
+  recentBonoNotifications: number;
+  lastAutomationSentAt: string | null;
+}
+
+export interface DeliveryBreakdownEntry {
+  status: string;
+  errorCode: string | null;
+  provider: string;
+  count: number;
+}
+
+export interface NotificationDeliveryDetail {
+  memberId: string;
+  memberName: string;
+  provider: string;
+  status: string;
+  errorCode: string | null;
+}
+
+export interface AutomationNotificationDetail {
+  id: string;
+  type: string;
+  status: string;
+  notify: boolean;
+  header: string;
+  createdAt: string;
+  deliveriesTotal: number;
+  breakdown: DeliveryBreakdownEntry[];
+  deliveries: NotificationDeliveryDetail[];
+}
+
+export interface BirthdayCandidate {
+  memberId: string;
+  name: string;
+  birthday: string;
+  willSend: boolean;
+  skipReasons: string[];
+}
+
+export interface BonoCandidateSummary {
+  eligible: number;
+  skipped: number;
+  eligibleNames: string[];
+  nextSendDate: string;
+}
+
+export interface NotificationTypeTotal {
+  type: string;
+  count: number;
+}
+
+export interface NotificationTotals {
+  sentAllTime: number;
+  byType: NotificationTypeTotal[];
+}
+
+export interface ClinicAutomationReport {
+  clinicId: string;
+  name: string;
+  isActive: boolean;
+  settings: AutomationClinicSettings;
+  manualQuota: ManualNotificationQuota;
+  totals: NotificationTotals;
+  notifications: AutomationNotificationDetail[];
+  birthdayCandidates: BirthdayCandidate[];
+  bono: BonoCandidateSummary;
+}
+
+export function getAdminNotificationOverview() {
+  return adminFetch<{ clinics: ClinicAutomationOverviewItem[] }>(
+    "/v1/admin/notifications/overview"
+  );
+}
+
+export function getAdminClinicNotificationReport(clinicId: string) {
+  return adminFetch<ClinicAutomationReport>(
+    `/v1/admin/notifications/clinics/${encodeURIComponent(clinicId)}`
+  );
+}
