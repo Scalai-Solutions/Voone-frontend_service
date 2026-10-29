@@ -173,14 +173,9 @@ function WalletReady({
     : null;
   const googleUrl = resolveWalletInstallUrl(wallet.passes.google);
   const appleUrl = resolveWalletInstallUrl(wallet.passes.apple);
-  const currentYear = new Date().getFullYear();
 
   return (
     <div className={panelClassName}>
-      <p className="absolute right-7 top-10 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#9f958a]">
-        {currentYear} - {currentYear + 1}
-      </p>
-
       <div className="text-center">
         <p className="text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">
           {clinic.name}
@@ -358,10 +353,6 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       className={panelClassName}
       noValidate
     >
-      <p className="absolute right-7 top-10 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#9f958a]">
-        {CURRENT_YEAR} - {CURRENT_YEAR + 1}
-      </p>
-
       <div className="text-center">
         <p className="text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">
           {clinic.name}

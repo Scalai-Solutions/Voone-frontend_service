@@ -51,7 +51,6 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
   const clinicName = payload.clinic.name.trim();
   const brandName = formatBrandName(clinicName);
   const displayBrandName = brandName.toLocaleLowerCase("es-ES").replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("es-ES"));
-  const currentYear = new Date().getFullYear();
 
   return (
     <main className="min-h-svh bg-[#f5efe7] text-[#22201e]">
@@ -81,10 +80,6 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
         </div>
 
         <div className="relative mt-16 flex-1 rounded-[36px] border border-[#eee5da] bg-[#fffbf7]/86 px-7 pb-7 pt-19 shadow-[0_28px_70px_rgba(55,42,32,0.12)] backdrop-blur-xl">
-          <p className="absolute right-7 top-10 text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#9f958a]">
-            {currentYear} - {currentYear + 1}
-          </p>
-
           <div className="text-center">
             <p className="text-[0.64rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">{clinicName}</p>
             <h2 className="mt-7 font-serif text-[1.95rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
