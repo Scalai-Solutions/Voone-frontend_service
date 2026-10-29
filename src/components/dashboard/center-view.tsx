@@ -9,6 +9,7 @@ import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
 import type { Clinic, MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import type { PresentedProgram } from "@/lib/onboarding-api";
+import { formatSpentEuros } from "@/lib/money";
 import { toPoints } from "@/lib/points";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,8 @@ interface SetupItem {
   name: string;
   detail: string;
   value: string;
+  /** Euros the client has spent on reaching this row, already formatted; "—" when there is none. */
+  spend?: string;
 }
 
 const ownerEmailFor = (clinic: Clinic) =>
@@ -44,6 +47,8 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
         name,
         detail,
         value: `${formatNumber(toPoints(step.threshold))} puntos`,
+        // The same field the admin programme page shows as "El cliente ha gastado".
+        spend: formatSpentEuros(step.realSpend),
       };
     });
 }
@@ -193,7 +198,7 @@ function ProgramLoadError() {
 }
 
 function rowsKey(rows: SetupItem[]) {
-  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}`).join("|") || "empty";
+  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}:${row.spend ?? ""}`).join("|") || "empty";
 }
 
 function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoading }: { title: string; description: string; valueLabel: string; initialRows: SetupItem[]; canEdit: boolean; isLoading: boolean }) {
@@ -220,6 +225,7 @@ function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoa
       name: draft.name.trim(),
       detail: draft.detail.trim(),
       value: draft.value.trim(),
+      spend: editingId === "new" ? undefined : rows.find((row) => row.id === editingId)?.spend,
     };
 
     if (!nextItem.name || !nextItem.detail || !nextItem.value) return;
@@ -228,6 +234,10 @@ function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoa
     setEditingId(null);
     setDraft(emptyDraft);
   }
+
+  // The euros column and its header exist only for a list that carries them (the live programme's
+  // rewards); the Niveles list and the card design's own figures keep the plain layout.
+  const showSpend = rows.some((row) => row.spend !== undefined);
 
   return (
     <div className="mt-4 overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80">
@@ -251,13 +261,23 @@ function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoa
         </form>
       ) : null}
 
+      {showSpend && rows.length > 0 ? (
+        <div aria-hidden="true" className="hidden items-center gap-3 border-b border-[#eadfd8] bg-[#fffaf6] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#927e72] sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_8rem]">
+          <span>Premio</span>
+          <span className="text-right">El cliente ha gastado</span>
+          <span className="text-right">Puntos</span>
+        </div>
+      ) : null}
+
       {rows.length > 0 ? rows.map((row) => (
-        <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eadfd8] px-5 py-4 last:border-0">
+        <div key={row.id} className={cn("border-b border-[#eadfd8] px-5 py-4 last:border-0", showSpend ? "flex flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_8rem]" : "flex flex-wrap items-center justify-between gap-3")}>
           <div>
             <p className="font-semibold">{row.name}</p>
             <p className="mt-1 text-xs text-[#927e72]">{row.detail}</p>
+            {showSpend ? <p className="mt-1 text-xs font-semibold text-[#805637] sm:hidden">{row.spend && row.spend !== "—" ? `${row.spend} gastados` : "—"}</p> : null}
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          {showSpend ? <p className="hidden whitespace-nowrap text-right text-sm font-semibold sm:block">{row.spend ?? "—"}</p> : null}
+          <div className={cn("flex items-center gap-3 text-sm", showSpend && "sm:justify-end")}>
             <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
             {canEdit ? <button type="button" onClick={() => startEdit(row)} className="text-[#9b633e]" aria-label={`Editar ${row.name}`}><Pencil size={15} /></button> : null}
             {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}

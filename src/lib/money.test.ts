@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { MISSING, centsToEuros, formatCents, formatCount } from "./money.ts";
+import { MISSING, centsToEuros, formatCents, formatCount, formatSpentEuros } from "./money.ts";
 
 // Intl uses a no-break space before the euro sign; normalise so the tests read plainly.
 const plain = (text: string) => text.replace(/ /g, " ");
@@ -47,5 +47,21 @@ describe("formatCount", () => {
     assert.equal(formatCount(undefined), MISSING);
     assert.equal(formatCount(null), MISSING);
     assert.equal(formatCount(Number.NaN), MISSING);
+  });
+});
+
+describe("formatSpentEuros", () => {
+  it("shows whole euros in es-ES, like the admin programme page", () => {
+    assert.equal(formatSpentEuros(30), "30 €");
+    assert.equal(formatSpentEuros(1500), "1500 €");
+    assert.equal(formatSpentEuros(12500), "12.500 €");
+    assert.equal(formatSpentEuros(0), "0 €");
+    assert.equal(formatSpentEuros(29.6), "30 €");
+  });
+
+  it("shows a dash when there is no figure", () => {
+    assert.equal(formatSpentEuros(undefined), MISSING);
+    assert.equal(formatSpentEuros(null), MISSING);
+    assert.equal(formatSpentEuros(Number.NaN), MISSING);
   });
 });

@@ -30,3 +30,11 @@ export const formatCents = (cents: number | null | undefined): string => {
 /** A whole-number count as es-ES ("15.000"); "—" when absent. */
 export const formatCount = (value: number | null | undefined): string =>
   isNumber(value) ? countFormat.format(value) : MISSING;
+
+/**
+ * Euros a client has spent, whole and es-ES ("30 €", "1500 €"); "—" when there is no figure.
+ * Reads exactly like the admin programme page's "El cliente ha gastado" (`formatProgress`), so
+ * the owner and admin views of one `realSpend` never disagree.
+ */
+export const formatSpentEuros = (euros: number | null | undefined): string =>
+  isNumber(euros) ? `${Math.round(euros).toLocaleString("es-ES")} €` : MISSING;
