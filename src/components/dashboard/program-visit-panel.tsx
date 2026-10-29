@@ -763,7 +763,7 @@ export function ProgramVisitPanel({
 
       <RewardsList
         memberId={memberId}
-        rewards={rewards.data ?? []}
+        rewards={rewards.data?.rewards ?? []}
         loading={rewards.isLoading}
         failed={rewards.isError}
         visitId={visitId}
