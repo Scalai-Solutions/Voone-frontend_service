@@ -48,6 +48,11 @@ export interface CatalogRow {
   category: CategoryCode | null;
   classifiedBy: string | null;
   needsReview: boolean;
+  /**
+   * Whether the admin may give this row as a reward by hand: it has a price and a category, and
+   * is not medical. Absent from an older backend, which is read as "yes".
+   */
+  giftable?: boolean;
 }
 
 /** What is sent when saving. Prices are euros as a number, never the text typed. */

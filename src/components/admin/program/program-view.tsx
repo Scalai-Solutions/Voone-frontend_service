@@ -43,6 +43,7 @@ import {
 import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuro, formatProgress } from "./format";
+import { giftableItems, hiddenItemsNote } from "./giftable-items";
 import {
   MAX_DESCRIPTION_LENGTH,
   MAX_TEXT_LENGTH,
@@ -71,6 +72,14 @@ const PERK_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 const ordinal = (n: number): string =>
   n === 1 || n === 3 ? `${n}.er` : `${n}.º`;
 
+/** A catalogue row as the reward picker needs it. `giftable` comes from the backend. */
+type CatalogItemOption = {
+  externalId: string;
+  name: string;
+  priceEuro: number;
+  giftable?: boolean;
+};
+
 export function ProgramView({
   program,
   onSwap,
@@ -81,7 +90,7 @@ export function ProgramView({
 }: {
   program: PresentedProgram;
   /** The centre's catalogue, offered as "any item" when changing a milestone's reward. */
-  catalogItems?: Array<{ externalId: string; name: string; priceEuro: number }>;
+  catalogItems?: CatalogItemOption[];
   /** Present only while the programme is a draft: an active one cannot be edited. */
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
@@ -815,7 +824,7 @@ function MilestoneRow({
   texts,
   catalogItems,
 }: {
-  catalogItems: Array<{ externalId: string; name: string; priceEuro: number }>;
+  catalogItems: CatalogItemOption[];
   milestone: PresentedMilestone;
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
   texts?: TextsEditing;
@@ -846,6 +855,10 @@ function MilestoneRow({
   const PerkIcon = milestone.perk
     ? (PERK_ICON[milestone.perk.kind] ?? Sparkles)
     : Gift;
+
+  // Only what the backend would accept; the rest is counted, not listed.
+  const giftable = giftableItems(catalogItems);
+  const hiddenNote = hiddenItemsNote(catalogItems);
 
   const choose = async (choice: SwapChoice) => {
     if (!onSwap) return;
@@ -957,25 +970,34 @@ function MilestoneRow({
             </div>
           ))}
           {catalogItems.length > 0 ? (
-            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-              O cualquier artículo del catálogo
-              <select
-                value=""
-                disabled={busy}
-                onChange={(event) => {
-                  if (event.target.value)
-                    void choose({ itemId: event.target.value });
-                }}
-                className="h-9 rounded-md border border-input bg-card px-2 text-sm font-normal text-foreground"
-              >
-                <option value="">Elegir…</option>
-                {catalogItems.map((item) => (
-                  <option key={item.externalId} value={item.externalId}>
-                    {item.name} · {item.priceEuro.toLocaleString("es-ES")} €
-                  </option>
-                ))}
-              </select>
-            </label>
+            giftable.length > 0 ? (
+              <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                O cualquier artículo del catálogo
+                <select
+                  value=""
+                  disabled={busy}
+                  onChange={(event) => {
+                    if (event.target.value)
+                      void choose({ itemId: event.target.value });
+                  }}
+                  className="h-9 rounded-md border border-input bg-card px-2 text-sm font-normal text-foreground"
+                >
+                  <option value="">Elegir…</option>
+                  {giftable.map((item) => (
+                    <option key={item.externalId} value={item.externalId}>
+                      {item.name} · {item.priceEuro.toLocaleString("es-ES")} €
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Ningún artículo del catálogo puede ser premio todavía.
+              </p>
+            )
+          ) : null}
+          {hiddenNote ? (
+            <p className="text-xs text-muted-foreground">{hiddenNote}</p>
           ) : null}
           {problem ? (
             <p role="alert" className="text-xs text-destructive">
