@@ -18,6 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
 import type {
+  BenefitLine,
+  BenefitOverrideEntry,
   SwapChoice,
   TextEdits,
   PresentedMilestone,
@@ -26,6 +28,15 @@ import type {
   TierKey,
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
+import {
+  OVERRIDE_WARNING,
+  customIndexOf,
+  editLineOverride,
+  hideLineOverride,
+  restoreLineOverride,
+  showLineOverride,
+  tierLines,
+} from "./benefit-overrides";
 import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuro, formatProgress } from "./format";
@@ -61,6 +72,7 @@ export function ProgramView({
   program,
   onSwap,
   onSetBenefits,
+  onSetBenefitOverrides,
   onSetTexts,
   catalogItems = [],
 }: {
@@ -71,6 +83,14 @@ export function ProgramView({
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
+  /**
+   * Present only while the programme is a draft: changes the words of, or hides, the lines the
+   * engine generates for a tier. Display only: the real benefit does not change.
+   */
+  onSetBenefitOverrides?: (
+    tier: TierKey,
+    overrides: BenefitOverrideEntry[],
+  ) => Promise<unknown>;
   /** Present only while the programme is a draft: edits the words of referrals, perks and rewards. */
   onSetTexts?: (edits: TextEdits) => Promise<unknown>;
 }) {
@@ -134,9 +154,8 @@ export function ProgramView({
         <p className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">
           Puedes cambiar los textos de los premios, las ventajas y los premios
           por referido con el lápiz. Los umbrales y los artículos no se pueden
-          editar aquí. Los cambios en los textos se aplican a los premios que
-          se emitan a partir de la publicación; los ya emitidos conservan su
-          texto.
+          editar aquí. Los cambios en los textos se aplican a los premios que se
+          emitan a partir de la publicación; los ya emitidos conservan su texto.
         </p>
       ) : null}
 
@@ -181,7 +200,11 @@ export function ProgramView({
                     : ""}
                 </p>
               </div>
-              <TierBenefits tier={tier} onSetBenefits={onSetBenefits} />
+              <TierBenefits
+                tier={tier}
+                onSetBenefits={onSetBenefits}
+                onSetBenefitOverrides={onSetBenefitOverrides}
+              />
             </article>
           ))}
         </div>
@@ -322,32 +345,50 @@ export function ProgramView({
 }
 
 /**
- * A tier's benefit lines. The engine's own lines are read-only; the ones the centre wrote can be
- * edited or removed, and one can be added. Every change sends the tier's WHOLE list of custom
- * benefits, so one save at a time: a second one started from the same list would overwrite the
- * first.
+ * A tier's benefit lines. The lines the engine generates and the ones the centre wrote are edited
+ * and removed the same way, with one difference in what a change does:
+ *
+ * - A line the centre wrote is part of its own list: every change sends the tier's WHOLE list of
+ *   custom benefits (the benefits route), so one save at a time.
+ * - A generated line is DISPLAY ONLY: the change is an override of its words or of its visibility
+ *   (the benefit-overrides route), the real discount, multiplier or perk keep working, and the
+ *   screen says so before it saves. A hidden line stays listed, muted, so it can be shown again;
+ *   an edited one is marked and can be restored.
+ *
+ * An older backend sends no `benefitLines`: the card then renders as it always did, with only the
+ * centre's own lines changeable.
  */
 function TierBenefits({
   tier,
   onSetBenefits,
+  onSetBenefitOverrides,
 }: {
   tier: PresentedTier;
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
+  onSetBenefitOverrides?: (
+    tier: TierKey,
+    overrides: BenefitOverrideEntry[],
+  ) => Promise<unknown>;
 }) {
-  const [editing, setEditing] = React.useState<number | null>(null);
+  const { lines, overridable } = tierLines(tier);
+  const canOverride = overridable && Boolean(onSetBenefitOverrides);
+  const isDraft = Boolean(onSetBenefits || onSetBenefitOverrides);
+  // On a programme that cannot be edited, only what clients actually read is listed.
+  const listed = isDraft ? lines : lines.filter((line) => !line.hidden);
+  const [active, setActive] = React.useState<{
+    key: string;
+    mode: "edit" | "hide";
+  } | null>(null);
   const [draft, setDraft] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [problem, setProblem] = React.useState<string | null>(null);
-  const firstCustom = tier.benefits.length - tier.customBenefits.length;
 
-  const save = async (benefits: string[], failure: string) => {
-    if (!onSetBenefits) return false;
-
+  const run = async (action: () => Promise<unknown>, failure: string) => {
     setBusy(true);
     setProblem(null);
 
     try {
-      await onSetBenefits(tier.key, benefits);
+      await action();
       return true;
     } catch (error) {
       setProblem(
@@ -359,131 +400,273 @@ function TierBenefits({
     }
   };
 
-  const startEditing = (customIndex: number) => {
+  const saveCustom = (benefits: string[], failure: string) =>
+    onSetBenefits
+      ? run(() => onSetBenefits(tier.key, benefits), failure)
+      : Promise.resolve(false);
+
+  const saveOverride = (entry: BenefitOverrideEntry, failure: string) =>
+    onSetBenefitOverrides
+      ? run(() => onSetBenefitOverrides(tier.key, [entry]), failure)
+      : Promise.resolve(false);
+
+  const startEditing = (line: BenefitLine) => {
     setProblem(null);
-    setDraft(tier.customBenefits[customIndex] ?? "");
-    setEditing(customIndex);
+    setDraft(line.text);
+    setActive({ key: line.key, mode: "edit" });
   };
 
-  const cancelEditing = () => {
-    setEditing(null);
+  const startHiding = (line: BenefitLine) => {
+    setProblem(null);
+    setActive({ key: line.key, mode: "hide" });
+  };
+
+  const cancel = () => {
+    setActive(null);
     setProblem(null);
   };
 
-  const confirmEditing = async () => {
-    if (editing === null || busy) return;
-
-    const edit = replaceBenefit(tier.customBenefits, editing, draft);
-
-    if (!edit.ok) {
-      setProblem(edit.error);
-      return;
-    }
-
-    // Nothing changed: close without a request.
-    if (edit.benefits[editing] === tier.customBenefits[editing]) {
-      cancelEditing();
-      return;
-    }
-
-    if (await save(edit.benefits, "No se ha podido guardar el cambio.")) {
-      setEditing(null);
-    }
-  };
-
-  const remove = (customIndex: number) => {
+  const confirmEditing = async (line: BenefitLine) => {
     if (busy) return;
 
-    void save(
+    const customIndex = customIndexOf(line.key);
+    let saved = false;
+
+    if (line.kind === "custom") {
+      if (customIndex === null) return;
+
+      const edit = replaceBenefit(tier.customBenefits, customIndex, draft);
+
+      if (!edit.ok) {
+        setProblem(edit.error);
+        return;
+      }
+
+      // Nothing changed: close without a request.
+      if (edit.benefits[customIndex] === tier.customBenefits[customIndex]) {
+        cancel();
+        return;
+      }
+
+      saved = await saveCustom(
+        edit.benefits,
+        "No se ha podido guardar el cambio.",
+      );
+    } else {
+      const edit = editLineOverride(line, draft);
+
+      if (!edit.ok) {
+        setProblem(edit.error);
+        return;
+      }
+
+      // Nothing changed: close without a request.
+      if (draft.trim() === line.text) {
+        cancel();
+        return;
+      }
+
+      saved = await saveOverride(
+        edit.entry,
+        "No se ha podido guardar el cambio.",
+      );
+    }
+
+    if (saved) setActive(null);
+  };
+
+  const removeCustom = (line: BenefitLine) => {
+    const customIndex = customIndexOf(line.key);
+
+    if (busy || customIndex === null) return;
+
+    void saveCustom(
       tier.customBenefits.filter((_, i) => i !== customIndex),
       "No se ha podido quitar.",
     ).then((saved) => {
-      if (saved) setEditing(null);
+      if (saved) setActive(null);
     });
+  };
+
+  const hideGenerated = async (line: BenefitLine) => {
+    if (busy) return;
+
+    if (await saveOverride(hideLineOverride(line), "No se ha podido quitar.")) {
+      setActive(null);
+    }
+  };
+
+  const undo = (entry: BenefitOverrideEntry) => {
+    if (busy) return;
+
+    void saveOverride(entry, "No se ha podido guardar el cambio.");
   };
 
   return (
     <>
       <ul className="grid gap-1.5 text-xs leading-5">
-        {tier.benefits.map((benefit, index) => {
-          const customIndex = index - firstCustom;
-          const editable = Boolean(onSetBenefits) && customIndex >= 0;
+        {listed.map((line) => {
+          const editable =
+            line.kind === "custom"
+              ? Boolean(onSetBenefits) && customIndexOf(line.key) !== null
+              : canOverride;
+          const isActive = editable && active?.key === line.key;
 
-          if (editable && editing === customIndex) {
+          if (isActive && active?.mode === "edit") {
             return (
-              <li
-                key={`${benefit}-${index}`}
-                className="flex items-center gap-1.5"
-              >
-                <input
-                  autoFocus
-                  value={draft}
-                  maxLength={MAX_BENEFIT_LENGTH}
-                  disabled={busy}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void confirmEditing();
-                    } else if (event.key === "Escape") {
-                      event.preventDefault();
-                      cancelEditing();
-                    }
-                  }}
-                  aria-label={`Editar ${benefit}`}
-                  className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-7 w-7 shrink-0"
-                  disabled={busy || !draft.trim()}
-                  onClick={() => void confirmEditing()}
-                  aria-label="Guardar cambio"
-                >
-                  <Check className="h-3 w-3" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-7 w-7 shrink-0"
-                  disabled={busy}
-                  onClick={cancelEditing}
-                  aria-label="Cancelar"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+              <li key={line.key} className="grid gap-1">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={draft}
+                    maxLength={MAX_BENEFIT_LENGTH}
+                    disabled={busy}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void confirmEditing(line);
+                      } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        cancel();
+                      }
+                    }}
+                    aria-label={`Editar ${line.text}`}
+                    className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7 shrink-0"
+                    disabled={busy || !draft.trim()}
+                    onClick={() => void confirmEditing(line)}
+                    aria-label="Guardar cambio"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7 shrink-0"
+                    disabled={busy}
+                    onClick={cancel}
+                    aria-label="Cancelar"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                {line.kind === "generated" ? (
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    {OVERRIDE_WARNING}
+                  </p>
+                ) : null}
+              </li>
+            );
+          }
+
+          if (isActive && active?.mode === "hide") {
+            return (
+              <li key={line.key} className="grid gap-1.5">
+                <span>{line.text}</span>
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  {OVERRIDE_WARNING}
+                </p>
+                <div className="flex gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={busy}
+                    onClick={() => void hideGenerated(line)}
+                  >
+                    Quitar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    disabled={busy}
+                    onClick={cancel}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
               </li>
             );
           }
 
           return (
-            <li key={`${benefit}-${index}`} className="flex gap-2">
-              <Check className="mt-0.5 h-3 w-3 shrink-0 text-success" />
-              <span className="min-w-0 flex-1">{benefit}</span>
-              {editable ? (
+            <li key={line.key} className="flex flex-wrap gap-x-2 gap-y-0.5">
+              <Check
+                className={cn(
+                  "mt-0.5 h-3 w-3 shrink-0",
+                  line.hidden ? "text-muted-foreground" : "text-success",
+                )}
+              />
+              <span
+                className={cn(
+                  "min-w-0 flex-1",
+                  line.hidden && "text-muted-foreground line-through",
+                )}
+              >
+                {line.text}
+              </span>
+              {editable && !line.hidden ? (
                 <>
                   <button
                     type="button"
-                    aria-label={`Editar ${benefit}`}
+                    aria-label={`Editar ${line.text}`}
                     disabled={busy}
                     className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                    onClick={() => startEditing(customIndex)}
+                    onClick={() => startEditing(line)}
                   >
                     <Pencil className="h-3 w-3" />
                   </button>
                   <button
                     type="button"
-                    aria-label={`Quitar ${benefit}`}
+                    aria-label={`Quitar ${line.text}`}
                     disabled={busy}
                     className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
-                    onClick={() => remove(customIndex)}
+                    onClick={() =>
+                      line.kind === "custom"
+                        ? removeCustom(line)
+                        : startHiding(line)
+                    }
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </>
+              ) : null}
+              {editable && line.kind === "generated" ? (
+                <span className="flex basis-full flex-wrap items-center gap-x-2 pl-5 text-[11px] text-muted-foreground">
+                  {line.edited ? (
+                    <Badge variant="secondary">editado</Badge>
+                  ) : null}
+                  {line.edited ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                      onClick={() => undo(restoreLineOverride(line))}
+                    >
+                      Restaurar
+                    </button>
+                  ) : null}
+                  {line.hidden ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                      onClick={() => undo(showLineOverride(line))}
+                    >
+                      Mostrar de nuevo
+                    </button>
+                  ) : null}
+                </span>
               ) : null}
             </li>
           );
@@ -748,7 +931,8 @@ function MilestoneRow({
                 value=""
                 disabled={busy}
                 onChange={(event) => {
-                  if (event.target.value) void choose({ itemId: event.target.value });
+                  if (event.target.value)
+                    void choose({ itemId: event.target.value });
                 }}
                 className="h-9 rounded-md border border-input bg-card px-2 text-sm font-normal text-foreground"
               >

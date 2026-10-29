@@ -147,14 +147,32 @@ export interface PresentedMilestone {
   perk?: { kind: string; name: string; description: string };
 }
 
+/**
+ * One line of a tier, hidden ones included (flagged) so the screen can show and restore them.
+ * `key` is stable: a generated line's is derived from what it is ("mult", "discount", ...), a line
+ * the centre added is "custom:<index>". `text` is what clients read, `original` what the engine or
+ * the centre wrote.
+ */
+export interface BenefitLine {
+  key: string;
+  text: string;
+  original: string;
+  kind: "generated" | "custom";
+  edited: boolean;
+  hidden: boolean;
+}
+
 export interface PresentedTier {
   key: TierKey;
   label: string;
   threshold: number;
   minTenureMonths: number;
+  /** What clients read: the visible lines' texts, in order. */
   benefits: string[];
-  /** The ones the centre wrote itself: the only ones it can add or remove. */
+  /** The ones the centre wrote itself, in its own list. */
   customBenefits: string[];
+  /** Every line with its key. Absent from an older backend: the screen then falls back to `benefits`. */
+  benefitLines?: BenefitLine[];
 }
 
 export interface PresentedProgram {
@@ -364,6 +382,29 @@ export const setTierBenefits = (
     clinicId,
     `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/benefits`,
     { method: "PUT", ...json({ benefits }) },
+  );
+
+/**
+ * One change to a line the engine generated. Each entry REPLACES that line's override as a whole:
+ * `text` null/absent clears the edit, `hidden` null/false/absent shows the line, and an entry with
+ * neither clears the override. Display only: the real benefit never changes.
+ */
+export interface BenefitOverrideEntry {
+  key: string;
+  text?: string | null;
+  hidden?: boolean | null;
+}
+
+export const setBenefitOverrides = (
+  clinicId: string,
+  programId: string,
+  tier: TierKey,
+  overrides: BenefitOverrideEntry[],
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/benefit-overrides`,
+    { method: "PUT", ...json({ overrides }) },
   );
 
 /**

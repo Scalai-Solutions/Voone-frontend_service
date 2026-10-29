@@ -26,9 +26,11 @@ import {
   publishProgram,
   replaceCatalog,
   setProgramTexts,
+  setBenefitOverrides,
   setTierBenefits,
   swapMilestone,
   updateBonoPlan,
+  type BenefitOverrideEntry,
   type CalcInput,
   type CatalogInputRow,
   type OnboardingAnswers,
@@ -230,6 +232,26 @@ export function useSetTierBenefits(clinicId: string, programId: string) {
   return useMutation({
     mutationFn: ({ tier, benefits }: { tier: TierKey; benefits: string[] }) =>
       setTierBenefits(clinicId, programId, tier, benefits),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+    },
+  });
+}
+
+export function useSetBenefitOverrides(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      tier,
+      overrides,
+    }: {
+      tier: TierKey;
+      overrides: BenefitOverrideEntry[];
+    }) => setBenefitOverrides(clinicId, programId, tier, overrides),
     onSuccess: (draft) => {
       queryClient.setQueryData(
         queryKeys.onboarding.program(clinicId, draft.id),

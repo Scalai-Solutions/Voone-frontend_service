@@ -17,6 +17,7 @@ import {
   usePublishProgram,
   useRecalibration,
   useSetProgramTexts,
+  useSetBenefitOverrides,
   useSetTierBenefits,
   useSwapMilestone,
 } from "@/features/onboarding/api/useOnboarding";
@@ -146,6 +147,7 @@ function ProgramSetupLoaded({
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
   const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
+  const benefitOverrides = useSetBenefitOverrides(clinicId, shownId ?? "");
   const programTexts = useSetProgramTexts(clinicId, shownId ?? "");
   const cloneDraft = useCloneDraft(clinicId);
 
@@ -377,6 +379,12 @@ function ProgramSetupLoaded({
                 onSetBenefits={
                   isDraft
                     ? (tier, benefits) => tierBenefits.mutateAsync({ tier, benefits })
+                    : undefined
+                }
+                onSetBenefitOverrides={
+                  isDraft
+                    ? (tier, overrides) =>
+                        benefitOverrides.mutateAsync({ tier, overrides })
                     : undefined
                 }
                 onSetTexts={
