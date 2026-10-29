@@ -18,6 +18,7 @@ import {
   type PublicClinic,
 } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
+import { normalizeReferralCode } from "@/lib/referral-code";
 import { resolveWalletInstallUrl } from "@/lib/wallet-links";
 
 /**
@@ -144,6 +145,9 @@ const signupSchema = z.object({
         "Selecciona una opción",
       ),
     ),
+  // Optional and never validated: a malformed code is not an error, it is just not sent (see
+  // onSubmit), because the backend ignores bad codes and a typo must not stop someone joining.
+  referralCode: z.string(),
   // Both tick boxes are required to move forward (2026-10 product decision). Marketing
   // consent included — note that conditioning sign-up on marketing consent is the GDPR
   // Art 7(4) bundling the backend's schema comments warn about; the decision is the
@@ -269,7 +273,13 @@ function WalletReady({
   );
 }
 
-export function SignupForm({ clinic }: { clinic: PublicClinic }) {
+export function SignupForm({
+  clinic,
+  initialReferralCode = "",
+}: {
+  clinic: PublicClinic;
+  initialReferralCode?: string;
+}) {
   const [done, setDone] = React.useState(false);
   const [wallet, setWallet] = React.useState<MemberPassWallet | null>(null);
   // The third generic is the parsed output: the resolver receives the input — which
@@ -281,6 +291,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       phone: "",
       birthDate: "",
       sex: "",
+      referralCode: initialReferralCode,
       consentMarketing: false,
       acceptedPrivacy: false,
     },
@@ -294,6 +305,8 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
   });
 
   const onSubmit = (values: SignupFormValues) => {
+    const referredByCode = normalizeReferralCode(values.referralCode);
+
     mutation.mutate({
       name: values.name,
       phone: values.phone,
@@ -301,6 +314,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       sex: values.sex,
       consentMarketing: values.consentMarketing,
       acceptedPrivacy: values.acceptedPrivacy,
+      ...(referredByCode ? { referredByCode } : {}),
     });
   };
 
@@ -432,6 +446,24 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
             </select>
           </Field>
         </div>
+
+        <Field
+          label="Código de recomendación (opcional)"
+          hint="Si te recomendó alguien, escribe su código"
+          labelClassName={smallLabelClassName}
+          className="[&_p]:text-center"
+        >
+          <Input
+            {...form.register("referralCode")}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={10}
+            placeholder="K7M2X"
+            enterKeyHint="done"
+            className={`${fieldInputClassName} uppercase`}
+          />
+        </Field>
 
         <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eee4d9] bg-[#f7efe6] p-3 text-left">
           <input

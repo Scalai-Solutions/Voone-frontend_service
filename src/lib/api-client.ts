@@ -1291,6 +1291,11 @@ export interface MembershipSignupInput {
   acceptedPrivacy: boolean;
   /** Omitted for the public form, which the backend reads as a QR sign-up. */
   consentSource?: "qr_signup" | "staff_entry";
+  /**
+   * Code of the member who recommended this one. Optional; the backend ignores an unknown code
+   * silently. Only send a value that passed normalizeReferralCode.
+   */
+  referredByCode?: string;
 }
 
 /** Branding for a clinic's public sign-up page. Throws ApiError(404) for an unknown slug. */
