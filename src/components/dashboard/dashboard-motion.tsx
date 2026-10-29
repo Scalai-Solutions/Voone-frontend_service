@@ -7,6 +7,8 @@ import { CircleHelp, QrCode, ScanLine, Sparkles, WalletCards } from "lucide-reac
 
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import type { Clinic, DashboardOverview } from "@/lib/api-client";
+import { formatCount } from "@/lib/money";
+import { formatPointsIssuedThisMonth, formatRevenueThisMonth } from "@/lib/dashboard-overview";
 
 const reveal = {
   hidden: { opacity: 0, y: 18 },
@@ -41,8 +43,9 @@ export function DashboardMotion({ overview, clinic, signupUrl }: { overview: Das
           <p className="mt-6 max-w-[540px] text-base leading-7 text-[#c9bbb3]">Gestiona la comunidad de {clinic.name} con una experiencia que se siente tan especial como tu marca.</p>
 
           <div className="mt-7 grid max-w-[500px] grid-cols-1 gap-3 sm:grid-cols-2">
-            <Metric label="Miembros activos" value={overview.activeMembers.toLocaleString("es-ES")} detail="Registrados en backend" />
-            <Metric label="Ingresos generados" value={`${overview.pointsIssuedThisMonth.toLocaleString("es-ES")} €`} detail="Actividad real registrada" />
+            <Metric label="Miembros activos" value={formatCount(overview.activeMembers)} detail="Registrados en backend" className="sm:col-span-2" />
+            <Metric label="Ingresos este mes" value={formatRevenueThisMonth(overview)} detail="Visitas que suman progreso" />
+            <Metric label="Puntos emitidos este mes" value={formatPointsIssuedThisMonth(overview)} detail="Puntos abonados a tus miembros" />
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -105,9 +108,9 @@ function PhoneWallet({ clinicName, templateName }: { clinicName: string; templat
   );
 }
 
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
+function Metric({ label, value, detail, className }: { label: string; value: string; detail: string; className?: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+    <div className={`rounded-2xl border border-white/10 bg-white/[0.07] p-4${className ? ` ${className}` : ""}`}>
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bca99d]">{label}</p>
       <p className="mt-3 font-serif text-3xl font-semibold text-[#fff7f0]">{value}</p>
       <p className="mt-1 text-[10px] text-[#a9958c]">{detail}</p>
