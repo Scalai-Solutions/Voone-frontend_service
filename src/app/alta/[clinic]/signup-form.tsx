@@ -358,11 +358,11 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
           {clinic.name}
         </p>
         <h2 className="mt-7 font-serif text-[1.92rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
-          Tu pase está listo
+          Únete a {clinic.template.programName}
         </h2>
         <p className="mx-auto mt-4 max-w-[286px] text-[0.82rem] leading-6 text-[#7d746b]">
-          Completa tus datos para añadirlo a tu Wallet e identificarte en
-          recepción.
+          Completa tus datos para crear tu pase, añadirlo a tu Wallet e
+          identificarte en recepción.
         </p>
       </div>
 
