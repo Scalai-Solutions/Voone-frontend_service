@@ -3,7 +3,6 @@ import type {
   BenefitOverrideEntry,
   PresentedTier,
 } from "@/lib/onboarding-api";
-import { MAX_BENEFIT_LENGTH } from "./benefits.ts";
 
 /**
  * Editing and hiding the lines the engine generates for a tier. Pure, so the rules live in one
@@ -14,9 +13,12 @@ import { MAX_BENEFIT_LENGTH } from "./benefits.ts";
  * (an absent field clears that aspect), so every helper below carries the aspect it is not
  * changing forward: hiding an edited line keeps the edit, showing a hidden line keeps the edit,
  * restoring the words of a hidden line keeps it hidden. The limits are the backend's
- * (`benefitOverridesSchema`): 1 to 80 characters once trimmed, no control characters. The
- * backend stays the authority.
+ * (`benefitOverridesSchema`): 1 to 120 characters once trimmed (the lines the centre adds keep
+ * their own 80), no control or invisible characters. The backend stays the authority.
  */
+
+/** The longest an edited generated line may be: the longest line a card carries. */
+export const MAX_OVERRIDE_LENGTH = 120;
 
 /** Shown inline before a generated line is edited or hidden. */
 export const OVERRIDE_WARNING =
@@ -26,6 +28,22 @@ export type LineEdit =
   { ok: true; entry: BenefitOverrideEntry } | { ok: false; error: string };
 
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+
+/** Zero-width and direction-changing characters: the line would say one thing and show another. */
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/;
+
+/** Why a tier may not lose its last visible line. Also the backend's own message. */
+export const LAST_LINE_NOTE = "Cada nivel debe mostrar al menos un beneficio.";
+
+/**
+ * Whether `line` is the only one of its tier a client would still read. Hiding or removing it
+ * would leave the tier with nothing to show, which the backend refuses.
+ */
+export const isLastVisible = (
+  lines: readonly BenefitLine[],
+  line: BenefitLine,
+): boolean =>
+  !line.hidden && lines.filter((other) => !other.hidden).length === 1;
 
 /** The edit currently on the line, if any, to send again so another change does not drop it. */
 const keptText = (line: BenefitLine): string | null =>
@@ -59,11 +77,11 @@ export const editLineOverride = (line: BenefitLine, text: string): LineEdit => {
     };
   }
 
-  if (value.length > MAX_BENEFIT_LENGTH) {
-    return { ok: false, error: `Máximo ${MAX_BENEFIT_LENGTH} caracteres.` };
+  if (value.length > MAX_OVERRIDE_LENGTH) {
+    return { ok: false, error: `Máximo ${MAX_OVERRIDE_LENGTH} caracteres.` };
   }
 
-  if (CONTROL.test(value)) {
+  if (CONTROL.test(value) || INVISIBLE.test(value)) {
     return { ok: false, error: "El texto contiene caracteres no permitidos." };
   }
 

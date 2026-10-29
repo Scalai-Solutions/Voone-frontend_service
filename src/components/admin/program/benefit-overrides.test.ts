@@ -3,7 +3,10 @@ import { describe, it } from "node:test";
 
 import type { BenefitLine, PresentedTier } from "@/lib/onboarding-api";
 import {
+  LAST_LINE_NOTE,
+  MAX_OVERRIDE_LENGTH,
   OVERRIDE_WARNING,
+  isLastVisible,
   customIndexOf,
   editLineOverride,
   hideLineOverride,
@@ -58,11 +61,14 @@ describe("editLineOverride", () => {
     });
   });
 
-  it("refuses blank, over 80 characters and control characters", () => {
+  it("refuses blank, over 120 characters, control and invisible characters", () => {
+    assert.equal(MAX_OVERRIDE_LENGTH, 120);
     assert.equal(editLineOverride(line(), "   ").ok, false);
-    assert.equal(editLineOverride(line(), "x".repeat(81)).ok, false);
+    assert.equal(editLineOverride(line(), "x".repeat(121)).ok, false);
     assert.equal(editLineOverride(line(), "a\nb").ok, false);
-    assert.equal(editLineOverride(line(), "x".repeat(80)).ok, true);
+    assert.equal(editLineOverride(line(), "a\u202eb").ok, false);
+    assert.equal(editLineOverride(line(), "a\u200bb").ok, false);
+    assert.equal(editLineOverride(line(), "x".repeat(120)).ok, true);
   });
 
   it("refuses a line the centre wrote: it has its own route", () => {
@@ -121,6 +127,36 @@ describe("restoreLineOverride (Restaurar)", () => {
         line({ text: "Mi texto", edited: true, hidden: true }),
       ),
       { key: "discount", text: null, hidden: true },
+    );
+  });
+});
+
+describe("isLastVisible", () => {
+  const a = line({ key: "mult" });
+  const b = line({ key: "tests" });
+  const c = line({ key: "card", hidden: true });
+
+  it("is true only for the one line left visible", () => {
+    assert.equal(isLastVisible([a, c], a), true);
+    assert.equal(isLastVisible([a, b, c], a), false);
+    assert.equal(isLastVisible([a], a), true);
+  });
+
+  it("is never true for a hidden line", () => {
+    assert.equal(isLastVisible([a, c], c), false);
+  });
+
+  it("counts the lines the centre wrote", () => {
+    const custom = line({ key: "custom:0", kind: "custom" });
+
+    assert.equal(isLastVisible([custom, c], custom), true);
+    assert.equal(isLastVisible([a, custom], a), false);
+  });
+
+  it("carries the backend's own sentence", () => {
+    assert.equal(
+      LAST_LINE_NOTE,
+      "Cada nivel debe mostrar al menos un beneficio.",
     );
   });
 });

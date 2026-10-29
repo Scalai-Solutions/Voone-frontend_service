@@ -29,10 +29,13 @@ import type {
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
 import {
+  LAST_LINE_NOTE,
+  MAX_OVERRIDE_LENGTH,
   OVERRIDE_WARNING,
   customIndexOf,
   editLineOverride,
   hideLineOverride,
+  isLastVisible,
   restoreLineOverride,
   showLineOverride,
   tierLines,
@@ -519,7 +522,11 @@ function TierBenefits({
                   <input
                     autoFocus
                     value={draft}
-                    maxLength={MAX_BENEFIT_LENGTH}
+                    maxLength={
+                      line.kind === "custom"
+                        ? MAX_BENEFIT_LENGTH
+                        : MAX_OVERRIDE_LENGTH
+                    }
                     disabled={busy}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={(event) => {
@@ -579,6 +586,7 @@ function TierBenefits({
                     size="sm"
                     variant="outline"
                     className="h-7 px-2 text-xs"
+                    autoFocus
                     disabled={busy}
                     onClick={() => void hideGenerated(line)}
                   >
@@ -614,6 +622,12 @@ function TierBenefits({
                 )}
               >
                 {line.text}
+                {line.hidden ? (
+                  <span className="sr-only"> (oculto)</span>
+                ) : null}
+                {line.edited ? (
+                  <span className="sr-only"> (editado)</span>
+                ) : null}
               </span>
               {editable && !line.hidden ? (
                 <>
@@ -629,7 +643,10 @@ function TierBenefits({
                   <button
                     type="button"
                     aria-label={`Quitar ${line.text}`}
-                    disabled={busy}
+                    disabled={busy || isLastVisible(lines, line)}
+                    title={
+                      isLastVisible(lines, line) ? LAST_LINE_NOTE : undefined
+                    }
                     className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
                     onClick={() =>
                       line.kind === "custom"
@@ -641,14 +658,22 @@ function TierBenefits({
                   </button>
                 </>
               ) : null}
+              {line.edited ? (
+                <span className="basis-full pl-5 text-[11px] leading-4 text-muted-foreground">
+                  Original: {line.original}
+                </span>
+              ) : null}
               {editable && line.kind === "generated" ? (
                 <span className="flex basis-full flex-wrap items-center gap-x-2 pl-5 text-[11px] text-muted-foreground">
                   {line.edited ? (
-                    <Badge variant="secondary">editado</Badge>
+                    <Badge variant="secondary" aria-hidden="true">
+                      editado
+                    </Badge>
                   ) : null}
                   {line.edited ? (
                     <button
                       type="button"
+                      aria-label={`Restaurar: ${line.original}`}
                       disabled={busy}
                       className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
                       onClick={() => undo(restoreLineOverride(line))}
@@ -659,6 +684,7 @@ function TierBenefits({
                   {line.hidden ? (
                     <button
                       type="button"
+                      aria-label={`Mostrar de nuevo: ${line.original}`}
                       disabled={busy}
                       className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
                       onClick={() => undo(showLineOverride(line))}
@@ -672,6 +698,12 @@ function TierBenefits({
           );
         })}
       </ul>
+      {isDraft && listed.some((line) => isLastVisible(lines, line)) ? (
+        <p className="text-[11px] leading-4 text-muted-foreground">
+          {LAST_LINE_NOTE} Muestra otra línea o añade una propia para poder
+          quitar esta.
+        </p>
+      ) : null}
       {problem ? (
         <p role="alert" className="text-[11px] text-destructive">
           {problem}

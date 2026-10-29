@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 
 import { ApiError } from "@/lib/api-client";
@@ -226,6 +227,21 @@ export function useSwapMilestone(clinicId: string, programId: string) {
   });
 }
 
+/**
+ * A draft edit that answers 409 found the draft changed under the editor ("Recarga la página").
+ * Refetching it puts the fresh programme on screen next to that message, so the retry starts from
+ * what is stored.
+ */
+const refreshOnConflict =
+  (queryClient: QueryClient, clinicId: string, programId: string) =>
+  (error: unknown) => {
+    if (error instanceof ApiError && error.status === 409) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.program(clinicId, programId),
+      });
+    }
+  };
+
 export function useSetTierBenefits(clinicId: string, programId: string) {
   const queryClient = useQueryClient();
 
@@ -238,6 +254,7 @@ export function useSetTierBenefits(clinicId: string, programId: string) {
         draft,
       );
     },
+    onError: refreshOnConflict(queryClient, clinicId, programId),
   });
 }
 
@@ -258,6 +275,7 @@ export function useSetBenefitOverrides(clinicId: string, programId: string) {
         draft,
       );
     },
+    onError: refreshOnConflict(queryClient, clinicId, programId),
   });
 }
 
@@ -273,6 +291,7 @@ export function useSetProgramTexts(clinicId: string, programId: string) {
         draft,
       );
     },
+    onError: refreshOnConflict(queryClient, clinicId, programId),
   });
 }
 
