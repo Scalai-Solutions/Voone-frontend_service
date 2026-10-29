@@ -80,3 +80,15 @@ export const describeDouble = (doublePoints: DoublePoints, now: Date): DoubleDes
 
   return { text: base, sliderDisabled: true };
 };
+
+/** The "(puntos dobles ...)" note after a recorded visit, from what the backend answered. */
+export const doubledNote = (
+  doubled: boolean | undefined,
+  reason: DoubleReason | null | undefined,
+): string => {
+  if (!doubled) return "";
+  if (reason === "referral") return " (puntos dobles por recomendación)";
+  if (reason === "perk") return " (puntos dobles por ventaja)";
+
+  return " (puntos dobles)";
+};

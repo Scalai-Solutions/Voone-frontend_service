@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { NO_DOUBLE_POINTS, describeDouble, normalizeDoublePoints } from "./double-points.ts";
+import {
+  NO_DOUBLE_POINTS,
+  describeDouble,
+  doubledNote,
+  normalizeDoublePoints,
+} from "./double-points.ts";
 
 describe("normalizeDoublePoints", () => {
   it("passes a well-formed perk through", () => {
@@ -106,5 +111,23 @@ describe("describeDouble", () => {
       describeDouble({ applies: true, reason: "perk", until: "2026-09-11T22:30:00.000Z" }, now).text,
       "Esta visita suma el doble de puntos (ventaja hasta el 12 sept)",
     );
+  });
+});
+
+describe("doubledNote", () => {
+  it("says nothing when the visit was not doubled", () => {
+    assert.equal(doubledNote(false, null), "");
+    assert.equal(doubledNote(false, "perk"), "");
+    assert.equal(doubledNote(undefined, undefined), "");
+  });
+
+  it("names the reason from the response", () => {
+    assert.equal(doubledNote(true, "referral"), " (puntos dobles por recomendación)");
+    assert.equal(doubledNote(true, "perk"), " (puntos dobles por ventaja)");
+  });
+
+  it("falls back to the plain note on an older backend with no reason", () => {
+    assert.equal(doubledNote(true, null), " (puntos dobles)");
+    assert.equal(doubledNote(true, undefined), " (puntos dobles)");
   });
 });
