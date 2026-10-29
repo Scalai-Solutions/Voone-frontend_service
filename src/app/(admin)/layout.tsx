@@ -7,6 +7,7 @@ const navItems: ShellNavItem[] = [
   { href: "/admin/templates", label: "Design library", icon: "templates" },
   { href: "/admin/onboarding", label: "Onboarding", icon: "onboarding" },
   { href: "/admin/wallet", label: "Wallet Integration", icon: "wallet" },
+  { href: "/admin/notifications", label: "Notification Manager", icon: "notifications" },
   { href: "/admin/customer-care", label: "Customer Care", icon: "care" },
 ];
 

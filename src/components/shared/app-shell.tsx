@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Building2, CreditCard, Headphones, LayoutDashboard, Rocket, Search, Settings, Sparkles, Users } from "lucide-react";
+import { Activity, Bell, Building2, CreditCard, Headphones, LayoutDashboard, Rocket, Search, Settings, Sparkles, Users } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { cn } from "@/lib/utils";
 
-export type ShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings" | "clinics" | "wallet" | "search" | "onboarding" | "care";
+export type ShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings" | "clinics" | "wallet" | "search" | "onboarding" | "care" | "notifications";
 
 export interface ShellNavItem {
   href: string;
@@ -28,6 +28,7 @@ const ICONS: Record<ShellIcon, React.ComponentType<{ className?: string; strokeW
   search: Search,
   onboarding: Rocket,
   care: Headphones,
+  notifications: Bell,
 };
 
 export function AppShell({
