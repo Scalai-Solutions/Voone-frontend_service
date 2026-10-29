@@ -49,7 +49,6 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
   const [treatmentSearch, setTreatmentSearch] = React.useState("");
   const [manualMemberId, setManualMemberId] = React.useState("");
   const [matchingMembers, setMatchingMembers] = React.useState<Member[]>([]);
-  const [referralCode, setReferralCode] = React.useState("");
   const [scanMessage, setScanMessage] = React.useState("Escanea el pase del cliente para empezar");
   const [notice, setNotice] = React.useState("");
 
@@ -327,29 +326,8 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
       memberId: selectedMember.id,
       points: selectedTreatmentPoints,
       label,
-      referralCode: referralCode || undefined,
       idempotencyKey: creditKeyRef.current,
     });
-  }
-
-  function handleReferralCode() {
-    const normalizedCode = referralCode.trim();
-
-    if (!normalizedCode) {
-      setNotice("Introduce un código de referido.");
-      return;
-    }
-
-    if (!selectedMember) {
-      setNotice("Busca y selecciona el miembro antes de añadir el referido.");
-      return;
-    }
-
-    const confirmed = window.confirm(`El código ${normalizedCode} se añadirá a ${selectedMember.name} (${selectedMember.id}). ¿Es la persona correcta?`);
-
-    if (confirmed) {
-      setNotice(`Código ${normalizedCode} confirmado para ${selectedMember.name}.`);
-    }
   }
 
   const isSaving = staffProgram.isLoading || confirmMutation.isPending || recordVisitMutation.isPending;
@@ -463,15 +441,6 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                 {!treatments.isLoading && !treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">Este centro todavía no tiene tratamientos guardados.</p> : null}
                 {treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">No hay tratamientos que coincidan con esa búsqueda.</p> : null}
                 {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {hasVisitProgram ? `${selectedTreatmentAmount.toLocaleString("es-ES")} € de importe` : `${selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total`}</p> : null}
-              </div>
-
-              <div className="mt-5 rounded-[26px] border border-[#e2d5cc] bg-white/90 p-5 sm:p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Código de referido</p>
-                <div className="mt-3 flex gap-2">
-                  <input value={referralCode} onChange={(event) => setReferralCode(event.target.value)} placeholder="Código del referido" className="min-w-0 flex-1 rounded-xl border border-[#ded1c8] bg-white px-3 py-3 text-sm outline-none focus:border-[#b8864b]" />
-                  <button type="button" onClick={handleReferralCode} className="rounded-xl border border-[#cdb9aa] px-3 text-sm font-semibold text-[#754b36]">Añadir</button>
-                </div>
-                {notice ? <div role="alert" className="mt-3 rounded-xl bg-[#e9f3e8] px-3 py-2 text-sm font-semibold text-[#3d6a48]"><CheckCircle2 size={15} className="mr-1 inline" />{notice}</div> : null}
               </div>
 
               {selectedTreatments.length > 0 ? (
