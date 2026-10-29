@@ -34,3 +34,49 @@ export const normalizeDoublePoints = (raw: unknown): DoublePoints => {
     until: typeof until === "string" ? until : null,
   };
 };
+
+const dayMonth = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  day: "numeric",
+  month: "short",
+});
+
+export interface DoubleDescription {
+  /** What reception is told about this visit; null when nothing applies. */
+  text: string | null;
+  /** True while the manual x2/x3/x5/x10 slider must stay off: a double already applies. */
+  sliderDisabled: boolean;
+}
+
+const NOTHING: DoubleDescription = { text: null, sliderDisabled: false };
+
+/**
+ * What the visit form says about double points, and whether the manual slider is locked.
+ *
+ * A perk whose `until` has passed no longer applies (the answer may be older than the page), so
+ * it reads as nothing: the backend honours a perk only while expiresAt is after the visit. A perk
+ * without a usable date still applies, just without naming one.
+ */
+export const describeDouble = (doublePoints: DoublePoints, now: Date): DoubleDescription => {
+  if (!doublePoints.applies) return NOTHING;
+
+  const until = doublePoints.until === null ? null : new Date(doublePoints.until);
+  const lapse = until !== null && !Number.isNaN(until.getTime()) ? until : null;
+
+  if (lapse !== null && lapse.getTime() <= now.getTime()) return NOTHING;
+
+  const base = "Esta visita suma el doble de puntos";
+
+  if (doublePoints.reason === "referral") {
+    return { text: `${base}: primera visita por recomendación`, sliderDisabled: true };
+  }
+
+  if (doublePoints.reason === "perk" && lapse !== null) {
+    return {
+      text: `${base} (ventaja hasta el ${dayMonth.format(lapse)})`,
+      sliderDisabled: true,
+    };
+  }
+
+  return { text: base, sliderDisabled: true };
+};
