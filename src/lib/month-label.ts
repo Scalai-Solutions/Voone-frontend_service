@@ -12,3 +12,15 @@ export const monthNameEs = (monthKey: string): string | null => {
 
   return name.charAt(0).toLocaleUpperCase("es-ES") + name.slice(1);
 };
+
+/**
+ * The "YYYY-MM" calendar month of an instant in a time zone. The backend counts "this month" in
+ * Europe/Madrid, so the heading over those figures must name the month in the same zone.
+ */
+export const monthKeyIn = (timeZone: string, at: Date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).formatToParts(at);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+
+  return `${year}-${month}`;
+};
