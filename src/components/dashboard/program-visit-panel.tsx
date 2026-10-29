@@ -30,6 +30,7 @@ import {
 import { ApiError, newIdempotencyKey } from "@/lib/api-client";
 import type { CategoryCode } from "@/lib/onboarding-api";
 import type { MemberReward, VisitOutcome } from "@/lib/staff-program-api";
+import { formatPoints } from "@/lib/points";
 
 /**
  * Recording a visit and redeeming rewards, for a centre that has a loyalty programme.
@@ -327,7 +328,7 @@ export function ProgramVisitPanel({
       }
 
       setNotice(
-        "Elige el bono de la clienta o un plan para empezar uno nuevo.",
+        "Elige el bono del cliente o un plan para empezar uno nuevo.",
       );
       return;
     }
@@ -547,7 +548,7 @@ export function ProgramVisitPanel({
         ) : (
           <div className="mt-3 grid gap-3">
             <label className="text-xs font-medium text-muted-foreground">
-              Bono de la clienta
+              Bono del cliente
               <Combobox
                 value={bonoChoice}
                 onChange={(value) => {
@@ -700,7 +701,7 @@ export function ProgramVisitPanel({
         {originalPoints > 0 ? (
           <div className="mt-2 rounded-md border border-border bg-background/70 p-3">
             <p className="text-xs font-medium text-muted-foreground">
-              Multiplicar los {originalPoints.toLocaleString("es-ES")} puntos de
+              Multiplicar los {formatPoints(originalPoints)} puntos de
               esta visita
             </p>
             <input
@@ -730,8 +731,8 @@ export function ProgramVisitPanel({
             </div>
             {multiplier !== null && multipliedBonus !== null ? (
               <p className="mt-1 text-[11px] font-normal text-muted-foreground">
-                Se añadirán {multipliedBonus.toLocaleString("es-ES")} puntos
-                extra a los {originalPoints.toLocaleString("es-ES")} de la
+                Se añadirán {formatPoints(multipliedBonus)} puntos
+                extra a los {formatPoints(originalPoints)} de la
                 visita.
               </p>
             ) : null}
@@ -786,14 +787,14 @@ function VisitResult({ outcome }: { outcome: VisitOutcome }) {
         </span>
       </p>
       <p className="mt-2 text-muted-foreground">
-        Suma {outcome.points.toLocaleString("es-ES")} puntos
+        Suma {formatPoints(outcome.points)} puntos
         {outcome.doubled ? " (puntos dobles)" : ""}. Lleva{" "}
-        {outcome.pointsTotal.toLocaleString("es-ES")} puntos en total.
+        {formatPoints(outcome.pointsTotal)} puntos en total.
         {outcome.tier ? ` Nivel: ${outcome.tier}.` : ""}
       </p>
       {outcome.bonusPoints > 0 ? (
         <p className="mt-1 text-muted-foreground">
-          Incluye {outcome.bonusPoints.toLocaleString("es-ES")} puntos extra.
+          Incluye {formatPoints(outcome.bonusPoints)} puntos extra.
         </p>
       ) : null}
       {outcome.bono ? (

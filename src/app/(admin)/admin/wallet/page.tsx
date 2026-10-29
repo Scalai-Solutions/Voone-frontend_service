@@ -53,8 +53,8 @@ export default async function WalletStatusPage() {
           </div>
           <p className="mt-5 max-w-md text-sm leading-6 text-[#c9bbb3]">Publishing mode is read from the Wallet status API when configured. Demo mode can still generate test save links for clinic QA.</p>
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-[#bca99d]">Save links</p><p className="mt-2 text-3xl font-semibold">98.6%</p></div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-[#bca99d]">Last sync</p><p className="mt-2 text-3xl font-semibold">12m</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-[#bca99d]">Save links</p><p className="mt-2 text-lg font-semibold text-[#c9bbb3]">Sin datos todavía</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-[#bca99d]">Last sync</p><p className="mt-2 text-lg font-semibold text-[#c9bbb3]">Sin datos todavía</p></div>
           </div>
         </div>
       </section>

@@ -1,9 +1,19 @@
 import { redirect } from "next/navigation";
 import { BarChart3, Crown, Gift, PiggyBank, ReceiptText, Sparkles, Trophy, UsersRound } from "lucide-react";
 
-import { ApiError, type Member } from "@/lib/api-client";
+import { ApiError, type DashboardOverview, type Member } from "@/lib/api-client";
+import { fetchDashboardOverview } from "@/lib/dashboard-overview-server";
+import {
+  formatMoneySpentTotal,
+  formatRevenueThisMonth,
+  formatRewardsRedeemedThisMonth,
+  topClientRows,
+} from "@/lib/dashboard-overview";
+import { formatCount } from "@/lib/money";
+import { formatPoints } from "@/lib/points";
 import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { staffFetch } from "@/lib/staff-api";
+import { monthKeyIn, monthNameEs } from "@/lib/month-label";
 import { cn } from "@/lib/utils";
 
 const ageRanges = [
@@ -21,17 +31,7 @@ const tierStyles: Record<string, string> = {
   Nuevo: "bg-[#eadfd8] text-[#6f5c53]",
 };
 
-async function getMetricsMembers(): Promise<Member[]> {
-  const session = await getCurrentSession();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  if (!hasPermission(session, PERMISSIONS.membersManage)) {
-    redirect("/dashboard");
-  }
-
+async function getMetricsMembers(session: NonNullable<Awaited<ReturnType<typeof getCurrentSession>>>): Promise<Member[]> {
   const response = await staffFetch(
     `/v1/clinics/${encodeURIComponent(session.clinicSlug)}/members`,
     { method: "GET" },
@@ -55,8 +55,25 @@ async function getMetricsMembers(): Promise<Member[]> {
 }
 
 export default async function MetricsPage() {
-  const members = await getMetricsMembers();
+  const session = await getCurrentSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  if (!hasPermission(session, PERMISSIONS.membersManage)) {
+    redirect("/dashboard");
+  }
+
+  // Money, rewards redeemed and the month's top clients come from the backend's own totals, not
+  // from the members list (which is not the whole base and carries only a few history rows).
+  const [members, overview] = await Promise.all([
+    getMetricsMembers(session),
+    session.clinicId ? fetchDashboardOverview(session.clinicId) : Promise.resolve(null),
+  ]);
   const metrics = buildMetrics(members);
+  const topClients = topClientRows(overview);
+  const topClientsAvailable = Array.isArray(overview?.topClientsThisMonth);
 
   return (
     <section className="space-y-7 text-[#2e2421]">
@@ -72,10 +89,10 @@ export default async function MetricsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={UsersRound} eyebrow="Miembros" value={metrics.totalMembers.toLocaleString("es-ES")} detail={`${metrics.activeWalletMembers} con Wallet activo`} tone="dark" />
+        <MetricCard icon={UsersRound} eyebrow="Miembros" value={formatCount(metrics.totalMembers)} detail={`${metrics.activeWalletMembers} con Wallet activo`} tone="dark" />
         <MetricCard icon={Crown} eyebrow="Niveles" value={metrics.totalTiers.toString()} detail={`${metrics.leadingTier?.tier ?? "Sin nivel"} lidera la base`} />
-        <MetricCard icon={PiggyBank} eyebrow="Dinero gastado" value={formatCurrency(metrics.totalSpent)} detail={`${formatCurrency(metrics.monthlySpent)} este mes`} />
-        <MetricCard icon={Gift} eyebrow="Rewards redeemed" value={metrics.rewardsRedeemed.toString()} detail={`${metrics.monthlyRewardsRedeemed} canjes este mes`} />
+        <MetricCard icon={PiggyBank} eyebrow="Dinero gastado" value={formatMoneySpentTotal(overview)} detail={moneySpentDetail(overview)} />
+        <MetricCard icon={Gift} eyebrow="Canjes este mes" value={formatRewardsRedeemedThisMonth(overview)} detail="Recompensas entregadas en el mes" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
@@ -119,8 +136,20 @@ export default async function MetricsPage() {
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
-          <RankingCard title="Top clientes este mes" eyebrow="Septiembre" icon={Trophy} members={metrics.topClientsThisMonth} emptyText="Sin actividad este mes" />
-          <RankingCard title="Top clientes all-time" eyebrow="Histórico" icon={ReceiptText} members={metrics.topClientsAllTime} emptyText="Sin clientes todavía" />
+          <RankingCard
+            title="Top clientes este mes"
+            eyebrow={monthNameEs(metrics.monthKey) ?? "Este mes"}
+            icon={Trophy}
+            rows={topClients.map((row) => ({ id: row.memberId, name: row.name, detail: "Visitas pagadas este mes", value: row.amount }))}
+            emptyText={topClientsAvailable ? "Sin actividad este mes" : "—"}
+          />
+          <RankingCard
+            title="Top clientes all-time"
+            eyebrow="Histórico"
+            icon={ReceiptText}
+            rows={metrics.topClientsAllTime.map((item) => ({ id: item.member.id, name: item.member.name, detail: item.member.tier, value: `${formatPoints(item.score)} pts` }))}
+            emptyText="Sin clientes todavía"
+          />
         </aside>
       </div>
     </section>
@@ -143,23 +172,16 @@ function memberAge(member: Member) {
 }
 
 function buildMetrics(members: Member[]) {
-  const latestHistoryDate = members.flatMap((member) => member.history.map((item) => item.date)).sort().at(-1);
-  const monthKey = latestHistoryDate?.slice(0, 7) ?? new Date().toISOString().slice(0, 7);
+  // The month the backend counts "this month" in: the Madrid calendar month.
+  const monthKey = monthKeyIn("Europe/Madrid");
   const activeWalletMembers = members.filter((member) => Object.values(member.walletStatus).includes("added")).length;
-  const totalSpent = members.reduce((total, member) => total + member.points, 0);
-  const monthlySpent = members.reduce((total, member) => total + pointsForMonth(member, monthKey), 0);
-  const rewardsRedeemed = members.reduce((total, member) => total + member.history.filter((item) => item.points < 0).length, 0);
-  const monthlyRewardsRedeemed = members.reduce((total, member) => total + member.history.filter((item) => item.date.startsWith(monthKey) && item.points < 0).length, 0);
   const membersByTier = countBy(members.map((member) => member.tier)).map(([tier, count]) => ({ tier, count }));
 
   return {
+    monthKey,
     totalMembers: members.length,
     totalTiers: membersByTier.length,
     activeWalletMembers,
-    totalSpent,
-    monthlySpent,
-    rewardsRedeemed,
-    monthlyRewardsRedeemed,
     leadingTier: membersByTier[0],
     membersByTier,
     membersByAge: ageRanges.map((range) => ({
@@ -169,9 +191,15 @@ function buildMetrics(members: Member[]) {
         return typeof age === "number" && age >= range.min && age <= range.max;
       }).length,
     })),
-    topClientsThisMonth: rankMembers(members, (member) => pointsForMonth(member, monthKey)),
+    // Ranked by current points balance (what the members list carries), shown in points.
     topClientsAllTime: rankMembers(members, (member) => member.points),
   };
+}
+
+function moneySpentDetail(overview: DashboardOverview | null) {
+  const month = formatRevenueThisMonth(overview);
+
+  return month === "—" ? "Total de visitas pagadas" : `Total de visitas pagadas · ${month} este mes`;
 }
 
 function countBy(values: string[]) {
@@ -180,13 +208,9 @@ function countBy(values: string[]) {
   return Array.from(counts.entries()).sort((first, second) => second[1] - first[1]);
 }
 
-function pointsForMonth(member: Member, monthKey: string) {
-  return member.history.filter((item) => item.date.startsWith(monthKey)).reduce((total, item) => total + Math.max(item.points, 0), 0);
-}
-
 function rankMembers(members: Member[], scoreForMember: (member: Member) => number) {
   return members
-    .map((member) => ({ member, score: scoreForMember(member), city: "Madrid" }))
+    .map((member) => ({ member, score: scoreForMember(member) }))
     .filter((item) => item.score > 0)
     .sort((first, second) => second.score - first.score)
     .slice(0, 5);
@@ -196,10 +220,6 @@ function percentage(value: number, total: number) {
   if (total === 0) return 0;
 
   return Math.round((value / total) * 100);
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
 }
 
 function MetricCard({ icon: Icon, eyebrow, value, detail, tone = "light" }: { icon: React.ComponentType<{ className?: string }>; eyebrow: string; value: string; detail: string; tone?: "dark" | "light" }) {
@@ -231,7 +251,7 @@ function ProgressRow({ label, value, total }: { label: string; value: number; to
   );
 }
 
-function RankingCard({ title, eyebrow, icon: Icon, members, emptyText }: { title: string; eyebrow: string; icon: React.ComponentType<{ className?: string }>; members: ReturnType<typeof rankMembers>; emptyText: string }) {
+function RankingCard({ title, eyebrow, icon: Icon, rows, emptyText }: { title: string; eyebrow: string; icon: React.ComponentType<{ className?: string }>; rows: Array<{ id: string; name: string; detail: string; value: string }>; emptyText: string }) {
   return (
     <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
       <div className="flex items-center justify-between gap-4">
@@ -242,13 +262,13 @@ function RankingCard({ title, eyebrow, icon: Icon, members, emptyText }: { title
         <Icon className="h-5 w-5 text-[#b8864b]" />
       </div>
       <div className="mt-5 space-y-3">
-        {members.length ? members.map((item, index) => (
-          <div key={item.member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3">
+        {rows.length ? rows.map((row, index) => (
+          <div key={row.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3">
             <div className="min-w-0">
-              <p className="truncate font-semibold">{index + 1}. {item.member.name}</p>
-              <p className="mt-1 text-xs text-[#927e72]">{item.member.tier} · {item.city}</p>
+              <p className="truncate font-semibold">{index + 1}. {row.name}</p>
+              <p className="mt-1 text-xs text-[#927e72]">{row.detail}</p>
             </div>
-            <span className="shrink-0 rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-bold text-[#805637]">{formatCurrency(item.score)}</span>
+            <span className="shrink-0 rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-bold text-[#805637]">{row.value}</span>
           </div>
         )) : <p className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">{emptyText}</p>}
       </div>

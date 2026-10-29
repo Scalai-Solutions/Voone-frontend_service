@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ApiError, getPublicClinic, type PublicClinic } from "@/lib/api-client";
+import { normalizeReferralCode } from "@/lib/referral-code";
 import { SignupForm } from "./signup-form";
 
 /**
@@ -57,8 +58,15 @@ const formatBrandName = (clinicName: string): string => {
   return (withoutClinicSuffix || trimmed).toUpperCase();
 };
 
-export default async function ClinicSignupPage({ params }: PageProps<"/alta/[clinic]">) {
+export default async function ClinicSignupPage({
+  params,
+  searchParams,
+}: PageProps<"/alta/[clinic]">) {
   const { clinic: slug } = await params;
+  // A shared link looks like /alta/<clinic>?ref=K7M2X. Anything that is not a well-formed code
+  // is dropped here, so the form simply opens with the field empty.
+  const { ref } = await searchParams;
+  const initialReferralCode = normalizeReferralCode(ref) ?? "";
   const clinic = await loadClinic(slug);
   const brandName = formatBrandName(clinic.name);
   const displayBrandName = brandName.toLocaleLowerCase("es-ES").replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("es-ES"));
@@ -75,7 +83,7 @@ export default async function ClinicSignupPage({ params }: PageProps<"/alta/[cli
             {brandName}
           </p>
           <p className="mt-5 text-[0.56rem] font-semibold uppercase tracking-[0.24em] text-[#8f877e]">
-            {clinic.name} · Privé membership
+            {clinic.name} · Membresía
           </p>
         </header>
 
@@ -90,7 +98,7 @@ export default async function ClinicSignupPage({ params }: PageProps<"/alta/[cli
           </p>
         </div>
 
-        <SignupForm clinic={clinic} />
+        <SignupForm clinic={clinic} initialReferralCode={initialReferralCode} />
 
         <p className="mt-7 text-center text-[0.76rem] text-[#9a9086]">
           Una experiencia {displayBrandName}, diseñada para ti.

@@ -18,6 +18,8 @@ import {
   type PublicClinic,
 } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
+import { normalizeReferralCode } from "@/lib/referral-code";
+import { resolveWalletInstallUrl } from "@/lib/wallet-links";
 
 /**
  * The options the form offers, matching the backend enum exactly.
@@ -143,6 +145,9 @@ const signupSchema = z.object({
         "Selecciona una opción",
       ),
     ),
+  // Optional and never validated: a malformed code is not an error, it is just not sent (see
+  // onSubmit), because the backend ignores bad codes and a typo must not stop someone joining.
+  referralCode: z.string(),
   // Both tick boxes are required to move forward (2026-10 product decision). Marketing
   // consent included — note that conditioning sign-up on marketing consent is the GDPR
   // Art 7(4) bundling the backend's schema comments warn about; the decision is the
@@ -170,19 +175,11 @@ function WalletReady({
   const walletPageUrl = wallet.code
     ? `/wallet/add/${encodeURIComponent(wallet.code)}`
     : null;
-  const appleUrl =
-    wallet.passes.apple.url ??
-    (wallet.code
-      ? `/api/wallet/passes/${encodeURIComponent(wallet.code)}/apple`
-      : null);
-  const currentYear = new Date().getFullYear();
+  const googleUrl = resolveWalletInstallUrl(wallet.passes.google);
+  const appleUrl = resolveWalletInstallUrl(wallet.passes.apple);
 
   return (
     <div className={panelClassName}>
-      <p className="absolute right-7 top-10 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#9f958a]">
-        {currentYear} - {currentYear + 1}
-      </p>
-
       <div className="text-center">
         <p className="text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">
           {clinic.name}
@@ -201,9 +198,9 @@ function WalletReady({
           Guardar pase
         </p>
         <div className="flex flex-col items-center gap-3">
-          {wallet.passes.google.available && wallet.passes.google.url ? (
+          {googleUrl ? (
             <Link
-              href={wallet.passes.google.url}
+              href={googleUrl}
               className="inline-flex min-h-[45px] items-center justify-center rounded-[14px] transition duration-200 hover:scale-[1.01] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#1a73e8]"
               rel="noopener noreferrer"
             >
@@ -238,7 +235,8 @@ function WalletReady({
             </Link>
           ) : (
             <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">
-              Apple Wallet no está disponible para este pase.
+              Apple Wallet no está disponible para este pase. Pídeselo al
+              equipo de recepción.
             </div>
           )}
         </div>
@@ -275,7 +273,13 @@ function WalletReady({
   );
 }
 
-export function SignupForm({ clinic }: { clinic: PublicClinic }) {
+export function SignupForm({
+  clinic,
+  initialReferralCode = "",
+}: {
+  clinic: PublicClinic;
+  initialReferralCode?: string;
+}) {
   const [done, setDone] = React.useState(false);
   const [wallet, setWallet] = React.useState<MemberPassWallet | null>(null);
   // The third generic is the parsed output: the resolver receives the input — which
@@ -287,6 +291,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       phone: "",
       birthDate: "",
       sex: "",
+      referralCode: initialReferralCode,
       consentMarketing: false,
       acceptedPrivacy: false,
     },
@@ -300,6 +305,8 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
   });
 
   const onSubmit = (values: SignupFormValues) => {
+    const referredByCode = normalizeReferralCode(values.referralCode);
+
     mutation.mutate({
       name: values.name,
       phone: values.phone,
@@ -307,6 +314,7 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       sex: values.sex,
       consentMarketing: values.consentMarketing,
       acceptedPrivacy: values.acceptedPrivacy,
+      ...(referredByCode ? { referredByCode } : {}),
     });
   };
 
@@ -359,20 +367,16 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
       className={panelClassName}
       noValidate
     >
-      <p className="absolute right-7 top-10 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#9f958a]">
-        {CURRENT_YEAR} - {CURRENT_YEAR + 1}
-      </p>
-
       <div className="text-center">
         <p className="text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">
           {clinic.name}
         </p>
         <h2 className="mt-7 font-serif text-[1.92rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
-          Tu pase está listo
+          Únete a {clinic.template.programName}
         </h2>
         <p className="mx-auto mt-4 max-w-[286px] text-[0.82rem] leading-6 text-[#7d746b]">
-          Completa tus datos para añadirlo a tu Wallet e identificarte en
-          recepción.
+          Completa tus datos para crear tu pase, añadirlo a tu Wallet e
+          identificarte en recepción.
         </p>
       </div>
 
@@ -442,6 +446,24 @@ export function SignupForm({ clinic }: { clinic: PublicClinic }) {
             </select>
           </Field>
         </div>
+
+        <Field
+          label="Código de recomendación (opcional)"
+          hint="Si te recomendó alguien, escribe su código"
+          labelClassName={smallLabelClassName}
+          className="[&_p]:text-center"
+        >
+          <Input
+            {...form.register("referralCode")}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={10}
+            placeholder="K7M2X"
+            enterKeyHint="done"
+            className={`${fieldInputClassName} uppercase`}
+          />
+        </Field>
 
         <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eee4d9] bg-[#f7efe6] p-3 text-left">
           <input

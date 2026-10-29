@@ -2,23 +2,20 @@ import { DashboardMotion } from "@/components/dashboard/dashboard-motion";
 import { getClinicSignupUrl } from "@/lib/app-url";
 import { type DashboardOverview } from "@/lib/api-client";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
-import { staffFetch } from "@/lib/staff-api";
+import { fetchDashboardOverview } from "@/lib/dashboard-overview-server";
 
 async function getDashboardOverview(clinicId: string, fallbackMembers: number): Promise<DashboardOverview> {
-  const response = await staffFetch(`/v1/dashboard/overview?clinicId=${encodeURIComponent(clinicId)}`, {
-    method: "GET",
-  });
+  const overview = await fetchDashboardOverview(clinicId);
 
-  if (!response.ok) {
-    return {
+  // Month-scoped figures are left out when the request fails, so the page shows "—".
+  return (
+    overview ?? {
       activeMembers: fallbackMembers,
       pointsIssuedThisMonth: 0,
       walletAdds: 0,
       recentActivity: [],
-    };
-  }
-
-  return response.json() as Promise<DashboardOverview>;
+    }
+  );
 }
 
 export default async function DashboardOverviewPage() {

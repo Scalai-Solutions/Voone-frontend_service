@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 
 import type { Member, MemberPassWallet } from "@/lib/api-client";
+import { resolveWalletInstallUrl } from "@/lib/wallet-links";
+import { formatPoints } from "@/lib/points";
 
 interface WalletPassPagePayload {
   member: Member;
@@ -45,12 +47,11 @@ async function getWalletPass(code: string): Promise<WalletPassPagePayload> {
 export default async function WalletAddPage(context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
   const payload = await getWalletPass(code);
-  const googleUrl = payload.wallet.passes.google.url;
-  const appleUrl = payload.wallet.passes.apple.url ?? `/api/wallet/passes/${encodeURIComponent(code)}/apple`;
+  const googleUrl = resolveWalletInstallUrl(payload.wallet.passes.google);
+  const appleUrl = resolveWalletInstallUrl(payload.wallet.passes.apple);
   const clinicName = payload.clinic.name.trim();
   const brandName = formatBrandName(clinicName);
   const displayBrandName = brandName.toLocaleLowerCase("es-ES").replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("es-ES"));
-  const currentYear = new Date().getFullYear();
 
   return (
     <main className="min-h-svh bg-[#f5efe7] text-[#22201e]">
@@ -64,7 +65,7 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
             {brandName}
           </p>
           <p className="mt-5 text-[0.58rem] font-semibold uppercase tracking-[0.25em] text-[#8f877e]">
-            {clinicName} · Privé membership
+            {clinicName} · Membresía
           </p>
         </header>
 
@@ -80,10 +81,6 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
         </div>
 
         <div className="relative mt-16 flex-1 rounded-[36px] border border-[#eee5da] bg-[#fffbf7]/86 px-7 pb-7 pt-19 shadow-[0_28px_70px_rgba(55,42,32,0.12)] backdrop-blur-xl">
-          <p className="absolute right-7 top-10 text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#9f958a]">
-            {currentYear} - {currentYear + 1}
-          </p>
-
           <div className="text-center">
             <p className="text-[0.64rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">{clinicName}</p>
             <h2 className="mt-7 font-serif text-[1.95rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
@@ -110,7 +107,7 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
                   <Image src="/wallet/ES_Add_to_Apple_Wallet_RGB_101921.svg" alt="Añadir a Apple Wallet" width={133} height={35} className="h-[44px] w-auto" />
                 </Link>
               ) : (
-                <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">Apple Wallet no está disponible para este pase.</div>
+                <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">Apple Wallet no está disponible para este pase. Pídeselo al equipo de recepción.</div>
               )}
             </div>
           </div>
@@ -130,7 +127,7 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
               </div>
               <div className="rounded-2xl bg-[#f7efe6] px-3 py-2">
                 <dt className="text-[0.56rem] font-bold uppercase tracking-[0.16em] text-[#a09688]">Puntos</dt>
-                <dd className="mt-1 text-sm font-semibold text-[#2e2924]">{payload.member.points.toLocaleString("es-ES")}</dd>
+                <dd className="mt-1 text-sm font-semibold text-[#2e2924]">{formatPoints(payload.member.points)}</dd>
               </div>
               <div className="rounded-2xl bg-[#f7efe6] px-3 py-2">
                 <dt className="text-[0.56rem] font-bold uppercase tracking-[0.16em] text-[#a09688]">Nivel</dt>

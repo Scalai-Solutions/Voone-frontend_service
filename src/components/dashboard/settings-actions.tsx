@@ -19,7 +19,7 @@ export function MembersCsvExport() {
 
   function downloadCsv() {
     const data = members.data ?? [];
-    const headers = ["Name", "Code", "Identity", "Email", "Tier", "Points", "Money spent", "Last visit"];
+    const headers = ["Nombre", "Código", "Identificación", "Email", "Nivel", "Puntos", "Dinero gastado", "Última visita"];
     const escape = (value: string | number | null | undefined) => `"${String(value ?? "").replaceAll('"', '""')}"`;
     const rows = data.map((member) => [
       member.name,

@@ -434,11 +434,40 @@ export interface PlatformOverview {
   wallet: WalletInfrastructure;
 }
 
+export interface TopClientThisMonth {
+  memberId: string;
+  name: string;
+  /** Euros that earned progress this month, in cents. */
+  amountCents: number;
+}
+
+/**
+ * GET /v1/dashboard/overview.
+ *
+ * Every field added by the month-scoped release is optional: an older backend does not send
+ * them, and a page must show "—" for a missing figure rather than NaN or a made-up 0. Money
+ * fields are cents from PaidVisit.amountCents, i.e. only what earns progress (medicine and
+ * medical acts are not in them).
+ */
 export interface DashboardOverview {
   activeMembers: number;
+  /**
+   * CHANGED MEANING. New backend: points credited this month, in display units. Old backend: the
+   * all-time sum of paid euros. Only read it when `revenueAllTimeCents` is present (see
+   * hasMonthScopedMetrics in lib/dashboard-overview.ts).
+   */
   pointsIssuedThisMonth: number;
   walletAdds: number;
   recentActivity: Array<{ id: string; label: string; date: string }>;
+  /** Euros that earned progress this month (Europe/Madrid calendar month), in cents. */
+  revenueThisMonthCents?: number;
+  /** All-time paid visits, in cents. Its presence marks the new backend. */
+  revenueAllTimeCents?: number;
+  /** All-time paid visits, in cents (same figure as revenueAllTimeCents). */
+  moneySpentTotalCents?: number;
+  rewardsRedeemedThisMonth?: number;
+  /** Top five by euros this month, biggest first. */
+  topClientsThisMonth?: TopClientThisMonth[];
 }
 
 export interface CreateMemberInput {
@@ -1124,6 +1153,8 @@ export function lookupMemberByWalletCode(code: string) {
 }
 
 export function getDashboardOverview() {
+  // Empty, not sample data: the month-scoped fields are left out on purpose so the page shows
+  // "—" instead of a figure nobody recorded.
   const fallback: DashboardOverview = {
     activeMembers: 0,
     pointsIssuedThisMonth: 0,
@@ -1291,6 +1322,11 @@ export interface MembershipSignupInput {
   acceptedPrivacy: boolean;
   /** Omitted for the public form, which the backend reads as a QR sign-up. */
   consentSource?: "qr_signup" | "staff_entry";
+  /**
+   * Code of the member who recommended this one. Optional; the backend ignores an unknown code
+   * silently. Only send a value that passed normalizeReferralCode.
+   */
+  referredByCode?: string;
 }
 
 /** Branding for a clinic's public sign-up page. Throws ApiError(404) for an unknown slug. */
