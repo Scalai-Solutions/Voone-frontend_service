@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 
 import type { Member, MemberPassWallet } from "@/lib/api-client";
+import { resolveWalletInstallUrl } from "@/lib/wallet-links";
 
 interface WalletPassPagePayload {
   member: Member;
@@ -45,8 +46,8 @@ async function getWalletPass(code: string): Promise<WalletPassPagePayload> {
 export default async function WalletAddPage(context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
   const payload = await getWalletPass(code);
-  const googleUrl = payload.wallet.passes.google.url;
-  const appleUrl = payload.wallet.passes.apple.url ?? `/api/wallet/passes/${encodeURIComponent(code)}/apple`;
+  const googleUrl = resolveWalletInstallUrl(payload.wallet.passes.google);
+  const appleUrl = resolveWalletInstallUrl(payload.wallet.passes.apple);
   const clinicName = payload.clinic.name.trim();
   const brandName = formatBrandName(clinicName);
   const displayBrandName = brandName.toLocaleLowerCase("es-ES").replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("es-ES"));
@@ -110,7 +111,7 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
                   <Image src="/wallet/ES_Add_to_Apple_Wallet_RGB_101921.svg" alt="Añadir a Apple Wallet" width={133} height={35} className="h-[44px] w-auto" />
                 </Link>
               ) : (
-                <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">Apple Wallet no está disponible para este pase.</div>
+                <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">Apple Wallet no está disponible para este pase. Pídeselo al equipo de recepción.</div>
               )}
             </div>
           </div>

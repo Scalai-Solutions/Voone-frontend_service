@@ -18,6 +18,7 @@ import {
   type PublicClinic,
 } from "@/lib/api-client";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
+import { resolveWalletInstallUrl } from "@/lib/wallet-links";
 
 /**
  * The options the form offers, matching the backend enum exactly.
@@ -170,11 +171,8 @@ function WalletReady({
   const walletPageUrl = wallet.code
     ? `/wallet/add/${encodeURIComponent(wallet.code)}`
     : null;
-  const appleUrl =
-    wallet.passes.apple.url ??
-    (wallet.code
-      ? `/api/wallet/passes/${encodeURIComponent(wallet.code)}/apple`
-      : null);
+  const googleUrl = resolveWalletInstallUrl(wallet.passes.google);
+  const appleUrl = resolveWalletInstallUrl(wallet.passes.apple);
   const currentYear = new Date().getFullYear();
 
   return (
@@ -201,9 +199,9 @@ function WalletReady({
           Guardar pase
         </p>
         <div className="flex flex-col items-center gap-3">
-          {wallet.passes.google.available && wallet.passes.google.url ? (
+          {googleUrl ? (
             <Link
-              href={wallet.passes.google.url}
+              href={googleUrl}
               className="inline-flex min-h-[45px] items-center justify-center rounded-[14px] transition duration-200 hover:scale-[1.01] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#1a73e8]"
               rel="noopener noreferrer"
             >
@@ -238,7 +236,8 @@ function WalletReady({
             </Link>
           ) : (
             <div className="w-full rounded-2xl border border-dashed border-[#d8c8bc] px-4 py-3 text-center text-sm text-[#806d63]">
-              Apple Wallet no está disponible para este pase.
+              Apple Wallet no está disponible para este pase. Pídeselo al
+              equipo de recepción.
             </div>
           )}
         </div>
