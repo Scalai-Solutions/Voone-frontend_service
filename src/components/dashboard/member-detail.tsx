@@ -462,7 +462,7 @@ function MemberEditForm({
     }
 
     if (birthDate && birthDate > minBirthIso) {
-      setProblem("La clienta tiene que tener al menos 16 años.");
+      setProblem("La persona tiene que tener al menos 16 años.");
 
       return;
     }

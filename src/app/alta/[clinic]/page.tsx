@@ -83,7 +83,7 @@ export default async function ClinicSignupPage({
             {brandName}
           </p>
           <p className="mt-5 text-[0.56rem] font-semibold uppercase tracking-[0.24em] text-[#8f877e]">
-            {clinic.name} · Privé membership
+            {clinic.name} · Membresía
           </p>
         </header>
 

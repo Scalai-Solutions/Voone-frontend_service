@@ -100,7 +100,7 @@ export function MembersTable() {
   const filteredMembers = loadedMembers.filter((member) => tierFilter === "all" || member.tier === tierFilter);
 
   function exportMembersCsv() {
-    const headers = ["Name", "Code", "Identity", "Tier", "Points", "Money spent", "Last visit"];
+    const headers = ["Nombre", "Código", "Identificación", "Nivel", "Puntos", "Dinero gastado", "Última visita"];
     const escape = (value: string | number | null | undefined) => `"${String(value ?? "").replaceAll('"', '""')}"`;
     const rows = filteredMembers.map((member) => [
       member.name,

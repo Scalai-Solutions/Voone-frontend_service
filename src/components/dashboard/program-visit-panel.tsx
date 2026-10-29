@@ -328,7 +328,7 @@ export function ProgramVisitPanel({
       }
 
       setNotice(
-        "Elige el bono de la clienta o un plan para empezar uno nuevo.",
+        "Elige el bono del cliente o un plan para empezar uno nuevo.",
       );
       return;
     }
@@ -548,7 +548,7 @@ export function ProgramVisitPanel({
         ) : (
           <div className="mt-3 grid gap-3">
             <label className="text-xs font-medium text-muted-foreground">
-              Bono de la clienta
+              Bono del cliente
               <Combobox
                 value={bonoChoice}
                 onChange={(value) => {

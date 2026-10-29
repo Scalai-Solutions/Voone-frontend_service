@@ -96,7 +96,7 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
     <div className="rounded-lg border border-border bg-card p-4">
       <p className="text-sm font-semibold">Bonos de sesiones</p>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        Packs de tratamiento que la clienta paga por adelantado y consume en
+        Packs de tratamiento que el cliente paga por adelantado y consume en
         varias visitas. El precio se reparte entre las sesiones: cada visita
         suma su parte como progreso.
       </p>
@@ -118,8 +118,8 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
                   {plan.totalSessions} sesiones ·{" "}
                   {plan.totalEuro.toLocaleString("es-ES")} € en total ·{" "}
                   {plan.issuedCount === 0
-                    ? "todavía sin clientas"
-                    : `${plan.issuedCount} clienta${plan.issuedCount === 1 ? "" : "s"}`}
+                    ? "todavía sin clientes"
+                    : `${plan.issuedCount} cliente${plan.issuedCount === 1 ? "" : "s"}`}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">

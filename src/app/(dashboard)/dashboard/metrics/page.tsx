@@ -76,7 +76,7 @@ export default async function MetricsPage() {
         <MetricCard icon={UsersRound} eyebrow="Miembros" value={metrics.totalMembers.toLocaleString("es-ES")} detail={`${metrics.activeWalletMembers} con Wallet activo`} tone="dark" />
         <MetricCard icon={Crown} eyebrow="Niveles" value={metrics.totalTiers.toString()} detail={`${metrics.leadingTier?.tier ?? "Sin nivel"} lidera la base`} />
         <MetricCard icon={PiggyBank} eyebrow="Dinero gastado" value={formatCurrency(metrics.totalSpent)} detail={`${formatCurrency(metrics.monthlySpent)} este mes`} />
-        <MetricCard icon={Gift} eyebrow="Rewards redeemed" value={metrics.rewardsRedeemed.toString()} detail={`${metrics.monthlyRewardsRedeemed} canjes este mes`} />
+        <MetricCard icon={Gift} eyebrow="Recompensas canjeadas" value={metrics.rewardsRedeemed.toString()} detail={`${metrics.monthlyRewardsRedeemed} canjes este mes`} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">

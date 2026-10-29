@@ -65,7 +65,7 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
             {brandName}
           </p>
           <p className="mt-5 text-[0.58rem] font-semibold uppercase tracking-[0.25em] text-[#8f877e]">
-            {clinicName} · Privé membership
+            {clinicName} · Membresía
           </p>
         </header>
 
