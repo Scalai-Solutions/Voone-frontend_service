@@ -28,8 +28,13 @@ import {
   useStaffCatalog,
 } from "@/features/program/api/useStaffProgram";
 import { ApiError, newIdempotencyKey } from "@/lib/api-client";
+import { describeDouble, doubledNote } from "@/lib/double-points";
 import type { CategoryCode } from "@/lib/onboarding-api";
-import type { MemberReward, VisitOutcome } from "@/lib/staff-program-api";
+import type {
+  BoostMultiplier,
+  MemberReward,
+  VisitOutcome,
+} from "@/lib/staff-program-api";
 import { formatPoints } from "@/lib/points";
 
 /**
@@ -45,7 +50,7 @@ const inputClass =
   "mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring";
 
 /** The slider's options, in the order it offers them. */
-const POINT_MULTIPLIERS = [2, 3, 5, 10] as const;
+const POINT_MULTIPLIERS: readonly BoostMultiplier[] = [2, 3, 5, 10];
 
 interface LineDraft {
   key: number;
@@ -141,6 +146,18 @@ export function ProgramVisitPanel({
   const memberBonos = useMemberBonos(memberId, mode === "BONO_SESSION");
   const cancelBono = useCancelMemberBono(memberId);
 
+  // Whether the next payment already earns double. Read once per mount, like the answer itself:
+  // the lookup is refreshed after every visit, which is when it can change.
+  const [openedAt] = React.useState(() => new Date());
+  const double = describeDouble(
+    rewards.data?.doublePoints ?? { applies: false, reason: null, until: null },
+    openedAt,
+  );
+  // The double belongs to a payment: a bono session neither earns it nor uses it up, so the
+  // slider stays available there.
+  const doubleOnThisVisit = mode === "PAYMENT" && double.text !== null;
+  const sliderLocked = mode === "PAYMENT" && double.sliderDisabled;
+
   const activePlans = (bonoPlans.data ?? []).filter((plan) => plan.active);
   const activeBonos = (memberBonos.data ?? []).filter(
     (bono) => bono.status === "ACTIVE",
@@ -187,9 +204,9 @@ export function ProgramVisitPanel({
     return 0;
   })();
 
-  /** The slider's choice; null when it sits on "sin extra". */
-  const multiplier =
-    multiplierIndex > 0
+  /** The slider's choice; null when it sits on "sin extra" or a double already applies. */
+  const multiplier: BoostMultiplier | null =
+    multiplierIndex > 0 && !sliderLocked
       ? (POINT_MULTIPLIERS[multiplierIndex - 1] ?? null)
       : null;
 
@@ -246,12 +263,15 @@ export function ProgramVisitPanel({
 
     // Bonus points: optional, whole multiples of ten — the ledger holds whole euros.
     // The slider wins while it is chosen; the typed figure is what remains otherwise.
-    const bonus =
-      multiplier !== null && multipliedBonus !== null
-        ? multipliedBonus
-        : bonusPoints.trim() === ""
-          ? undefined
-          : Number(bonusPoints.trim());
+    const fromSlider = multiplier !== null && multipliedBonus !== null;
+    const bonus = fromSlider
+      ? multipliedBonus
+      : bonusPoints.trim() === ""
+        ? undefined
+        : Number(bonusPoints.trim());
+    // Flags the slider's extra so the backend can ignore it if a x2 applies by the time the
+    // visit lands (the answer this form read may be older); a typed gift is never flagged.
+    const boost = fromSlider ? { boostMultiplier: multiplier } : {};
 
     if (
       bonus !== undefined &&
@@ -270,6 +290,7 @@ export function ProgramVisitPanel({
             kind: "BONO_SESSION",
             memberBonoId: bonoChoice.slice(5),
             ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+            ...boost,
             idempotencyKey,
           },
           { onSuccess, onError },
@@ -294,6 +315,7 @@ export function ProgramVisitPanel({
             planId: bonoChoice.slice(5),
             ...(start !== undefined ? { startAtSession: start } : {}),
             ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+            ...boost,
             idempotencyKey,
           },
           { onSuccess, onError },
@@ -320,6 +342,7 @@ export function ProgramVisitPanel({
             kind: "BONO_SESSION",
             package: { name: packageName.trim(), priceEuro, sessions },
             ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+            ...boost,
             idempotencyKey,
           },
           { onSuccess, onError },
@@ -371,6 +394,7 @@ export function ProgramVisitPanel({
         lines: parsed,
         discountedProducts,
         ...(bonus !== undefined ? { bonusPoints: bonus } : {}),
+        ...boost,
         idempotencyKey,
       },
       { onSuccess, onError },
@@ -425,6 +449,22 @@ export function ProgramVisitPanel({
             ))}
           </div>
         </div>
+
+        {doubleOnThisVisit ? (
+          <p
+            role="status"
+            className="mt-3 flex items-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-3 py-2 text-xs font-semibold"
+          >
+            <Gift className="h-3.5 w-3.5 shrink-0 text-gold" />
+            <span>{double.text}</span>
+          </p>
+        ) : null}
+        {mode === "BONO_SESSION" && double.text !== null ? (
+          <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+            Tiene puntos dobles pendientes: se aplicarán en su próximo pago,
+            no en las sesiones de bono.
+          </p>
+        ) : null}
 
         {mode === "PAYMENT" ? (
           <div className="mt-3 grid gap-3">
@@ -709,26 +749,35 @@ export function ProgramVisitPanel({
               min={0}
               max={4}
               step={1}
-              value={multiplierIndex}
+              value={sliderLocked ? 0 : multiplierIndex}
               onChange={(event) => {
                 setMultiplierIndex(Number(event.target.value));
                 setNotice(null);
               }}
+              disabled={sliderLocked}
               aria-label="Multiplicador de puntos"
-              className="mt-2 w-full"
+              className="mt-2 w-full disabled:cursor-not-allowed disabled:opacity-50"
             />
             <div className="mt-1 flex justify-between text-[11px] font-medium text-muted-foreground">
               {["sin extra", "x2", "x3", "x5", "x10"].map((label, index) => (
                 <span
                   key={label}
                   className={
-                    multiplierIndex === index ? "font-bold text-foreground" : ""
+                    !sliderLocked && multiplierIndex === index
+                      ? "font-bold text-foreground"
+                      : ""
                   }
                 >
                   {label}
                 </span>
               ))}
             </div>
+            {sliderLocked ? (
+              <p className="mt-1 text-[11px] font-normal text-muted-foreground">
+                Ya se aplica el doble de puntos: no hace falta añadir un
+                multiplicador.
+              </p>
+            ) : null}
             {multiplier !== null && multipliedBonus !== null ? (
               <p className="mt-1 text-[11px] font-normal text-muted-foreground">
                 Se añadirán {formatPoints(multipliedBonus)} puntos
@@ -763,7 +812,7 @@ export function ProgramVisitPanel({
 
       <RewardsList
         memberId={memberId}
-        rewards={rewards.data ?? []}
+        rewards={rewards.data?.rewards ?? []}
         loading={rewards.isLoading}
         failed={rewards.isError}
         visitId={visitId}
@@ -788,7 +837,7 @@ function VisitResult({ outcome }: { outcome: VisitOutcome }) {
       </p>
       <p className="mt-2 text-muted-foreground">
         Suma {formatPoints(outcome.points)} puntos
-        {outcome.doubled ? " (puntos dobles)" : ""}. Lleva{" "}
+        {doubledNote(outcome.doubled, outcome.doubleReason)}. Lleva{" "}
         {formatPoints(outcome.pointsTotal)} puntos en total.
         {outcome.tier ? ` Nivel: ${outcome.tier}.` : ""}
       </p>

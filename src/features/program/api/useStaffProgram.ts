@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import {
-  getMemberRewards,
+  getMemberRewardsOverview,
   getStaffCatalog,
   getStaffProgram,
   recordVisit,
@@ -28,10 +28,11 @@ export function useStaffCatalog() {
   });
 }
 
+/** A member's rewards and whether their next payment earns double points. */
 export function useMemberRewards(memberId: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.memberRewards(memberId),
-    queryFn: () => getMemberRewards(memberId),
+    queryFn: () => getMemberRewardsOverview(memberId),
     enabled,
   });
 }

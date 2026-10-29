@@ -1,4 +1,9 @@
 import { ApiError } from "@/lib/api-client";
+import {
+  normalizeDoublePoints,
+  type DoublePoints,
+  type DoubleReason,
+} from "@/lib/double-points";
 import type { CategoryCode, PresentedProgram } from "@/lib/onboarding-api";
 
 /**
@@ -20,6 +25,8 @@ export interface VisitLineInput {
   amountEuro: number;
 }
 
+export type BoostMultiplier = 2 | 3 | 5 | 10;
+
 export type VisitInput =
   | {
       kind: "PAYMENT";
@@ -27,6 +34,11 @@ export type VisitInput =
       discountedProducts?: number;
       /** Optional hand-awarded gift, in points (multiples of 10). */
       bonusPoints?: number;
+      /**
+       * Set when `bonusPoints` comes from the x2/x3/x5/x10 slider. The backend ignores that
+       * extra while a x2 already applies, so the visit is never doubled twice.
+       */
+      boostMultiplier?: BoostMultiplier;
       idempotencyKey: string;
     }
   | {
@@ -40,6 +52,7 @@ export type VisitInput =
       /** For a client who already did sessions elsewhere before tracking started here. */
       startAtSession?: number;
       bonusPoints?: number;
+      boostMultiplier?: BoostMultiplier;
       idempotencyKey: string;
     };
 
@@ -59,6 +72,8 @@ export interface VisitOutcome {
   /** Total after this visit, in points. */
   pointsTotal: number;
   doubled: boolean;
+  /** Why the visit was doubled; null when it was not (or on an older backend). */
+  doubleReason?: DoubleReason | null;
   lifetimeBefore: number;
   lifetimeAfter: number;
   tier: string | null;
@@ -141,10 +156,26 @@ export const recordVisit = (memberId: string, input: VisitInput) =>
     body: JSON.stringify(input),
   });
 
-export const getMemberRewards = (memberId: string) =>
-  request<{ rewards: MemberReward[] }>(
+export interface MemberRewardsOverview {
+  rewards: MemberReward[];
+  /** Whether the member's next payment earns double; nothing applies on an older backend. */
+  doublePoints: DoublePoints;
+}
+
+/** A member's rewards plus whether their next payment earns double points. */
+export const getMemberRewardsOverview = (
+  memberId: string,
+): Promise<MemberRewardsOverview> =>
+  request<{ rewards?: MemberReward[]; doublePoints?: unknown }>(
     `/members/${encodeURIComponent(memberId)}/rewards`,
-  ).then((r) => r.rewards);
+  ).then((r) => ({
+    rewards: r.rewards ?? [],
+    doublePoints: normalizeDoublePoints(r.doublePoints),
+  }));
+
+/** Just the rewards list, for callers that do not care about double points. */
+export const getMemberRewards = (memberId: string) =>
+  getMemberRewardsOverview(memberId).then((r) => r.rewards);
 
 export const redeemReward = (
   memberId: string,
