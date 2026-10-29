@@ -9,6 +9,7 @@ import { LuxuryLoading } from "@/components/shared/luxury-loading";
 import { useInfiniteMembers } from "@/features/members/api/useMembers";
 import { type Member } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { formatPoints } from "@/lib/points";
 
 type AudienceRow = {
   id: string;
@@ -203,7 +204,7 @@ function MemberRow({ member }: { member: Member }) {
       <td className="px-5 py-4">{memberAge(member)}</td>
       <td className="px-5 py-4">{identityIsPhone ? member.identity : "-"}</td>
       <td className="px-5 py-4"><span className={cn("rounded-full px-3 py-1.5 text-xs font-bold", tierColors[member.tier] ?? "bg-[#eadfd8] text-[#6f5c53]")}>{member.tier}</span></td>
-      <td className="px-5 py-4 font-semibold">{member.points.toLocaleString("es-ES")}</td>
+      <td className="px-5 py-4 font-semibold">{formatPoints(member.points)}</td>
       <td className="px-5 py-4 font-semibold">{spent}</td>
       <td className="px-5 py-4"><CalendarDays size={14} className="mr-1 inline text-[#b8864b]" />{formatDate(member.lastVisitedAt)}</td>
       <td className="px-5 py-4"><Link href={`/dashboard/members/${member.id}`} className="inline-flex items-center rounded-full border border-[#d9c9bf] px-4 py-2 text-xs font-semibold hover:bg-[#f6eee8]"><Pencil size={14} className="mr-1" />Editar</Link></td>

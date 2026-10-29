@@ -9,3 +9,19 @@
 export const POINTS_PER_EURO = 10;
 
 export const toPoints = (progress: number): number => Math.round(progress * POINTS_PER_EURO);
+
+const pointsFormat = new Intl.NumberFormat("es-ES");
+
+/** A points value for display, always in es-ES ("15.000"), never the runtime's default locale. */
+export const formatPoints = (points: number): string => pointsFormat.format(points);
+
+/**
+ * A points movement with an explicit sign: "+150" for a credit, "−50" (a real minus sign, not a
+ * hyphen) for a debit, "0" for nothing.
+ */
+export const formatSignedPoints = (points: number): string => {
+  if (points > 0) return `+${formatPoints(points)}`;
+  if (points < 0) return `−${formatPoints(Math.abs(points))}`;
+
+  return formatPoints(0);
+};

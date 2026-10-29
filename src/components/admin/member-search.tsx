@@ -7,6 +7,7 @@ import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminMembers } from "@/features/members/api/useAdminMembers";
+import { formatPoints } from "@/lib/points";
 
 export function AdminMemberSearch() {
   const [search, setSearch] = React.useState("");
@@ -38,7 +39,7 @@ export function AdminMemberSearch() {
                     <p className="text-xs text-muted-foreground">{member.code ?? member.id} - {member.identity}</p>
                   </td>
                   <td className="px-4 py-3">{member.templateName}</td>
-                  <td className="px-4 py-3">{member.points.toLocaleString()}</td>
+                  <td className="px-4 py-3">{formatPoints(member.points)}</td>
                   <td className="min-w-[14rem] max-w-[22rem] px-4 py-3"><WalletStatusBadges statuses={member.walletStatus} appleUpdatesRegistered={member.appleUpdatesRegistered} /></td>
                 </tr>
               ))}

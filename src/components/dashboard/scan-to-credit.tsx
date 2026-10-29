@@ -11,6 +11,7 @@ import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
 import { useRecordVisit, useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { useTreatments } from "@/features/treatments/api/useTreatments";
 import { ApiError, lookupMemberByWalletCode, type Member } from "@/lib/api-client";
+import { formatPoints } from "@/lib/points";
 
 function walletCodeFromScan(value: string): string {
   const trimmed = value.trim();
@@ -89,7 +90,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
       );
     },
     onSuccess: (member) => {
-      resetScan(`Puntos añadidos a ${member.name}. Nuevo saldo: ${member.points.toLocaleString("es-ES")} puntos.`);
+      resetScan(`Puntos añadidos a ${member.name}. Nuevo saldo: ${formatPoints(member.points)} puntos.`);
     },
   });
 
@@ -358,7 +359,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
             </div>
           </div>
           <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-[#c9bbb3]">
-            <span>{selectedMember ? `${selectedMember.name} · ${selectedMember.points.toLocaleString("es-ES")} ${hasVisitProgram ? "€ de progreso" : "puntos"}` : scanMessage}</span>
+            <span>{selectedMember ? `${selectedMember.name} · ${formatPoints(selectedMember.points)} puntos` : scanMessage}</span>
             <span className="font-semibold text-[#d6a979]">{isSaving ? "Guardando" : "Listo"}</span>
           </div>
         </div>
@@ -391,8 +392,8 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#bca99d]">{hasVisitProgram ? "Progreso" : "Saldo"}</p>
-                    <p className="mt-2 text-2xl font-semibold">{selectedMember.points.toLocaleString("es-ES")}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#bca99d]">{hasVisitProgram ? "Puntos" : "Saldo"}</p>
+                    <p className="mt-2 text-2xl font-semibold">{formatPoints(selectedMember.points)}</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-[#bca99d]">Identificación</p>
@@ -429,7 +430,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                         <span className="flex shrink-0 items-center gap-2 text-sm font-bold">
                           {hasVisitProgram
                             ? `${(treatment.priceEuro ?? 0).toLocaleString("es-ES")} €`
-                            : treatment.points.toLocaleString("es-ES")}
+                            : formatPoints(treatment.points)}
                           <span className={selected ? "grid h-6 w-6 place-items-center rounded-full bg-white text-[#2d211e]" : "grid h-6 w-6 place-items-center rounded-full border border-[#d8c8bd] text-transparent"}>
                             <CheckCircle2 className="h-4 w-4" />
                           </span>
@@ -440,13 +441,13 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
                 </div>
                 {!treatments.isLoading && !treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">Este centro todavía no tiene tratamientos guardados.</p> : null}
                 {treatmentSearch && !filteredTreatments.length ? <p className="mt-3 text-xs font-semibold text-[#9b633e]">No hay tratamientos que coincidan con esa búsqueda.</p> : null}
-                {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {hasVisitProgram ? `${selectedTreatmentAmount.toLocaleString("es-ES")} € de importe` : `${selectedTreatmentPoints.toLocaleString("es-ES")} puntos en total`}</p> : null}
+                {selectedTreatments.length > 0 ? <p className="mt-4 rounded-2xl bg-[#f4e9df] px-4 py-3 text-sm font-semibold text-[#493832]">{selectedTreatments.length} tratamiento{selectedTreatments.length === 1 ? "" : "s"} · {hasVisitProgram ? `${selectedTreatmentAmount.toLocaleString("es-ES")} € de importe` : `${formatPoints(selectedTreatmentPoints)} puntos en total`}</p> : null}
               </div>
 
               {selectedTreatments.length > 0 ? (
                 <div className="mt-auto pt-5">
                   <button type="button" onClick={handleCredit} disabled={isSaving} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#161211] px-5 py-4 text-sm font-bold text-white shadow-[0_18px_44px_rgba(22,18,17,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55">
-                    <CheckCircle2 size={18} /> {staffProgram.isLoading ? "Comprobando programa..." : isSaving ? "Guardando visita..." : hasVisitProgram ? `Registrar ${selectedTreatmentAmount.toLocaleString("es-ES")} €` : `Añadir ${selectedTreatmentPoints.toLocaleString("es-ES")} puntos`}
+                    <CheckCircle2 size={18} /> {staffProgram.isLoading ? "Comprobando programa..." : isSaving ? "Guardando visita..." : hasVisitProgram ? `Registrar ${selectedTreatmentAmount.toLocaleString("es-ES")} €` : `Añadir ${formatPoints(selectedTreatmentPoints)} puntos`}
                   </button>
                 </div>
               ) : null}

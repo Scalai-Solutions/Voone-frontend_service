@@ -24,6 +24,7 @@ import { normalizeSpanishMobile } from "@/lib/phone-es";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { formatPoints, formatSignedPoints } from "@/lib/points";
 
 const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
   mujer: "Mujer",
@@ -81,7 +82,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
       setManualPoints("");
       setManualReason("");
       setNotice(
-        `Cambio manual registrado. Nuevo saldo: ${updatedMember.points.toLocaleString("es-ES")} puntos.`,
+        `Cambio manual registrado. Nuevo saldo: ${formatPoints(updatedMember.points)} puntos.`,
       );
     },
   });
@@ -154,7 +155,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
           <div>
             <p className="text-sm text-muted-foreground">Puntos actuales</p>
             <p className="text-3xl font-semibold tracking-tight">
-              {member.data.points.toLocaleString()}
+              {formatPoints(member.data.points)}
             </p>
           </div>
           <div>
@@ -299,8 +300,14 @@ export function MemberDetail({ memberId }: { memberId: string }) {
                     {item.date} · Movimiento permanente
                   </p>
                 </div>
-                <span className="font-semibold text-success">
-                  +{item.points}
+                <span
+                  className={
+                    item.points < 0
+                      ? "font-semibold text-destructive"
+                      : "font-semibold text-success"
+                  }
+                >
+                  {formatSignedPoints(item.points)}
                 </span>
               </div>
             ))

@@ -4,6 +4,7 @@ import { BarChart3, Crown, Gift, PiggyBank, ReceiptText, Sparkles, Trophy, Users
 import { ApiError, type Member } from "@/lib/api-client";
 import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { staffFetch } from "@/lib/staff-api";
+import { monthNameEs } from "@/lib/month-label";
 import { cn } from "@/lib/utils";
 
 const ageRanges = [
@@ -119,7 +120,7 @@ export default async function MetricsPage() {
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
-          <RankingCard title="Top clientes este mes" eyebrow="Septiembre" icon={Trophy} members={metrics.topClientsThisMonth} emptyText="Sin actividad este mes" />
+          <RankingCard title="Top clientes este mes" eyebrow={monthNameEs(metrics.monthKey) ?? "Este mes"} icon={Trophy} members={metrics.topClientsThisMonth} emptyText="Sin actividad este mes" />
           <RankingCard title="Top clientes all-time" eyebrow="Histórico" icon={ReceiptText} members={metrics.topClientsAllTime} emptyText="Sin clientes todavía" />
         </aside>
       </div>
@@ -153,6 +154,7 @@ function buildMetrics(members: Member[]) {
   const membersByTier = countBy(members.map((member) => member.tier)).map(([tier, count]) => ({ tier, count }));
 
   return {
+    monthKey,
     totalMembers: members.length,
     totalTiers: membersByTier.length,
     activeWalletMembers,
@@ -186,7 +188,7 @@ function pointsForMonth(member: Member, monthKey: string) {
 
 function rankMembers(members: Member[], scoreForMember: (member: Member) => number) {
   return members
-    .map((member) => ({ member, score: scoreForMember(member), city: "Madrid" }))
+    .map((member) => ({ member, score: scoreForMember(member) }))
     .filter((item) => item.score > 0)
     .sort((first, second) => second.score - first.score)
     .slice(0, 5);
@@ -246,7 +248,7 @@ function RankingCard({ title, eyebrow, icon: Icon, members, emptyText }: { title
           <div key={item.member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3">
             <div className="min-w-0">
               <p className="truncate font-semibold">{index + 1}. {item.member.name}</p>
-              <p className="mt-1 text-xs text-[#927e72]">{item.member.tier} · {item.city}</p>
+              <p className="mt-1 text-xs text-[#927e72]">{item.member.tier}</p>
             </div>
             <span className="shrink-0 rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-bold text-[#805637]">{formatCurrency(item.score)}</span>
           </div>

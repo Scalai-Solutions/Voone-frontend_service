@@ -5,6 +5,7 @@ import { ChevronDown, ShieldCheck } from "lucide-react";
 
 import type { Member, MemberPassWallet } from "@/lib/api-client";
 import { resolveWalletInstallUrl } from "@/lib/wallet-links";
+import { formatPoints } from "@/lib/points";
 
 interface WalletPassPagePayload {
   member: Member;
@@ -126,7 +127,7 @@ export default async function WalletAddPage(context: { params: Promise<{ code: s
               </div>
               <div className="rounded-2xl bg-[#f7efe6] px-3 py-2">
                 <dt className="text-[0.56rem] font-bold uppercase tracking-[0.16em] text-[#a09688]">Puntos</dt>
-                <dd className="mt-1 text-sm font-semibold text-[#2e2924]">{payload.member.points.toLocaleString("es-ES")}</dd>
+                <dd className="mt-1 text-sm font-semibold text-[#2e2924]">{formatPoints(payload.member.points)}</dd>
               </div>
               <div className="rounded-2xl bg-[#f7efe6] px-3 py-2">
                 <dt className="text-[0.56rem] font-bold uppercase tracking-[0.16em] text-[#a09688]">Nivel</dt>
