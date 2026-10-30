@@ -3,14 +3,18 @@
 import * as React from "react";
 import { AlertTriangle, ChevronDown, Plus, X } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import {
   ApiError,
   broadcastNotification,
+  getAudiences,
   getNotification,
   getNotificationSettings,
   saveNotificationSettings,
   sendSegmentNotification,
+  type ClinicAudience,
   type NotificationSettings,
   type NotificationStatus,
   type NotifyOnCredit,
@@ -20,7 +24,8 @@ import { cn } from "@/lib/utils";
 const allMembersAudience = "all";
 /** The auto-created segment: members holding a bono with sessions left. */
 const activeBonoAudience = "activeBono";
-type Audience = typeof allMembersAudience | typeof activeBonoAudience;
+/** "all", "activeBono", or the id of a saved audience from the Audiencias tab. */
+type Audience = string;
 const finalNotificationStatuses = new Set<NotificationStatus>([
   "SENT",
   "PARTIAL_FAILED",
@@ -214,6 +219,14 @@ function DeactivationDialog({
 
 export function CommunicationsPageClient() {
   const currentClinic = useCurrentClinic();
+  // The centre's saved audiences (Audiencias): what the Segmento dropdown offers beyond the
+  // two automatic options, and what a send targets through its own criteria.
+  const audiencesQuery = useQuery({
+    queryKey: ["audiences", currentClinic.data?.id],
+    enabled: Boolean(currentClinic.data?.id),
+    queryFn: () => getAudiences(currentClinic.data?.id ?? ""),
+  });
+  const savedAudiences = audiencesQuery.data ?? [];
   const [composeOpen, setComposeOpen] = React.useState(false);
   const [noticeTab, setNoticeTab] = React.useState<"manuales" | "automaticos">(
     "manuales",
@@ -485,18 +498,33 @@ export function CommunicationsPageClient() {
         notify: true,
         ...(scheduledDate ? { scheduledAt: scheduledDate.toISOString() } : {}),
       };
-      const response =
-        audience === allMembersAudience
-          ? await broadcastNotification(
-              currentClinic.data.id,
-              input,
-              idempotencyKey,
-            )
-          : await sendSegmentNotification(
-              currentClinic.data.id,
-              { ...input, segment: { activeBono: true } },
-              idempotencyKey,
-            );
+      // A saved audience sends through its own criteria; the two automatic options are fixed.
+      // One that vanished meanwhile (deleted from Audiencias elsewhere) is caught here rather
+      // than silently sent to nobody.
+      let response: Awaited<ReturnType<typeof broadcastNotification>>;
+
+      if (audience === allMembersAudience) {
+        response = await broadcastNotification(
+          currentClinic.data.id,
+          input,
+          idempotencyKey,
+        );
+      } else {
+        const criteria =
+          audience === activeBonoAudience
+            ? { activeBono: true }
+            : savedAudiences.find((row) => row.id === audience)?.criteria;
+
+        if (!criteria) {
+          throw new Error("Ese segmento ya no existe. Elige otro y vuelve a enviar.");
+        }
+
+        response = await sendSegmentNotification(
+          currentClinic.data.id,
+          { ...input, segment: criteria },
+          idempotencyKey,
+        );
+      }
 
       if (scheduledDate) {
         setSendState("sent");
@@ -969,6 +997,11 @@ export function CommunicationsPageClient() {
                     <option value={activeBonoAudience}>
                       Miembros con bono activo
                     </option>
+                    {savedAudiences.map((saved) => (
+                      <option key={saved.id} value={saved.id}>
+                        {saved.name} · {saved.memberCount} personas
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="text-sm font-semibold">

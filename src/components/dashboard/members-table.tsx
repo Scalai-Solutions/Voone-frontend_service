@@ -4,19 +4,22 @@ import * as React from "react";
 import Link from "next/link";
 import { CalendarDays, Download, Filter, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { EmptyState } from "@/components/shared/page-kit";
 import { LuxuryLoading } from "@/components/shared/luxury-loading";
+import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useInfiniteMembers } from "@/features/members/api/useMembers";
-import { type Member } from "@/lib/api-client";
+import {
+  createAudience,
+  deleteAudience,
+  getAudiences,
+  type ClinicAudience,
+  type Member,
+  type NotificationSegmentInput,
+} from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { formatEuros, formatPoints } from "@/lib/points";
-
-type AudienceRow = {
-  id: string;
-  name: string;
-  tier: string;
-  updated: string;
-};
 
 const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
   mujer: "Mujer",
@@ -213,21 +216,52 @@ function MemberRow({ member }: { member: Member }) {
 }
 
 function AudiencesTable({ members }: { members: Member[] }) {
-  const [rows, setRows] = React.useState<AudienceRow[]>([]);
+  const queryClient = useQueryClient();
+  const currentClinic = useCurrentClinic();
+  const clinicId = currentClinic.data?.id;
+
+  // Saved audiences live on the backend, so they survive a reload and the whole team sees the
+  // same list; the count arrives with them, resolved by the same code path a send uses.
+  const audiencesQuery = useQuery({
+    queryKey: ["audiences", clinicId],
+    enabled: Boolean(clinicId),
+    queryFn: () => getAudiences(clinicId ?? ""),
+  });
+
   const [searchTerm, setSearchTerm] = React.useState("");
   const [tierFilter, setTierFilter] = React.useState("all");
   const [draftName, setDraftName] = React.useState("");
   const [draftTier, setDraftTier] = React.useState("all");
+  const [draftActiveBono, setDraftActiveBono] = React.useState(false);
+  const [draftInactiveDays, setDraftInactiveDays] = React.useState("");
   const [creating, setCreating] = React.useState(false);
+
   const tiers = Array.from(new Set(members.map((member) => member.tier))).sort();
+  const rows = audiencesQuery.data ?? [];
   const visibleRows = rows.filter((row) => {
     const matchesSearch = row.name.toLowerCase().includes(searchTerm.trim().toLowerCase());
-    const matchesTier = tierFilter === "all" || row.tier === tierFilter;
+    const matchesTier = tierFilter === "all" || row.criteria.tier === tierFilter;
 
     return matchesSearch && matchesTier;
   });
-  const countFor = (row: AudienceRow) =>
-    row.tier === "all" ? members.length : members.filter((member) => member.tier === row.tier).length;
+
+  const createMutation = useMutation({
+    mutationFn: (input: { name: string; criteria: NotificationSegmentInput }) =>
+      createAudience(clinicId ?? "", input),
+    onSuccess: async () => {
+      setDraftName("");
+      setDraftTier("all");
+      setDraftActiveBono(false);
+      setDraftInactiveDays("");
+      setCreating(false);
+      await queryClient.invalidateQueries({ queryKey: ["audiences", clinicId] });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (audienceId: string) => deleteAudience(clinicId ?? "", audienceId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["audiences", clinicId] }),
+  });
 
   function addSegment(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -235,13 +269,17 @@ function AudiencesTable({ members }: { members: Member[] }) {
 
     if (!name) return;
 
-    setRows((current) => [
-      { id: crypto.randomUUID(), name, tier: draftTier, updated: "Ahora" },
-      ...current,
-    ]);
-    setDraftName("");
-    setDraftTier("all");
-    setCreating(false);
+    // Only criteria the backend accepts, in its own shape; anything else is left out.
+    const inactiveDays = Number(draftInactiveDays);
+    const criteria: NotificationSegmentInput = {
+      ...(draftTier !== "all" ? { tier: draftTier } : {}),
+      ...(draftActiveBono ? { activeBono: true } : {}),
+      ...(draftInactiveDays.trim() !== "" && Number.isInteger(inactiveDays) && inactiveDays > 0
+        ? { inactiveDays }
+        : {}),
+    };
+
+    createMutation.mutate({ name, criteria });
   }
 
   return (
@@ -264,13 +302,28 @@ function AudiencesTable({ members }: { members: Member[] }) {
       </div>
 
       {creating ? (
-        <form onSubmit={addSegment} className="grid gap-3 border-b border-[#eadfd8] bg-[#fffaf6] p-4 sm:grid-cols-[1fr_220px_auto]">
-          <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="Nombre del segmento" className="h-10 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none" />
-          <select value={draftTier} onChange={(event) => setDraftTier(event.target.value)} className="h-10 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
-            <option value="all">Todos los niveles</option>
-            {tiers.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
-          </select>
-          <button type="submit" className="rounded-xl bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white">Guardar</button>
+        <form onSubmit={addSegment} className="grid gap-3 border-b border-[#eadfd8] bg-[#fffaf6] p-4">
+          <div className="grid gap-3 sm:grid-cols-[1fr_200px_auto]">
+            <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="Nombre del segmento" className="h-10 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none" />
+            <select value={draftTier} onChange={(event) => setDraftTier(event.target.value)} className="h-10 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
+              <option value="all">Todos los niveles</option>
+              {tiers.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
+            </select>
+            <button type="submit" disabled={createMutation.isPending} className="rounded-xl bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+              {createMutation.isPending ? "Guardando..." : "Guardar"}
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 rounded-xl border border-[#ded1c8] bg-white px-3 py-2 text-sm font-semibold">
+              <input type="checkbox" checked={draftActiveBono} onChange={(event) => setDraftActiveBono(event.target.checked)} className="h-4 w-4 accent-[#b8864b]" />
+              Con bono activo
+            </label>
+            <label className="flex items-center gap-2 rounded-xl border border-[#ded1c8] bg-white px-3 py-2 text-sm font-semibold">
+              <span className="text-[#927e72]">Sin visitas desde (días)</span>
+              <input type="number" min={1} step={1} value={draftInactiveDays} onChange={(event) => setDraftInactiveDays(event.target.value)} placeholder="—" className="h-9 w-20 rounded-lg border border-[#ded1c8] px-2 text-sm font-normal outline-none" />
+            </label>
+          </div>
+          {createMutation.isError ? <p className="text-sm font-semibold text-[#b94135]">No se pudo guardar el segmento. Inténtalo de nuevo.</p> : null}
         </form>
       ) : null}
 
@@ -282,15 +335,35 @@ function AudiencesTable({ members }: { members: Member[] }) {
           {visibleRows.map((row) => (
             <tr key={row.id} className="border-t border-[#eadfd8]">
               <td className="px-5 py-4 font-semibold">{row.name}</td>
-              <td className="px-5 py-4 text-[#806d63]">{row.tier === "all" ? "Todos los niveles" : `Nivel · ${row.tier}`}</td>
-              <td className="px-5 py-4">{countFor(row)}</td>
-              <td className="px-5 py-4 text-[#806d63]">{row.updated}</td>
-              <td className="px-5 py-4"><button type="button" onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))} className="font-semibold text-[#9b633e]">Eliminar</button></td>
+              <td className="px-5 py-4 text-[#806d63]">{describeCriteria(row.criteria)}</td>
+              <td className="px-5 py-4">{audiencesQuery.isFetching ? "..." : row.memberCount}</td>
+              <td className="px-5 py-4 text-[#806d63]">{formatUpdatedAt(row.updatedAt)}</td>
+              <td className="px-5 py-4">
+                <button type="button" onClick={() => removeMutation.mutate(row.id)} disabled={removeMutation.isPending} className="font-semibold text-[#9b633e] disabled:cursor-not-allowed disabled:opacity-60">
+                  {removeMutation.isPending && removeMutation.variables === row.id ? "Eliminando..." : "Eliminar"}
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {visibleRows.length === 0 ? <p className="px-5 py-4 text-sm text-[#927e72]">No hay segmentos guardados para este centro.</p> : null}
+      {audiencesQuery.isLoading ? <p className="px-5 py-4 text-sm text-[#927e72]">Cargando segmentos guardados...</p> : null}
+      {audiencesQuery.isError ? <p className="px-5 py-4 text-sm font-semibold text-[#b94135]">No se pudieron cargar los segmentos. Revisa la conexión e inténtalo de nuevo.</p> : null}
+      {!audiencesQuery.isLoading && !audiencesQuery.isError && visibleRows.length === 0 ? <p className="px-5 py-4 text-sm text-[#927e72]">{rows.length === 0 ? "No hay segmentos guardados para este centro." : "Ningún segmento coincide con la búsqueda actual."}</p> : null}
     </div>
   );
 }
+
+/** What a saved audience filters by, in the words the creation form uses. */
+const describeCriteria = (criteria: ClinicAudience["criteria"]): string => {
+  const parts: string[] = [];
+
+  if (criteria.tier) parts.push(`Nivel · ${criteria.tier}`);
+  if (criteria.activeBono) parts.push("Bono activo");
+  if (typeof criteria.inactiveDays === "number") parts.push(`Sin visitas ${criteria.inactiveDays} días`);
+
+  return parts.length > 0 ? parts.join(" · ") : "Todos los miembros";
+};
+
+const formatUpdatedAt = (value: string) =>
+  new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));

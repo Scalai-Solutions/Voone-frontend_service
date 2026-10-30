@@ -356,6 +356,47 @@ export interface SegmentNotificationInput extends NotificationMessageInput {
   segment: NotificationSegmentInput;
 }
 
+/**
+ * A saved audience (the Audiencias tab): a name plus the segment criteria it filters members
+ * by. The criteria are the same shape a segment send accepts, so what a centre saves is exactly
+ * what a message can target.
+ */
+export interface ClinicAudience {
+  id: string;
+  name: string;
+  criteria: NotificationSegmentInput;
+  /** How many members the criteria match today; resolved by the backend on every read. */
+  memberCount: number;
+  updatedAt: string;
+}
+
+/** The centre's saved audiences (Audiencias), newest first. */
+export function getAudiences(clinicId: string) {
+  return staffProxyFetch<ClinicAudience[]>(
+    `/clinics/${encodeURIComponent(clinicId)}/audiences`,
+    { method: "GET" },
+  );
+}
+
+/** Saves a named audience. Server-side validation: a name, and criteria a send can target. */
+export function createAudience(
+  clinicId: string,
+  input: { name: string; criteria: NotificationSegmentInput },
+) {
+  return staffProxyFetch<ClinicAudience>(
+    `/clinics/${encodeURIComponent(clinicId)}/audiences`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+/** Removes a saved audience. Scoped to the clinic by the backend. */
+export function deleteAudience(clinicId: string, audienceId: string) {
+  return staffProxyFetch<{ status: "deleted" }>(
+    `/clinics/${encodeURIComponent(clinicId)}/audiences/${encodeURIComponent(audienceId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export interface NotificationSummary {
   id: string;
   clinicId: string;
