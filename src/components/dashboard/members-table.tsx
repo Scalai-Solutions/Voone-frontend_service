@@ -9,7 +9,7 @@ import { LuxuryLoading } from "@/components/shared/luxury-loading";
 import { useInfiniteMembers } from "@/features/members/api/useMembers";
 import { type Member } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { formatPoints } from "@/lib/points";
+import { formatEuros, formatPoints } from "@/lib/points";
 
 type AudienceRow = {
   id: string;
@@ -190,7 +190,7 @@ export function MembersTable() {
 
 function MemberRow({ member }: { member: Member }) {
   const identityIsPhone = member.identity.trim().startsWith("+");
-  const spent = `${Math.max(member.moneySpent, 0).toLocaleString("es-ES")} €`;
+  const spent = formatEuros(Math.max(member.moneySpent, 0));
 
   return (
     <tr className="border-t border-[#eadfd8]">

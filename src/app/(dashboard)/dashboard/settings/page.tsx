@@ -1,5 +1,6 @@
-import { AlertTriangle, Bell, Building2, CreditCard, Download, LifeBuoy, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { AlertTriangle, Bell, Building2, Download, LifeBuoy, ShieldCheck, UsersRound } from "lucide-react";
 
+import { ClinicInfoForm } from "@/components/dashboard/clinic-info-form";
 import { DeactivationRequest, MembersCsvExport, NotificationSettingsToggle, PasswordChangeForm } from "@/components/dashboard/settings-actions";
 import { RolePermissionsManager } from "@/components/dashboard/role-permissions-manager";
 import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
@@ -8,8 +9,6 @@ import { formatRole } from "@/lib/roles";
 
 const ownerFor = (clinic: Awaited<ReturnType<typeof getCurrentStaffClinic>>) =>
   clinic.users.find((user) => user.role.toUpperCase() === "OWNER") ?? clinic.users[0];
-
-const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
 export default async function SettingsPage() {
   const [session, clinic] = await Promise.all([getCurrentSession(), getCurrentStaffClinic()]);
@@ -20,16 +19,7 @@ export default async function SettingsPage() {
     { label: "Rol", value: session ? formatRole(session.role) : "Sin rol guardado" },
   ];
   const canManageTeam = hasPermission(session, PERMISSIONS.teamManage);
-  const clinicFields = [
-    { label: "Nombre del centro", value: clinic.name },
-    { label: "Propietario/a", value: owner?.email ?? "Sin propietario guardado" },
-    { label: "Dirección", value: clinic.addressLine },
-    { label: "Código postal", value: clinic.pincode },
-    { label: "Plan", value: clinic.voonePlan },
-    { label: "Miembros activos", value: formatNumber(clinic.members) },
-    { label: "Diseño de tarjeta predeterminado", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
-    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
-  ];
+  const canEditClinic = hasPermission(session, PERMISSIONS.clinicEdit);
 
   return (
     <section className="text-[#2e2421]">
@@ -44,22 +34,26 @@ export default async function SettingsPage() {
 
       <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
-          <SettingsSection eyebrow="Perfil" title="Cuenta de usuario" icon={UserRound}>
-            <div className="grid gap-4 sm:grid-cols-2">
+          {/* The account and the centre in one box, so the page is not so long: the account is
+              read-only (support keeps the access safe) and everything about the centre — its
+              commercial details and its billing information — is editable right below it. */}
+          <SettingsSection eyebrow="Negocio" title="Información del centro" icon={Building2}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Cuenta de usuario</p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
               {accountFields.map((field) => <InfoField key={field.label} label={field.label} value={field.value} />)}
             </div>
             <p className="mt-5 rounded-2xl bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">Los cambios de perfil se gestionan desde soporte para mantener el acceso seguro.</p>
+
+            <div className="mt-6 border-t border-[#eadfd8] pt-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Datos del centro y facturación</p>
+              <div className="mt-3">
+                <ClinicInfoForm clinic={clinic} canEdit={canEditClinic} />
+              </div>
+            </div>
           </SettingsSection>
 
           <SettingsSection eyebrow="Seguridad" title="Acceso y contraseña" icon={ShieldCheck}>
             <PasswordChangeForm />
-          </SettingsSection>
-
-          <SettingsSection eyebrow="Negocio" title="Perfil de clínica" icon={Building2}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {clinicFields.map((field) => <InfoField key={field.label} label={field.label} value={field.value} />)}
-            </div>
-            <p className="mt-5 rounded-2xl bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">La edición de datos del centro se mantiene en onboarding/soporte hasta que el formulario esté disponible aquí.</p>
           </SettingsSection>
 
           {canManageTeam ? (
@@ -68,16 +62,9 @@ export default async function SettingsPage() {
             </SettingsSection>
           ) : null}
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <SettingsSection eyebrow="Facturación" title="Plan y pagos" icon={CreditCard}>
-              <p className="text-sm leading-6 text-[#806d63]">Plan {clinic.voonePlan} activo. {formatNumber(clinic.notificationsRemainingThisMonth)} mensajes manuales disponibles de {formatNumber(clinic.notificationsMonthlyQuota)} este mes.</p>
-              <p className="mt-4 rounded-2xl bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">Los cambios de plan y pago se gestionan desde soporte.</p>
-            </SettingsSection>
-
-            <SettingsSection eyebrow="Preferencias" title="Notificaciones" icon={Bell}>
-              <NotificationSettingsToggle clinicId={clinic.id} />
-            </SettingsSection>
-          </div>
+          <SettingsSection eyebrow="Preferencias" title="Notificaciones" icon={Bell}>
+            <NotificationSettingsToggle clinicId={clinic.id} />
+          </SettingsSection>
 
           <SettingsSection eyebrow="Datos" title="Exportación y privacidad" icon={Download}>
             <p className="text-sm leading-6 text-[#806d63]">Exporta miembros, actividad de puntos y consentimientos para auditoría interna.</p>

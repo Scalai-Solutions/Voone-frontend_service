@@ -19,6 +19,7 @@ import {
   type TreatmentCategory,
   type UpdateTreatmentInput,
 } from "@/lib/api-client";
+import { formatEuros } from "@/lib/points";
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
@@ -423,7 +424,7 @@ export function TreatmentsEditor({ canEdit }: { canEdit: boolean }) {
             : undefined;
         const price =
           typeof treatment.priceEuro === "number"
-            ? `Precio: ${formatNumber(treatment.priceEuro)} €`
+            ? `Precio: ${formatEuros(treatment.priceEuro)}`
             : "sin precio";
 
         return (

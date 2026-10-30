@@ -37,9 +37,9 @@ const current: DashboardOverview = {
 describe("new backend", () => {
   it("formats every figure", () => {
     assert.equal(hasMonthScopedMetrics(current), true);
-    assert.equal(plain(formatRevenueThisMonth(current)), "1234,56 €");
+    assert.equal(plain(formatRevenueThisMonth(current)), "1,234.56 €");
     assert.equal(formatPointsIssuedThisMonth(current), "4200");
-    assert.equal(plain(formatMoneySpentTotal(current)), "98.765,43 €");
+    assert.equal(plain(formatMoneySpentTotal(current)), "98,765.43 €");
     assert.equal(formatRewardsRedeemedThisMonth(current), "12");
   });
 
@@ -47,8 +47,8 @@ describe("new backend", () => {
     assert.deepEqual(
       topClientRows(current).map((row) => [row.name, plain(row.amount)]),
       [
-        ["Ana", "500,00 €"],
-        ["Cliente", "25,50 €"],
+        ["Ana", "500.00 €"],
+        ["Cliente", "25.50 €"],
       ],
     );
   });
@@ -56,7 +56,7 @@ describe("new backend", () => {
   it("shows a real zero as 0, not a dash", () => {
     const quiet = { ...current, pointsIssuedThisMonth: 0, revenueThisMonthCents: 0, rewardsRedeemedThisMonth: 0 };
     assert.equal(formatPointsIssuedThisMonth(quiet), "0");
-    assert.equal(plain(formatRevenueThisMonth(quiet)), "0,00 €");
+    assert.equal(plain(formatRevenueThisMonth(quiet)), "0.00 €");
     assert.equal(formatRewardsRedeemedThisMonth(quiet), "0");
   });
 });

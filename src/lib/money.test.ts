@@ -21,12 +21,12 @@ describe("centsToEuros", () => {
 });
 
 describe("formatCents", () => {
-  it("formats euros in es-ES with exact cents", () => {
-    assert.equal(plain(formatCents(1234567)), "12.345,67 €");
-    assert.equal(plain(formatCents(123450)), "1234,50 €");
-    assert.equal(plain(formatCents(50)), "0,50 €");
-    assert.equal(plain(formatCents(0)), "0,00 €");
-    assert.equal(plain(formatCents(1000)), "10,00 €");
+  it("formats euros with dot decimals and comma thousands", () => {
+    assert.equal(plain(formatCents(1234567)), "12,345.67 €");
+    assert.equal(plain(formatCents(123450)), "1,234.50 €");
+    assert.equal(plain(formatCents(50)), "0.50 €");
+    assert.equal(plain(formatCents(0)), "0.00 €");
+    assert.equal(plain(formatCents(1000)), "10.00 €");
   });
 
   it("shows a dash, not NaN or 0, when the figure is absent", () => {

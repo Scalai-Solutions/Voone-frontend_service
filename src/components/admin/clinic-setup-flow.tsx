@@ -183,9 +183,12 @@ const request = async <T,>(
 };
 
 /**
- * The automatic messages that really exist: the alert when a reward or tier is reached, and the
- * birthday message. Each can be kept or switched off, and the birthday text edited. Nothing here
- * is a placeholder: a switch that did nothing would be worse than not listing it.
+ * The automatic messages that really exist: the alert when a reward or tier is reached, the
+ * birthday message, and the monthly bono reminder. Each can be kept or switched off, and the
+ * birthday and bono texts edited. These are exactly the communications the centre later sees in
+ * its own communications panel — the same settings are read there — so nothing appears later that
+ * was not established here. Nothing here is a placeholder: a switch that did nothing would be
+ * worse than not listing it.
  */
 function MessagesStep({ clinicId }: { clinicId: string }) {
   const [settings, setSettings] = React.useState<Settings | null>(null);
@@ -194,6 +197,13 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
     text: string;
   } | null>(null);
   const [saving, setSaving] = React.useState(false);
+
+  /**
+   * The warning before a message stops going out by itself: a switch-off must be deliberate,
+   * so the toggle only changes once the centre confirms it.
+   */
+  const confirmOff = (on: boolean): boolean =>
+    on || window.confirm("Are you sure you want to deactivate this message?");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -272,6 +282,7 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
         detail="Tell the client when she reaches a reward or a new tier."
         checked={creditOn}
         onChange={(on) =>
+          confirmOff(on) &&
           setSettings({
             ...settings,
             notifyOnCredit: on ? "MILESTONE_AND_TIER" : "NEVER",
@@ -283,7 +294,9 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
         label="Birthday message"
         detail="Sent on the client's birthday."
         checked={settings.birthdayEnabled}
-        onChange={(on) => setSettings({ ...settings, birthdayEnabled: on })}
+        onChange={(on) =>
+          confirmOff(on) && setSettings({ ...settings, birthdayEnabled: on })
+        }
       />
       {settings.birthdayEnabled ? (
         <div className="grid gap-2 pl-7">
@@ -303,6 +316,41 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
               setSettings({ ...settings, birthdayBody: event.target.value })
             }
             aria-label="Birthday message text"
+            className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+      ) : null}
+
+      <Toggle
+        label="Monthly bono reminder"
+        detail="Sent on the 1st to clients with sessions left on a bono."
+        checked={settings.bonoReminderEnabled}
+        onChange={(on) =>
+          confirmOff(on) &&
+          setSettings({ ...settings, bonoReminderEnabled: on })
+        }
+      />
+      {settings.bonoReminderEnabled ? (
+        <div className="grid gap-2 pl-7">
+          <Input
+            value={settings.bonoReminderHeader}
+            maxLength={60}
+            onChange={(event) =>
+              setSettings({
+                ...settings,
+                bonoReminderHeader: event.target.value,
+              })
+            }
+            aria-label="Bono reminder title"
+          />
+          <textarea
+            value={settings.bonoReminderBody}
+            maxLength={500}
+            rows={3}
+            onChange={(event) =>
+              setSettings({ ...settings, bonoReminderBody: event.target.value })
+            }
+            aria-label="Bono reminder text"
             className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </div>

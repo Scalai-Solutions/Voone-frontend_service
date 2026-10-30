@@ -4,9 +4,13 @@ export const MISSING = "—";
 const isNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const euroFormat = new Intl.NumberFormat("es-ES", {
-  style: "currency",
-  currency: "EUR",
+/**
+ * The app's money style: a dot for the decimal separator and a comma for thousands, with the
+ * euro sign after a space ("75.00 €", "12,345.67 €") — the founders' preference over es-ES
+ * orthography ("75,00 €"), which the product decided against. A decimal style rather than
+ * `currency` so the suffix is a plain space + €, and so the separator is chosen by locale.
+ */
+const euroFormat = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
@@ -18,13 +22,13 @@ export const centsToEuros = (cents: number | null | undefined): number | null =>
   isNumber(cents) ? cents / 100 : null;
 
 /**
- * An amount held in cents as es-ES euros ("12.345,67 €"); "—" when absent. es-ES does not group
- * four-digit numbers ("1234,50 €"), as Spanish orthography has it.
+ * An amount held in cents as the app shows money everywhere ("12,345.67 €" — dot decimals,
+ * comma thousands, euro sign after a space); "—" when absent. See euroFormat for the style.
  */
 export const formatCents = (cents: number | null | undefined): string => {
   const euros = centsToEuros(cents);
 
-  return euros === null ? MISSING : euroFormat.format(euros);
+  return euros === null ? MISSING : `${euroFormat.format(euros)} €`;
 };
 
 /** A whole-number count as es-ES ("15.000"); "—" when absent. */
