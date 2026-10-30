@@ -7,7 +7,6 @@ import { CircleHelp, QrCode, ScanLine, Sparkles, WalletCards } from "lucide-reac
 
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import type { Clinic, DashboardOverview } from "@/lib/api-client";
-import { formatCount } from "@/lib/money";
 import { formatPointsIssuedThisMonth, formatRevenueThisMonth } from "@/lib/dashboard-overview";
 
 const reveal = {
@@ -43,7 +42,6 @@ export function DashboardMotion({ overview, clinic, signupUrl }: { overview: Das
           <p className="mt-6 max-w-[540px] text-base leading-7 text-[#c9bbb3]">Gestiona la comunidad de {clinic.name} con una experiencia que se siente tan especial como tu marca.</p>
 
           <div className="mt-7 grid max-w-[500px] grid-cols-1 gap-3 sm:grid-cols-2">
-            <Metric label="Miembros activos" value={formatCount(overview.activeMembers)} detail="Registrados en backend" className="sm:col-span-2" />
             <Metric label="Ingresos este mes" value={formatRevenueThisMonth(overview)} detail="Visitas que suman progreso" />
             <Metric label="Puntos emitidos este mes" value={formatPointsIssuedThisMonth(overview)} detail="Puntos abonados a tus miembros" />
           </div>

@@ -288,6 +288,15 @@ export interface Clinic {
   isActive: boolean;
   privacyPolicyVersion: string;
   voonePlan: VoonePlan;
+  /**
+   * Billing details for invoicing the centre. Null when never filled in; absent on an older
+   * backend, so a screen must treat a missing field like null rather than crash on it.
+   */
+  billingName?: string | null;
+  billingTaxId?: string | null;
+  billingEmail?: string | null;
+  billingAddressLine?: string | null;
+  billingPostalCode?: string | null;
   notificationsMonthlyQuota: number;
   notificationsUsedThisMonth: number;
   notificationsRemainingThisMonth: number;
@@ -1192,6 +1201,33 @@ export function getClinics(
 
 export function getCurrentClinic() {
   return staffProxyFetch<Clinic>("/clinic", { method: "GET" });
+}
+
+/**
+ * The centre's own details, as Settings › Información del centro edits them. The commercial name,
+ * address and postal code are required and cannot be emptied; the billing fields are optional and
+ * an empty string clears one (null on the backend).
+ */
+export interface ClinicInfoPatch {
+  name: string;
+  addressLine: string;
+  pincode: string;
+  billingName?: string | null;
+  billingTaxId?: string | null;
+  billingEmail?: string | null;
+  billingAddressLine?: string | null;
+  billingPostalCode?: string | null;
+}
+
+/**
+ * Saves the signed-in clinic's own details and billing information.
+ *
+ * Goes through this app's `/api/staff/clinic` handler, which checks the clinic-edit permission,
+ * scopes the clinic from the session and strips credential setup URLs from the response — so the
+ * browser cannot edit another clinic and never sees a setup link.
+ */
+export function saveCurrentClinicInfo(patch: ClinicInfoPatch) {
+  return staffProxyFetch<Clinic>("/clinic", { method: "PATCH", body: JSON.stringify(patch) });
 }
 
 export function getClinic(clinicId: string) {

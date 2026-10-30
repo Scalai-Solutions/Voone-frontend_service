@@ -35,7 +35,7 @@ import type {
   MemberReward,
   VisitOutcome,
 } from "@/lib/staff-program-api";
-import { formatPoints } from "@/lib/points";
+import { formatEuros, formatPoints } from "@/lib/points";
 
 /**
  * Recording a visit and redeeming rewards, for a centre that has a loyalty programme.
@@ -496,7 +496,7 @@ export function ProgramVisitPanel({
                       options={(catalog.data ?? []).map((item) => ({
                         value: item.externalId,
                         label: item.name,
-                        hint: `${item.priceEuro.toLocaleString("es-ES")} €`,
+                        hint: formatEuros(item.priceEuro),
                       }))}
                       placeholder="Elegir del catálogo…"
                       emptyMessage="Nada coincide con esa búsqueda."
@@ -604,7 +604,7 @@ export function ProgramVisitPanel({
                   ...activePlans.map((plan) => ({
                     value: `plan:${plan.id}`,
                     label: plan.name,
-                    hint: `${plan.pricePerSessionEuro.toLocaleString("es-ES")} €/sesión · ${plan.totalSessions} sesiones`,
+                    hint: `${formatEuros(plan.pricePerSessionEuro)}/sesión · ${plan.totalSessions} sesiones`,
                   })),
                   {
                     value: "manual",
