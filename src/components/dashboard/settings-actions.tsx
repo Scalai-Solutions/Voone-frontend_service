@@ -7,7 +7,7 @@ import { useMembers } from "@/features/members/api/useMembers";
 import {
   ApiError,
   getNotificationSettings,
-  saveNotificationSettings,
+  patchNotificationSettings,
   type NotificationSettings,
 } from "@/lib/api-client";
 
@@ -87,8 +87,7 @@ export function NotificationSettingsToggle({ clinicId }: { clinicId: string }) {
     setMessage(null);
 
     try {
-      const saved = await saveNotificationSettings(clinicId, {
-        ...settings,
+      const saved = await patchNotificationSettings(clinicId, {
         marketingEnabled: enabled,
       });
 

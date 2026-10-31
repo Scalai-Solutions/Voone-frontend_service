@@ -350,9 +350,7 @@ export function ProgramVisitPanel({
         return;
       }
 
-      setNotice(
-        "Elige el bono del cliente o un plan para empezar uno nuevo.",
-      );
+      setNotice("Elige el bono del cliente o un plan para empezar uno nuevo.");
       return;
     }
 
@@ -461,8 +459,8 @@ export function ProgramVisitPanel({
         ) : null}
         {mode === "BONO_SESSION" && double.text !== null ? (
           <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-            Tiene puntos dobles pendientes: se aplicarán en su próximo pago,
-            no en las sesiones de bono.
+            Tiene puntos dobles pendientes: se aplicarán en su próximo pago, no
+            en las sesiones de bono.
           </p>
         ) : null}
 
@@ -741,8 +739,8 @@ export function ProgramVisitPanel({
         {originalPoints > 0 ? (
           <div className="mt-2 rounded-md border border-border bg-background/70 p-3">
             <p className="text-xs font-medium text-muted-foreground">
-              Multiplicar los {formatPoints(originalPoints)} puntos de
-              esta visita
+              Multiplicar los {formatPoints(originalPoints)} puntos de esta
+              visita
             </p>
             <input
               type="range"
@@ -780,9 +778,8 @@ export function ProgramVisitPanel({
             ) : null}
             {multiplier !== null && multipliedBonus !== null ? (
               <p className="mt-1 text-[11px] font-normal text-muted-foreground">
-                Se añadirán {formatPoints(multipliedBonus)} puntos
-                extra a los {formatPoints(originalPoints)} de la
-                visita.
+                Se añadirán {formatPoints(multipliedBonus)} puntos extra a los{" "}
+                {formatPoints(originalPoints)} de la visita.
               </p>
             ) : null}
           </div>
@@ -821,6 +818,31 @@ export function ProgramVisitPanel({
   );
 }
 
+/**
+ * Each sentence of the result is built as ONE string and rendered in a single text node. A
+ * paragraph assembled from several loose pieces breaks React when a browser's auto-translate
+ * rewraps them ("insertBefore" / "removeChild" NotFoundError), and this block appears only
+ * after a visit is recorded, which is exactly when that bites.
+ */
+function creditedSentence(outcome: VisitOutcome): string {
+  return (
+    `Suma ${formatPoints(outcome.points)} puntos` +
+    `${doubledNote(outcome.doubled, outcome.doubleReason)}. ` +
+    `Lleva ${formatPoints(outcome.pointsTotal)} puntos en total.` +
+    (outcome.tier ? ` Nivel: ${outcome.tier}.` : "")
+  );
+}
+
+function bonoSentence(bono: NonNullable<VisitOutcome["bono"]>): string {
+  return (
+    `${bono.name}: sesión ${bono.session} de ${bono.total}` +
+    (bono.remaining > 0
+      ? ` · le quedan ${bono.remaining}`
+      : " · bono completado") +
+    "."
+  );
+}
+
 function VisitResult({ outcome }: { outcome: VisitOutcome }) {
   return (
     <div
@@ -836,10 +858,7 @@ function VisitResult({ outcome }: { outcome: VisitOutcome }) {
         </span>
       </p>
       <p className="mt-2 text-muted-foreground">
-        Suma {formatPoints(outcome.points)} puntos
-        {doubledNote(outcome.doubled, outcome.doubleReason)}. Lleva{" "}
-        {formatPoints(outcome.pointsTotal)} puntos en total.
-        {outcome.tier ? ` Nivel: ${outcome.tier}.` : ""}
+        <span>{creditedSentence(outcome)}</span>
       </p>
       {outcome.bonusPoints > 0 ? (
         <p className="mt-1 text-muted-foreground">
@@ -848,12 +867,7 @@ function VisitResult({ outcome }: { outcome: VisitOutcome }) {
       ) : null}
       {outcome.bono ? (
         <p className="mt-1 text-muted-foreground">
-          {outcome.bono.name}: sesión {outcome.bono.session} de{" "}
-          {outcome.bono.total}
-          {outcome.bono.remaining > 0
-            ? ` · le quedan ${outcome.bono.remaining}`
-            : " · bono completado"}
-          .
+          <span>{bonoSentence(outcome.bono)}</span>
         </p>
       ) : null}
       {outcome.issued.length > 0 ? (

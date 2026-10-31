@@ -47,7 +47,9 @@ const deliveryVariant = (status: string) =>
 
 const TYPE_LABELS: Record<string, string> = {
   BIRTHDAY: "Birthday",
-  BONO_REMINDER: "Bono reminder",
+  BONO_REMINDER: "Inactive bono reminder",
+  REVIEW_REQUEST: "Google review request",
+  REFERRAL_PROMO: "Referral program push",
   BROADCAST: "Broadcast",
   SEGMENT: "Segment",
   SINGLE: "Single member",

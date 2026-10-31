@@ -4,14 +4,20 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
 
+import {
+  BillingFields,
+  billingDraftFrom,
+  type BillingDraft,
+} from "@/components/billing/billing-fields";
 import { ProgramSetup } from "@/components/admin/program/program-setup";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { usePrograms } from "@/features/onboarding/api/useOnboarding";
-import { ApiError, type NotificationSettings } from "@/lib/api-client";
+import { AutomationsPanel } from "@/features/notifications/components/automations-panel";
+import { adminSettingsApi } from "@/features/notifications/settings-api";
+import { ApiError, saveClinicBilling } from "@/lib/api-client";
 
 /**
- * Steps 4 to 7 of onboarding, on the draft centre the wizard created (steps 1 to 3).
+ * Steps 4 to 8 of onboarding, on the draft centre the wizard created (steps 1 to 3).
  *
  * The centre exists but is inactive: no public sign-up page and no notifications until the last
  * step activates it. Each step saves as it goes, so closing the tab loses nothing and the
@@ -21,6 +27,7 @@ import { ApiError, type NotificationSettings } from "@/lib/api-client";
 const STEPS = [
   { id: "program", label: "Treatments and program" },
   { id: "messages", label: "Automatic messages" },
+  { id: "billing", label: "Billing" },
   { id: "account", label: "Account" },
   { id: "activate", label: "Activate" },
 ] as const;
@@ -36,6 +43,7 @@ export function ClinicSetupFlow({
   hasCard,
   accountPanel,
   accountShared,
+  initialBilling,
 }: {
   clinicId: string;
   clinicName: string;
@@ -44,6 +52,8 @@ export function ClinicSetupFlow({
   /** The credentials block, rendered on the server and passed in. */
   accountPanel: React.ReactNode;
   accountShared: boolean;
+  /** The billing details already saved for the centre (empty when none). */
+  initialBilling: BillingDraft;
 }) {
   const [stepIndex, setStepIndex] = React.useState(0);
   const programs = usePrograms(clinicId);
@@ -104,6 +114,9 @@ export function ClinicSetupFlow({
         <ProgramSetup clinicId={clinicId} onPublished={next} />
       ) : null}
       {step.id === "messages" ? <MessagesStep clinicId={clinicId} /> : null}
+      {step.id === "billing" ? (
+        <BillingStep clinicId={clinicId} initial={initialBilling} />
+      ) : null}
       {step.id === "account" ? accountPanel : null}
       {step.id === "activate" ? (
         <ActivateStep
@@ -152,119 +165,15 @@ export function ClinicSetupFlow({
   );
 }
 
-type Settings = NotificationSettings;
-
-const request = async <T,>(
-  clinicId: string,
-  init: RequestInit = {},
-): Promise<T> => {
-  const response = await fetch(
-    `/api/admin/clinics/${encodeURIComponent(clinicId)}/notification-settings`,
-    {
-      ...init,
-      headers: { "Content-Type": "application/json" },
-    },
-  );
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as {
-      message?: string;
-    } | null;
-
-    throw new ApiError(
-      "Settings request failed",
-      response.status,
-      undefined,
-      body?.message,
-    );
-  }
-
-  return response.json() as Promise<T>;
-};
-
 /**
- * The automatic messages that really exist: the alert when a reward or tier is reached, the
- * birthday message, and the monthly bono reminder. Each can be kept or switched off, and the
- * birthday and bono texts edited. These are exactly the communications the centre later sees in
- * its own communications panel — the same settings are read there — so nothing appears later that
- * was not established here. Nothing here is a placeholder: a switch that did nothing would be
- * worse than not listing it.
+ * The automatic messages. The same panel the centre later uses in its own notification centre,
+ * so nothing appears there that was not established here. Anything a message needs that cannot
+ * be known yet (the Google review link, the referral reward) is entered here and stays editable.
+ * Every change saves on its own, and the step never blocks Continue: events that need a value
+ * simply stay off until it is set.
  */
 function MessagesStep({ clinicId }: { clinicId: string }) {
-  const [settings, setSettings] = React.useState<Settings | null>(null);
-  const [status, setStatus] = React.useState<{
-    ok: boolean;
-    text: string;
-  } | null>(null);
-  const [saving, setSaving] = React.useState(false);
-
-  /**
-   * The warning before a message stops going out by itself: a switch-off must be deliberate,
-   * so the toggle only changes once the centre confirms it.
-   */
-  const confirmOff = (on: boolean): boolean =>
-    on || window.confirm("Are you sure you want to deactivate this message?");
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    request<Settings>(clinicId)
-      .then((value) => {
-        if (!cancelled) setSettings(value);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setStatus({
-            ok: false,
-            text:
-              error instanceof ApiError && error.detail
-                ? error.detail
-                : "Could not load the messages.",
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [clinicId]);
-
-  const save = async () => {
-    if (!settings) return;
-
-    setSaving(true);
-    setStatus(null);
-
-    try {
-      setSettings(
-        await request<Settings>(clinicId, {
-          method: "PUT",
-          body: JSON.stringify(settings),
-        }),
-      );
-      setStatus({ ok: true, text: "Saved." });
-    } catch (error) {
-      setStatus({
-        ok: false,
-        text:
-          error instanceof ApiError && error.detail
-            ? error.detail
-            : "Could not save the messages.",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!settings) {
-    return (
-      <div className="rounded-[26px] border border-[#ded2cb] bg-white/78 p-5 text-sm text-[#806d63]">
-        {status && !status.ok ? status.text : "Loading…"}
-      </div>
-    );
-  }
-
-  const creditOn = settings.notifyOnCredit !== "NEVER";
+  const api = React.useMemo(() => adminSettingsApi(clinicId), [clinicId]);
 
   return (
     <div className="grid gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5">
@@ -273,133 +182,107 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
           Automatic messages
         </h2>
         <p className="mt-1 text-sm text-[#806d63]">
-          Keep or switch off each message the center sends by itself.
+          Keep or switch off each message the center sends by itself, and edit
+          its text. You can change all of this later from the notification
+          center.
         </p>
       </div>
-
-      <Toggle
-        label="Reward and tier alerts"
-        detail="Tell the client when she reaches a reward or a new tier."
-        checked={creditOn}
-        onChange={(on) =>
-          confirmOff(on) &&
-          setSettings({
-            ...settings,
-            notifyOnCredit: on ? "MILESTONE_AND_TIER" : "NEVER",
-          })
-        }
-      />
-
-      <Toggle
-        label="Birthday message"
-        detail="Sent on the client's birthday."
-        checked={settings.birthdayEnabled}
-        onChange={(on) =>
-          confirmOff(on) && setSettings({ ...settings, birthdayEnabled: on })
-        }
-      />
-      {settings.birthdayEnabled ? (
-        <div className="grid gap-2 pl-7">
-          <Input
-            value={settings.birthdayHeader}
-            maxLength={60}
-            onChange={(event) =>
-              setSettings({ ...settings, birthdayHeader: event.target.value })
-            }
-            aria-label="Birthday message title"
-          />
-          <textarea
-            value={settings.birthdayBody}
-            maxLength={500}
-            rows={3}
-            onChange={(event) =>
-              setSettings({ ...settings, birthdayBody: event.target.value })
-            }
-            aria-label="Birthday message text"
-            className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-      ) : null}
-
-      <Toggle
-        label="Monthly bono reminder"
-        detail="Sent on the 1st to clients with sessions left on a bono."
-        checked={settings.bonoReminderEnabled}
-        onChange={(on) =>
-          confirmOff(on) &&
-          setSettings({ ...settings, bonoReminderEnabled: on })
-        }
-      />
-      {settings.bonoReminderEnabled ? (
-        <div className="grid gap-2 pl-7">
-          <Input
-            value={settings.bonoReminderHeader}
-            maxLength={60}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                bonoReminderHeader: event.target.value,
-              })
-            }
-            aria-label="Bono reminder title"
-          />
-          <textarea
-            value={settings.bonoReminderBody}
-            maxLength={500}
-            rows={3}
-            onChange={(event) =>
-              setSettings({ ...settings, bonoReminderBody: event.target.value })
-            }
-            aria-label="Bono reminder text"
-            className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-3">
-        <Button type="button" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          <span>Save messages</span>
-        </Button>
-        {status ? (
-          <p
-            role={status.ok ? "status" : "alert"}
-            className={
-              status.ok ? "text-sm text-[#2f7d57]" : "text-sm text-destructive"
-            }
-          >
-            {status.text}
-          </p>
-        ) : null}
-      </div>
+      <AutomationsPanel api={api} />
     </div>
   );
 }
 
-function Toggle({
-  label,
-  detail,
-  checked,
-  onChange,
+/**
+ * Billing details for invoicing the centre. Optional, so Continue is never blocked, but saved
+ * here they appear in the centre's own Settings › Información del centro, where it can edit them.
+ */
+function BillingStep({
+  clinicId,
+  initial,
 }: {
-  label: string;
-  detail: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  clinicId: string;
+  initial: BillingDraft;
 }) {
+  const [draft, setDraft] = React.useState(initial);
+  const [saved, setSaved] = React.useState(initial);
+  const [state, setState] = React.useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [problem, setProblem] = React.useState<string | null>(null);
+  const dirty = (Object.keys(draft) as Array<keyof BillingDraft>).some(
+    (key) => draft[key] !== saved[key],
+  );
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setState("saving");
+    setProblem(null);
+
+    try {
+      const result = await saveClinicBilling(clinicId, draft);
+      const next = billingDraftFrom(result);
+
+      setDraft(next);
+      setSaved(next);
+      setState("saved");
+    } catch (error) {
+      setState("error");
+      setProblem(
+        error instanceof ApiError && error.detail
+          ? error.detail
+          : "Could not save the billing details.",
+      );
+    }
+  };
+
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e4d8d1] bg-[#fffaf6] p-4">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 accent-[#201715]"
+    <form
+      onSubmit={save}
+      className="grid gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5"
+    >
+      <div>
+        <h2 className="font-serif text-2xl font-semibold">Billing details</h2>
+        <p className="mt-1 text-sm text-[#806d63]">
+          Who and where Voone&apos;s invoices go. Optional now: the center can
+          also fill this in later from Settings.
+        </p>
+      </div>
+      <BillingFields
+        value={draft}
+        onChange={(key, next) => {
+          setDraft((current) => ({ ...current, [key]: next }));
+          setState("idle");
+        }}
       />
-      <span>
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="mt-0.5 block text-xs text-[#806d63]">{detail}</span>
-      </span>
-    </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          disabled={state === "saving" || !dirty}
+          className="bg-[#201715] text-white hover:bg-[#3b2a25]"
+        >
+          {state === "saving" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
+          Save billing details
+        </Button>
+        {state === "saved" && !dirty ? (
+          <p
+            role="status"
+            className="flex items-center gap-1 text-sm font-semibold text-[#3d6a48]"
+          >
+            <Check className="h-4 w-4" /> Saved
+          </p>
+        ) : null}
+        {problem ? (
+          <p role="alert" className="text-sm font-semibold text-[#b94135]">
+            {problem}
+          </p>
+        ) : null}
+        {dirty && state !== "saving" ? (
+          <p className="text-xs text-[#806d63]">Unsaved changes.</p>
+        ) : null}
+      </div>
+    </form>
   );
 }
 
