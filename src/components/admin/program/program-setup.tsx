@@ -142,6 +142,9 @@ function ProgramSetupLoaded({
   const [answersOverride, setAnswers] =
     React.useState<OnboardingAnswers | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
+  // Publishing asks first: the panel with the 5-year comparison, then "Publish" or "Keep editing".
+  const [confirming, setConfirming] = React.useState(false);
+  const confirmRef = React.useRef<HTMLElement | null>(null);
 
   const answers = answersOverride ?? shown.data?.answers ?? DEFAULT_ANSWERS;
 
@@ -207,6 +210,13 @@ function ProgramSetupLoaded({
     shown.dataUpdatedAt,
   );
   const blockedByReview = (program?.program.review.length ?? 0) > 0;
+  // Only while there is still something to publish: an edit that brings back a blocking note
+  // closes it, and the panel never outlives the draft.
+  const confirmOpen = confirming && isDraft && !blockedByReview;
+
+  React.useEffect(() => {
+    if (confirmOpen) confirmRef.current?.focus();
+  }, [confirmOpen]);
 
   return (
     <div className="grid gap-8">
@@ -419,6 +429,54 @@ function ProgramSetupLoaded({
                 </p>
               ) : null}
 
+              {confirmOpen ? (
+                <section
+                  ref={confirmRef}
+                  tabIndex={-1}
+                  aria-labelledby="publish-confirm-heading"
+                  className="grid gap-4 rounded-lg border border-border bg-card p-5 outline-none"
+                >
+                  <div>
+                    <h3
+                      id="publish-confirm-heading"
+                      className="font-serif text-xl font-semibold"
+                    >
+                      Publish this programme?
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This is where the plan stands against our recommendation.
+                      You can publish it as it is.
+                    </p>
+                  </div>
+                  <ComparisonSummary
+                    variant="confirm"
+                    comparison={comparison.data}
+                    loading={comparison.loading}
+                    failed={comparison.failed}
+                  />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      onClick={activate}
+                      disabled={publish.isPending}
+                    >
+                      {publish.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      <span>Publish</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setConfirming(false)}
+                      disabled={publish.isPending}
+                    >
+                      Keep editing
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
+
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
                 <Button
                   type="button"
@@ -437,16 +495,18 @@ function ProgramSetupLoaded({
                         Resuelve los avisos de arriba para activarlo.
                       </p>
                     ) : null}
-                    <Button
-                      type="button"
-                      onClick={activate}
-                      disabled={blockedByReview || publish.isPending}
-                    >
-                      {publish.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      <span>Activar programa</span>
-                    </Button>
+                    {confirmOpen ? null : (
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setProblem(null);
+                          setConfirming(true);
+                        }}
+                        disabled={blockedByReview}
+                      >
+                        <span>Activar programa</span>
+                      </Button>
+                    )}
                   </div>
                 ) : null}
               </div>
