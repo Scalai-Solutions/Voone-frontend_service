@@ -42,10 +42,35 @@ export function ComparisonSummary({
   failed: boolean;
   variant: "banner" | "confirm";
 }) {
+  // The wrapper is always there, so a screen reader hears the sentence change as edits come in.
+  // Empty (nothing to show) it takes no room in the grid around it.
+  return (
+    <div aria-live="polite" className="empty:hidden">
+      <ComparisonBody
+        comparison={comparison}
+        loading={loading}
+        failed={failed}
+        variant={variant}
+      />
+    </div>
+  );
+}
+
+function ComparisonBody({
+  comparison,
+  loading,
+  failed,
+  variant,
+}: {
+  comparison: ProgramComparison | undefined;
+  loading: boolean;
+  failed: boolean;
+  variant: "banner" | "confirm";
+}) {
   if (loading) {
     return (
       <div
-        aria-busy="true"
+        role="status"
         aria-label="Loading the comparison with our recommended plan"
         className="grid gap-2 rounded-lg border border-border p-4"
       >

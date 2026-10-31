@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   keepPreviousData,
   useMutation,
@@ -157,18 +158,29 @@ const COMPARISON_DEBOUNCE_MS = 400;
 /**
  * The 5-year comparison of a DRAFT against the recommended plan.
  *
- * `revision` is anything that changes whenever the draft does (the programme query's
- * `dataUpdatedAt`: every successful edit, swap or refetch rewrites it), so one place covers every
- * kind of edit instead of each mutation invalidating it. It is debounced, so a run of quick edits
- * asks once. While the draft is still changing, or the answer is on its way, `loading` is true and
- * no number is returned: a figure for the previous draft would be wrong at the moment someone is
- * about to publish. `programId` null (not a draft) asks for nothing.
+ * `draft` is the programme as the screen holds it (the programme query's `data`). The comparison is
+ * keyed on a revision that moves only when that object CHANGES: react-query keeps the same object
+ * when a refetch (a tab focus, say) returns identical data, so a refocus asks for nothing, while
+ * every real edit or swap stores a new object and asks again at once (after the debounce, so a
+ * run of quick edits asks once). The answer is also kept fresh for 30 s per revision.
+ *
+ * While the draft is still changing, or the answer is on its way, `loading` is true and no number
+ * is returned: a figure for the previous draft would be wrong when someone is about to publish.
+ * `programId` null (not a draft) asks for nothing.
  */
 export function useProgramComparison(
   clinicId: string,
   programId: string | null,
-  revision: number,
+  draft: unknown,
 ) {
+  const [tracked, setTracked] = useState({ draft, revision: 0 });
+
+  // Adjusting state while rendering, the documented way to follow a changing value.
+  if (tracked.draft !== draft) {
+    setTracked({ draft, revision: tracked.revision + 1 });
+  }
+
+  const { revision } = tracked;
   const settled = useDebounced(revision, COMPARISON_DEBOUNCE_MS);
   const settling = settled !== revision;
   const query = useQuery({
@@ -181,6 +193,7 @@ export function useProgramComparison(
     enabled: programId !== null,
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 30_000,
   });
 
   return {

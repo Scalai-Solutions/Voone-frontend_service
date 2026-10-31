@@ -145,6 +145,8 @@ function ProgramSetupLoaded({
   // Publishing asks first: the panel with the 5-year comparison, then "Publish" or "Keep editing".
   const [confirming, setConfirming] = React.useState(false);
   const confirmRef = React.useRef<HTMLElement | null>(null);
+  const activateRef = React.useRef<HTMLButtonElement | null>(null);
+  const returnFocus = React.useRef(false);
 
   const answers = answersOverride ?? shown.data?.answers ?? DEFAULT_ANSWERS;
 
@@ -203,11 +205,12 @@ function ProgramSetupLoaded({
 
   const program = shown.data;
   const isDraft = program?.status === "BORRADOR";
-  // `dataUpdatedAt` moves on every successful edit or swap, which is when the comparison is stale.
+  // The comparison follows the draft object itself: an edit or swap stores a new one, a refetch
+  // that finds nothing new keeps the old one.
   const comparison = useProgramComparison(
     clinicId,
     isDraft ? shownId : null,
-    shown.dataUpdatedAt,
+    shown.data,
   );
   const blockedByReview = (program?.program.review.length ?? 0) > 0;
   // Only while there is still something to publish: an edit that brings back a blocking note
@@ -216,6 +219,14 @@ function ProgramSetupLoaded({
 
   React.useEffect(() => {
     if (confirmOpen) confirmRef.current?.focus();
+  }, [confirmOpen]);
+
+  // "Keep editing" brings back the button that opened the panel; put focus back on it.
+  React.useEffect(() => {
+    if (returnFocus.current && !confirmOpen) {
+      returnFocus.current = false;
+      activateRef.current?.focus();
+    }
   }, [confirmOpen]);
 
   return (
@@ -468,7 +479,10 @@ function ProgramSetupLoaded({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setConfirming(false)}
+                      onClick={() => {
+                        setConfirming(false);
+                        returnFocus.current = true;
+                      }}
                       disabled={publish.isPending}
                     >
                       Keep editing
@@ -497,6 +511,7 @@ function ProgramSetupLoaded({
                     ) : null}
                     {confirmOpen ? null : (
                       <Button
+                        ref={activateRef}
                         type="button"
                         onClick={() => {
                           setProblem(null);

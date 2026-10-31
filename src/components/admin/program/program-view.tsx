@@ -932,7 +932,7 @@ function MilestoneRow({
             </p>
             {reward ? (
               <p className="text-xs text-muted-foreground">
-                Premio · mes {milestone.month}
+                Reward · month {milestone.month}
                 {valueLabel ? ` · ${valueLabel}` : ""}
               </p>
             ) : milestone.perk ? (
