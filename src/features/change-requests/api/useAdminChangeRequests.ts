@@ -21,6 +21,7 @@ import {
   type ChangeRequestDetail,
   type ChangeRequestStatus,
   type ChangeRequestType,
+  unresolvedLinkedTo,
 } from "@/lib/change-requests";
 
 /** Keys local to this feature, so the shared query-keys file stays untouched. */
@@ -142,5 +143,27 @@ export function useResolveLinked(clinicId: string, programId: string) {
   return useMutation({
     mutationFn: (note: string) => resolveLinkedTickets(clinicId, programId, note),
     onSuccess: () => refresh(),
+  });
+}
+
+/**
+ * The clinic's unresolved tickets linked to a programme (for the prompt after a publish).
+ * Fetched by status because linking moves a ticket to IN_PROGRESS but it may still be OPEN;
+ * a clinic has at most 20 unresolved tickets, so one page of each is all there is.
+ */
+export function useLinkedTickets(clinicId: string, programId: string) {
+  return useQuery({
+    queryKey: [...changeRequestKeys.clinic(clinicId), "linked", programId] as const,
+    queryFn: async () => {
+      const [open, inProgress] = await Promise.all([
+        listClinicChangeRequests(clinicId, { status: "OPEN", limit: 50 }),
+        listClinicChangeRequests(clinicId, { status: "IN_PROGRESS", limit: 50 }),
+      ]);
+
+      return unresolvedLinkedTo([...open.items, ...inProgress.items], programId);
+    },
+    // The prompt is optional: a failure must not hold up the publish, so no retry delay.
+    retry: false,
+    staleTime: 0,
   });
 }
