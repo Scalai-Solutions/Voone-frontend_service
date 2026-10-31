@@ -1,6 +1,10 @@
 import "server-only";
 
-import { changeRequestRole, type TicketRole } from "@/lib/change-request-guard";
+import {
+  changeRequestRole,
+  serviceWriteRefusal,
+  type TicketRole,
+} from "@/lib/change-request-guard";
 import {
   PERMISSIONS,
   getCurrentSession,
@@ -125,4 +129,31 @@ export const requireChangeRequestSession = async (): Promise<
   }
 
   return { session: guard.session, role };
+};
+
+/**
+ * The guard for a write to the centre's treatments or bono plans.
+ *
+ * Services change only through a change request that Voone resolves, so the clinic's own
+ * write routes answer 403 USE_CHANGE_REQUEST to every clinic session, whatever its permission
+ * (see `serviceWriteRefusal`). Reads, the visit screens and the member-level bono flows
+ * (cancel, consumption) are untouched. Runs before the body is read, so a refused write
+ * costs nothing.
+ */
+export const requireServiceWriteAllowed = async (): Promise<
+  { session: VooneSession } | { response: Response }
+> => {
+  const guard = await requirePermission(PERMISSIONS.clinicEdit);
+
+  if ("response" in guard) {
+    return guard;
+  }
+
+  const refusal = serviceWriteRefusal(guard.session.role);
+
+  if (refusal) {
+    return { response: Response.json(refusal, { status: 403 }) };
+  }
+
+  return guard;
 };

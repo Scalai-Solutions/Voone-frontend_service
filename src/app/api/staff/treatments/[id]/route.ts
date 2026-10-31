@@ -1,6 +1,5 @@
-import { PERMISSIONS } from "@/lib/auth-shared";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
-import { requirePermission } from "@/lib/staff-guard";
+import { requireServiceWriteAllowed } from "@/lib/staff-guard";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -9,9 +8,13 @@ type Context = { params: Promise<{ id: string }> };
  *
  * The slug comes from the session; the backend looks the treatment up inside that centre, so
  * an id from another centre answers 404 ("No se ha encontrado ese tratamiento.").
+ *
+ * Writes are closed to the centre itself: services change through a change request that Voone
+ * resolves (`requireServiceWriteAllowed` answers 403 USE_CHANGE_REQUEST before the body is read).
+ * The handlers stay so the contract is explicit and a Voone-side caller could reuse them.
  */
 const forward = async (request: Request, context: Context, method: "PATCH" | "DELETE") => {
-  const guard = await requirePermission(PERMISSIONS.clinicEdit);
+  const guard = await requireServiceWriteAllowed();
 
   if ("response" in guard) {
     return guard.response;
