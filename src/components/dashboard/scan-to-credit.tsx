@@ -11,7 +11,8 @@ import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
 import { useRecordVisit, useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { useTreatments } from "@/features/treatments/api/useTreatments";
 import { ApiError, lookupMemberByWalletCode, type Member } from "@/lib/api-client";
-import { formatEuros, formatPoints } from "@/lib/points";
+import { formatEuros } from "@/lib/euros";
+import { formatPoints } from "@/lib/points";
 
 function walletCodeFromScan(value: string): string {
   const trimmed = value.trim();

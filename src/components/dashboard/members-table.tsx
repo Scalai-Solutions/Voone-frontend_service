@@ -19,7 +19,8 @@ import {
   type NotificationSegmentInput,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { formatEuros, formatPoints } from "@/lib/points";
+import { formatEuros } from "@/lib/euros";
+import { formatPoints } from "@/lib/points";
 
 const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
   mujer: "Mujer",

@@ -1,5 +1,5 @@
 import type { ProgramComparison } from "@/lib/onboarding-api";
-import { formatEuro } from "./format.ts";
+import { formatEuros } from "../../../lib/euros.ts";
 
 /**
  * Words and numbers for the 5-year comparison with the recommended plan. Pure, so the sentence,
@@ -42,7 +42,7 @@ const consequence = (delta: number): string => {
 
   if (kind === "same") return "the same";
 
-  return `${formatEuro(Math.abs(Math.round(delta)))} ${kind}`;
+  return `${formatEuros(Math.abs(Math.round(delta)))} ${kind}`;
 };
 
 /**
@@ -61,7 +61,7 @@ export const comparisonHeadline = (
   return (
     `Compared with our recommended plan, this plan earns ` +
     `${consequence(comparison.delta)} net over 5 years ` +
-    `(standard values: ${clients.toLocaleString("es-ES")} clients, ${formatEuro(ticket)} ticket)`
+    `(standard values: ${clients.toLocaleString("es-ES")} clients, ${formatEuros(ticket)} ticket)`
   );
 };
 
@@ -88,6 +88,6 @@ export const comparisonRows = (
       recommended:
         row.recommendedCumulative === null
           ? "—"
-          : formatEuro(Math.round(row.recommendedCumulative)),
-      thisPlan: formatEuro(Math.round(row.currentCumulative)),
+          : formatEuros(Math.round(row.recommendedCumulative)),
+      thisPlan: formatEuros(Math.round(row.currentCumulative)),
     }));

@@ -1,23 +1,3 @@
-const euro = new Intl.NumberFormat("es-ES", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-
-const euroCents = new Intl.NumberFormat("es-ES", {
-  style: "currency",
-  currency: "EUR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-/** 65 -> "65 €"; 60.5 -> "60,50 €". Whole amounts drop the decimals, as a price tag would. */
-export const formatEuro = (value: number): string =>
-  Number.isInteger(value) ? euro.format(value) : euroCents.format(value);
-
-/** Progress is counted in euros, so it reads like money without being any. */
-export const formatProgress = (value: number): string => `${Math.round(value).toLocaleString("es-ES")} €`;
-
 /**
  * A price as typed into a box: "60", "60,5" and "60.5" all mean what they look like.
  *

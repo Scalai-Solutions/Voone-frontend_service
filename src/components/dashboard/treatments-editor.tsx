@@ -19,7 +19,7 @@ import {
   type TreatmentCategory,
   type UpdateTreatmentInput,
 } from "@/lib/api-client";
-import { formatEuros } from "@/lib/points";
+import { formatEuros } from "@/lib/euros";
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
 

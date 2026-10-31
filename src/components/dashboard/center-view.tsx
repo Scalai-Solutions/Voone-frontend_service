@@ -9,7 +9,8 @@ import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
 import type { MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import type { PresentedProgram } from "@/lib/onboarding-api";
-import { toPoints, formatEuros } from "@/lib/points";
+import { formatEuros } from "@/lib/euros";
+import { toPoints } from "@/lib/points";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
@@ -107,7 +108,7 @@ function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
     {
       id: "points-conversion",
       name: "Conversión de puntos",
-      detail: `Por cada ${formatNumber(milestone.priceAmount)} €`,
+      detail: `Por cada ${formatEuros(milestone.priceAmount)}`,
       value: `${formatNumber(milestone.pointsAwarded)} puntos`,
     },
   ];

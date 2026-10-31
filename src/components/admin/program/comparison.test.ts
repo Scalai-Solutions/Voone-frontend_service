@@ -8,7 +8,7 @@ import {
   comparisonTone,
   deltaKind,
 } from "./comparison.ts";
-import { formatEuro } from "./format.ts";
+import { formatEuros } from "../../../lib/euros.ts";
 
 const base = {
   inputs: { clients: 300, ticket: 60 },
@@ -29,15 +29,15 @@ describe("comparisonHeadline", () => {
   it("says how much less, with the standard values", () => {
     assert.equal(
       comparisonHeadline({ ...base, delta: -1200 }),
-      `Compared with our recommended plan, this plan earns ${formatEuro(1200)} less net over 5 years ` +
-        `(standard values: 300 clients, ${formatEuro(60)} ticket)`,
+      `Compared with our recommended plan, this plan earns ${formatEuros(1200)} less net over 5 years ` +
+        `(standard values: 300 clients, ${formatEuros(60)} ticket)`,
     );
   });
 
   it("says how much more, using the size of the difference", () => {
     const text = comparisonHeadline({ ...base, delta: 15000 }) ?? "";
 
-    assert.ok(text.includes(`earns ${formatEuro(15000)} more net over 5 years`));
+    assert.ok(text.includes(`earns ${formatEuros(15000)} more net over 5 years`));
     assert.ok(!text.includes("-"));
   });
 
@@ -101,8 +101,8 @@ describe("comparisonRows", () => {
     });
 
     assert.deepEqual(rows, [
-      { year: 1, recommended: formatEuro(1000), thisPlan: formatEuro(900) },
-      { year: 2, recommended: formatEuro(3000), thisPlan: formatEuro(2500) },
+      { year: 1, recommended: formatEuros(1000), thisPlan: formatEuros(900) },
+      { year: 2, recommended: formatEuros(3000), thisPlan: formatEuros(2500) },
     ]);
   });
 
