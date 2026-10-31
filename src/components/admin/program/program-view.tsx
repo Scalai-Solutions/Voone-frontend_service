@@ -46,6 +46,7 @@ import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuro, formatProgress } from "./format";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
 import { infoNotes, rewardValueLabel } from "./reward-value";
+import { swapRefusalMessage } from "./swap-refusal";
 import {
   MAX_DESCRIPTION_LENGTH,
   MAX_TEXT_LENGTH,
@@ -891,9 +892,7 @@ function MilestoneRow({
       setOpen(false);
     } catch (error) {
       setProblem(
-        error instanceof ApiError && error.detail
-          ? error.detail
-          : "No se ha podido cambiar el premio.",
+        swapRefusalMessage(error, "No se ha podido cambiar el premio."),
       );
     } finally {
       setBusy(false);
