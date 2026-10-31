@@ -234,18 +234,17 @@ function ProgramSetupLoaded({
     }
   }, [confirmOpen]);
 
-  if (publishedId) {
-    return (
-      <ResolveLinkedTickets
-        clinicId={clinicId}
-        programId={publishedId}
-        onDone={finishPublish}
-      />
-    );
-  }
-
   return (
-    <div className="grid gap-8">
+    <>
+      {/* Rendered in the tree, never as an early return, so every hook above and below always runs. */}
+      {publishedId ? (
+        <ResolveLinkedTickets
+          clinicId={clinicId}
+          programId={publishedId}
+          onDone={finishPublish}
+        />
+      ) : null}
+    <div className={publishedId ? "hidden" : "grid gap-8"}>
       <nav aria-label="Pasos" className="flex flex-wrap items-center gap-2">
         {STEPS.map((label, index) => {
           const reachable = index <= step;
@@ -545,5 +544,6 @@ function ProgramSetupLoaded({
         </div>
       ) : null}
     </div>
+    </>
   );
 }
