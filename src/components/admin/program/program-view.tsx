@@ -6,6 +6,7 @@ import {
   Check,
   Crown,
   Gift,
+  Info,
   Pencil,
   Plus,
   Sparkles,
@@ -44,6 +45,7 @@ import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuro, formatProgress } from "./format";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
+import { infoNotes, rewardValueLabel } from "./reward-value";
 import {
   MAX_DESCRIPTION_LENGTH,
   MAX_TEXT_LENGTH,
@@ -131,6 +133,8 @@ export function ProgramView({
     milestones: program.ladder.filter((m) => m.band === band),
   }));
 
+  const notes = infoNotes(program);
+
   return (
     <div className="grid gap-8">
       {program.review.length > 0 ? (
@@ -146,6 +150,21 @@ export function ProgramView({
               {note}
             </p>
           ))}
+        </div>
+      ) : null}
+
+      {notes.length > 0 ? (
+        // Information, not a problem: calm styling, never an alert, and it never blocks anything.
+        <div
+          role="note"
+          className="flex items-start gap-2 rounded-lg bg-secondary/60 p-4 text-sm leading-6 text-muted-foreground"
+        >
+          <Info className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="grid gap-1">
+            {notes.map((note) => (
+              <p key={note}>{note}</p>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -851,6 +870,7 @@ function MilestoneRow({
   }
 
   const reward = milestone.reward;
+  const valueLabel = reward ? rewardValueLabel(milestone) : null;
   const alternatives = reward?.alternatives ?? [];
   const PerkIcon = milestone.perk
     ? (PERK_ICON[milestone.perk.kind] ?? Sparkles)
@@ -914,6 +934,7 @@ function MilestoneRow({
             {reward ? (
               <p className="text-xs text-muted-foreground">
                 Premio · mes {milestone.month}
+                {valueLabel ? ` · ${valueLabel}` : ""}
               </p>
             ) : milestone.perk ? (
               <p className="text-xs leading-5 text-muted-foreground">

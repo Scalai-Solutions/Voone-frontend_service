@@ -124,9 +124,9 @@ export interface OnboardingEstimates {
 /* ------------------------------------------------------------------------ programme */
 
 /**
- * A gift, by name only. What a gift is worth or costs is deliberately not here: the founders'
- * review is that a centre should see what it gives and what its clients spend, not what each
- * gift is worth. The backend does not send a value, so no screen can show one.
+ * A gift, by name only. What one gift costs is never here, and the owner's programme carries no
+ * value at all. The admin's programme alone carries the retail value of a whole reward, as
+ * `rewardValueEuro` on its milestone, so the admin can see why a swap changes the plan.
  */
 export interface PresentedItem {
   name: string;
@@ -143,6 +143,12 @@ export interface PresentedMilestone {
   realSpend: number;
   /** Months for a typical repeating client to get here. */
   month: number;
+  /**
+   * The retail price of the reward given here, in whole euros. Admin responses only, and only on
+   * reward rows; absent from the owner's programme and from an older backend, where nothing is
+   * shown.
+   */
+  rewardValueEuro?: number;
   tier?: { key: TierKey; label: string };
   reward?: {
     name: string;
@@ -196,7 +202,13 @@ export interface PresentedProgram {
   welcomeProgress: number;
   familyAndFriends: { title: string; description: string; comingSoon: boolean };
   adaptations: string[];
+  /** Only what blocks publishing. An empty list means the programme can go live. */
   review: string[];
+  /**
+   * Informational notes (for example the cost note), admin responses only. They never block
+   * publishing and are never shown as a problem. Absent from an older backend.
+   */
+  notes?: string[];
 }
 
 export interface InternalBlock {
