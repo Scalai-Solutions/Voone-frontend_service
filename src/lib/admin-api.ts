@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ApiError, type Clinic, type Member, type WalletInfrastructure } from "@/lib/api-client";
-import { unresolvedCount, type ChangeRequestPage } from "@/lib/change-requests";
+import { unresolvedCount, type ChangeRequestPage } from "@/lib/admin-change-requests";
 import type { ProgramListItem } from "@/lib/onboarding-api";
 import { staffFetch } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";

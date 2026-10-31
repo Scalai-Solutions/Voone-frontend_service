@@ -15,14 +15,14 @@ import {
   replyToChangeRequest,
   resolveLinkedTickets,
   setChangeRequestStatus,
-} from "@/lib/change-requests-api";
+} from "@/lib/admin-change-requests-api";
 import {
   CHANGE_REQUEST_STATUSES,
   type ChangeRequestDetail,
   type ChangeRequestStatus,
   type ChangeRequestType,
   unresolvedLinkedTo,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 
 /** Keys local to this feature, so the shared query-keys file stays untouched. */
 export const changeRequestKeys = {

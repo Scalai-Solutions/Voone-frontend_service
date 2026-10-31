@@ -8,7 +8,7 @@ import {
   formatTimestamp,
   type DescribeLookup,
 } from "./change-request-describe.ts";
-import { listSearch } from "./change-requests.ts";
+import { listSearch } from "./admin-change-requests.ts";
 
 const lookup: DescribeLookup = {
   treatments: new Map([

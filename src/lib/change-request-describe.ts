@@ -1,7 +1,7 @@
 import type {
   ChangeRequest,
   ChangeRequestType,
-} from "./change-requests.ts";
+} from "./admin-change-requests.ts";
 
 /**
  * A ticket's request in plain English, for the admin: what exactly is being asked, with the

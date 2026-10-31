@@ -3,7 +3,7 @@ import {
   isChangeRequestStatus,
   isChangeRequestType,
   type ChangeRequestStatus,
-} from "./change-requests.ts";
+} from "./admin-change-requests.ts";
 
 /**
  * Validation of what the admin proxy forwards to the backend.

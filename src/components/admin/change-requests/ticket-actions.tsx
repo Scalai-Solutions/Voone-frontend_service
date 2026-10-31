@@ -17,7 +17,7 @@ import {
   isUnresolved,
   type ApplyResult,
   type ChangeRequestDetail,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 
 /** A calm amber note, for warnings that never block. */
 export function AmberNote({

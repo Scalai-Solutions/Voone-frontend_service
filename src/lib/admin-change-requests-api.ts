@@ -7,7 +7,7 @@ import {
   type ChangeRequestStatus,
   type DraftResult,
   type ListParams,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 
 /** The admin ticket calls, through this app's `/api/admin/change-requests` route handlers. */
 

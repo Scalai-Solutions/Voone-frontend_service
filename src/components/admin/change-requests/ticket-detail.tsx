@@ -35,7 +35,7 @@ import {
   isUnresolved,
   type ChangeRequestDetail,
   type ChangeRequestMessage,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 
 /** Current treatments and bonos, so "45 € → 50 €" can show the 45. Only fetched for the types that need them. */
 function useLookup(ticket: ChangeRequestDetail | undefined): DescribeLookup {

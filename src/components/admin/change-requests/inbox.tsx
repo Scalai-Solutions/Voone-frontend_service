@@ -24,7 +24,7 @@ import {
   TYPE_LABEL,
   countLabel,
   type ChangeRequestType,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 
 /**
  * The tickets inbox: across all clinics, or one clinic when `clinicId` is given. Filters are

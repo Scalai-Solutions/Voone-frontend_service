@@ -11,7 +11,7 @@ import {
   statusActions,
   type ChangeRequestStatus,
   type StatusAction,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 
 const LABEL: Record<StatusAction, string> = {
   start: "Start work",

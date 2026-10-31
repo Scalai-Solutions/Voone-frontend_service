@@ -3,7 +3,7 @@ import {
   TYPE_LABEL,
   type ChangeRequestStatus,
   type ChangeRequestType,
-} from "@/lib/change-requests";
+} from "@/lib/admin-change-requests";
 import { ApiError } from "@/lib/api-client";
 
 const STATUS_STYLE: Record<ChangeRequestStatus, string> = {

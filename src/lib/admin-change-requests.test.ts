@@ -14,7 +14,7 @@ import {
   statusActions,
   unresolvedCount,
   TYPE_LABEL,
-} from "./change-requests.ts";
+} from "./admin-change-requests.ts";
 
 describe("change request helpers", () => {
   it("only SERVICE_* and BONO can be applied; only REWARD and LEVEL get a draft", () => {
