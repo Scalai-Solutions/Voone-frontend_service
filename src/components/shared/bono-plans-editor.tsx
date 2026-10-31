@@ -9,6 +9,7 @@ import type {
   CreateBonoPlanInput,
   UpdateBonoPlanInput,
 } from "@/lib/bono-api";
+import { formatEuros } from "@/lib/points";
 
 /**
  * The bono plans editor, presentational: the same table for the admin onboarding flow and
@@ -114,9 +115,9 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
                   {plan.active ? "" : " (retirado)"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {plan.pricePerSessionEuro.toLocaleString("es-ES")} €/sesión ·{" "}
+                  {formatEuros(plan.pricePerSessionEuro)}/sesión ·{" "}
                   {plan.totalSessions} sesiones ·{" "}
-                  {plan.totalEuro.toLocaleString("es-ES")} € en total ·{" "}
+                  {formatEuros(plan.totalEuro)} en total ·{" "}
                   {plan.issuedCount === 0
                     ? "todavía sin clientes"
                     : `${plan.issuedCount} cliente${plan.issuedCount === 1 ? "" : "s"}`}
@@ -209,7 +210,7 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
           <span>
             Añadir
             {total !== null
-              ? ` (${total.toLocaleString("es-ES")} €${perSession !== null ? ` · ${perSession.toLocaleString("es-ES")} €/sesión` : ""})`
+              ? ` (${formatEuros(total)}${perSession !== null ? ` · ${formatEuros(perSession)}/sesión` : ""})`
               : ""}
           </span>
         </Button>

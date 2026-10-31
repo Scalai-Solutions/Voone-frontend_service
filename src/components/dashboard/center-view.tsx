@@ -7,31 +7,38 @@ import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
-import type { Clinic, MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
+import type { MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import type { PresentedProgram } from "@/lib/onboarding-api";
-import { toPoints } from "@/lib/points";
+import { toPoints, formatEuros } from "@/lib/points";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
   canEdit: boolean;
 }
 
-type CenterTab = "tratamientos" | "recompensas" | "niveles" | "informacion" | "tarjeta";
+type CenterTab = "tratamientos" | "recompensas" | "niveles" | "tarjeta";
 
 interface SetupItem {
   id: string;
   name: string;
   detail: string;
   value: string;
+  /**
+   * A second right-hand figure (levels: the euros a client has spent), shown as its own column
+   * whenever the list renders one. Absent on single-column lists.
+   */
+  secondValue?: string;
 }
-
-const ownerEmailFor = (clinic: Clinic) =>
-  clinic.users.find((user) => user.role.toUpperCase() === "OWNER")?.email ??
-  clinic.users[0]?.email;
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
 
-/** The live programme's rewards and perks, in the order a client reaches them. Tier-ups are the Niveles tab's. */
+/**
+ * The live programme's rewards and perks, in the order a client reaches them. Tier-ups are the Niveles tab's.
+ *
+ * The right column is what the client has spent by the time she reaches the step (`realSpend`), in
+ * euros — not points, and not the engine's `threshold`, which is internal progress and diverges
+ * from real spend once the upper tiers multiply it.
+ */
 function programRewardRows(program: PresentedProgram): SetupItem[] {
   return program.ladder
     .filter((step) => step.type !== "nivel")
@@ -43,7 +50,7 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
         id: `program-step-${step.n}`,
         name,
         detail,
-        value: `${formatNumber(toPoints(step.threshold))} puntos`,
+        value: formatEuros(step.realSpend),
       };
     });
 }
@@ -52,18 +59,22 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
  * A tier's floor is the PROGRESS at which the ladder promotes a member, which is the `threshold` of
  * the "nivel" step for that tier. `PresentedTier.threshold` is real spend (what a client has paid),
  * not progress, so it would show the upper levels too low. The first tier has no promotion step: it
- * starts at zero.
+ * starts at zero. Three columns, like the other tabs: the level with its perks, the card's points
+ * when the promotion happens (`threshold` ×10) and what the client has actually paid to get there
+ * (`realSpend`) — the two diverge in the upper tiers, whose progress runs ahead of their spend.
  */
 function programTierRows(program: PresentedProgram): SetupItem[] {
   return program.tiers.map((tier) => {
     const promotion = program.ladder.find((step) => step.type === "nivel" && step.tier?.key === tier.key);
-    const floor = promotion ? toPoints(promotion.threshold) : 0;
+    const floorPoints = promotion ? toPoints(promotion.threshold) : 0;
+    const floorSpend = promotion ? promotion.realSpend : 0;
 
     return {
       id: `program-tier-${tier.key}`,
       name: tier.label,
       detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
-      value: floor === 0 ? "Desde el inicio" : `Desde ${formatNumber(floor)} puntos`,
+      value: formatNumber(floorPoints),
+      secondValue: formatEuros(floorSpend),
     };
   });
 }
@@ -91,33 +102,13 @@ function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
       id: "points-to-next-milestone",
       name: "Siguiente hito",
       detail: "Puntos necesarios para alcanzar el siguiente hito",
-      value: `${formatNumber(milestone.pointsToNextMilestone)} puntos`,
+      value: `${formatNumber(milestone.pointsToNextMilestone)} puntos · ${formatEuros(milestone.pointsToNextMilestone / 10)}`,
     },
     {
       id: "points-conversion",
       name: "Conversión de puntos",
       detail: `Por cada ${formatNumber(milestone.priceAmount)} €`,
       value: `${formatNumber(milestone.pointsAwarded)} puntos`,
-    },
-  ];
-}
-
-function toClinicDetails(clinic: Clinic | undefined): Array<{ label: string; value: string }> {
-  if (!clinic) return [];
-
-  const ownerEmail = ownerEmailFor(clinic);
-
-  return [
-    { label: "Nombre comercial", value: clinic.name },
-    { label: "Dirección", value: clinic.addressLine },
-    { label: "Código postal", value: clinic.pincode },
-    ...(ownerEmail ? [{ label: "Email propietario", value: ownerEmail }] : []),
-    { label: "Programa Wallet", value: clinic.template?.programName ?? "Sin diseño de tarjeta" },
-    { label: "Plan Voone", value: clinic.voonePlan },
-    { label: "Aviso de privacidad", value: clinic.privacyPolicyVersion },
-    {
-      label: "Notificaciones disponibles",
-      value: `${formatNumber(clinic.notificationsRemainingThisMonth)} de ${formatNumber(clinic.notificationsMonthlyQuota)}`,
     },
   ];
 }
@@ -136,7 +127,6 @@ export function CenterView({ canEdit }: CenterViewProps) {
   // Only a 404 (null above) means "no live programme". Any other failure is shown, not papered over
   // with the card design's figures, which may not match what the centre actually runs.
   const programFailed = staffProgram.isError;
-  const clinicDetails = React.useMemo(() => toClinicDetails(clinic), [clinic]);
   const rewardRowsKey = React.useMemo(() => rowsKey(rewardRowsFromClinic), [rewardRowsFromClinic]);
   const tierRowsKey = React.useMemo(() => rowsKey(tierRowsFromClinic), [tierRowsFromClinic]);
 
@@ -152,36 +142,18 @@ export function CenterView({ canEdit }: CenterViewProps) {
         <button type="button" onClick={() => setTab("tratamientos")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tratamientos" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tratamientos</button>
         <button type="button" onClick={() => setTab("recompensas")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "recompensas" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Recompensas</button>
         <button type="button" onClick={() => setTab("niveles")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "niveles" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Niveles</button>
-        <button type="button" onClick={() => setTab("informacion")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "informacion" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Información del centro</button>
         {canEdit && clinic?.template?.id ? <button type="button" onClick={() => setTab("tarjeta")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tarjeta" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tarjeta Wallet</button> : null}
       </div>
 
       {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} /> : null}
-      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." valueLabel="Valor" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
-      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." valueLabel="Requisito" initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." nameLabel="Premio o ventaja" valueLabel="Total gastado por la clienta" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." nameLabel="Nivel" valueLabel={liveProgram ? "Puntos" : "Requisito (gasto · puntos)"} secondValueLabel={liveProgram ? "Total gastado" : undefined} initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
           <h2 className="font-serif text-2xl font-semibold">Tarjeta Wallet</h2>
           <p className="mt-2 max-w-xl text-sm text-[#927e72]">Cambia el logo, la imagen, los colores y los textos de la tarjeta. Al guardar, las tarjetas que ya tienen tus clientes se actualizan solas.</p>
           <Link href={`/dashboard/templates/${clinic.template.id}`} className="mt-5 inline-flex rounded-full bg-[#2d211e] px-5 py-2.5 text-sm font-semibold text-white">Editar el diseño de la tarjeta</Link>
-        </div>
-      ) : null}
-
-      {tab === "informacion" ? (
-        <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
-          <h2 className="font-serif text-2xl font-semibold">Información del centro</h2>
-          {clinicDetails.length > 0 ? (
-            <div className="mt-5 grid gap-x-20 gap-y-5 sm:grid-cols-2">
-              {clinicDetails.map((detail) => (
-                <div key={detail.label}>
-                  <p className="text-xs text-[#927e72]">{detail.label}</p>
-                  <p className="mt-1 font-semibold">{detail.value}</p>
-                </div>
-              ))}
-            </div>
-          ) : <p className="mt-5 text-sm text-[#927e72]">Cargando la información guardada durante el onboarding...</p>}
-          {canEdit ? <Link href="/dashboard/settings" className="mt-6 inline-flex rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]">Editar información</Link> : null}
         </div>
       ) : null}
     </section>
@@ -193,10 +165,10 @@ function ProgramLoadError() {
 }
 
 function rowsKey(rows: SetupItem[]) {
-  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}`).join("|") || "empty";
+  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}:${row.secondValue ?? ""}`).join("|") || "empty";
 }
 
-function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoading }: { title: string; description: string; valueLabel: string; initialRows: SetupItem[]; canEdit: boolean; isLoading: boolean }) {
+function SetupList({ title, description, nameLabel, valueLabel, secondValueLabel, initialRows, canEdit, isLoading }: { title: string; description: string; nameLabel: string; valueLabel: string; secondValueLabel?: string; initialRows: SetupItem[]; canEdit: boolean; isLoading: boolean }) {
   const emptyDraft = { name: "", detail: "", value: "" };
   const [rows, setRows] = React.useState(initialRows);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -251,17 +223,51 @@ function SetupList({ title, description, valueLabel, initialRows, canEdit, isLoa
         </form>
       ) : null}
 
+      {/* The header and every row share one grid, so each column keeps its own width however
+          long a description grows: the level and its perks wrap inside the first column (60%),
+          and the figures never drop below. The second value column (levels: total spent)
+          renders only when the list has one. */}
+      <div className={cn(
+        "grid items-center gap-3 bg-[#faf5f0] px-5 py-2",
+        secondValueLabel
+          ? "grid-cols-[minmax(0,60fr)_minmax(0,20fr)_minmax(0,20fr)]"
+          : "grid-cols-[minmax(0,60fr)_minmax(0,40fr)]",
+      )}>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{nameLabel}</span>
+        <span className="text-right text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{valueLabel}</span>
+        {secondValueLabel ? <span className="text-right text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{secondValueLabel}</span> : null}
+      </div>
+
       {rows.length > 0 ? rows.map((row) => (
-        <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eadfd8] px-5 py-4 last:border-0">
-          <div>
-            <p className="font-semibold">{row.name}</p>
-            <p className="mt-1 text-xs text-[#927e72]">{row.detail}</p>
+        <div key={row.id} className={cn(
+          "grid items-center gap-3 border-b border-[#eadfd8] px-5 py-4 last:border-0",
+          secondValueLabel
+            ? "grid-cols-[minmax(0,60fr)_minmax(0,20fr)_minmax(0,20fr)]"
+            : "grid-cols-[minmax(0,60fr)_minmax(0,40fr)]",
+        )}>
+          {/* The name and description wrap inside their own column, never pushing the figures out of theirs. */}
+          <div className="min-w-0">
+            <p className="break-words font-semibold">{row.name}</p>
+            <p className="mt-1 break-words text-xs leading-5 text-[#927e72]">{row.detail}</p>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
-            {canEdit ? <button type="button" onClick={() => startEdit(row)} className="text-[#9b633e]" aria-label={`Editar ${row.name}`}><Pencil size={15} /></button> : null}
-            {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}
-          </div>
+          {secondValueLabel ? (
+            <>
+              {/* The card's points, at the right edge of their own column. */}
+              <p className="justify-self-end break-words text-right text-sm font-semibold">{row.value}</p>
+              {/* The euros as the pill, at the right edge of theirs. */}
+              <div className="flex items-center justify-end gap-2">
+                <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.secondValue ?? "—"}</span>
+                {canEdit ? <button type="button" onClick={() => startEdit(row)} className="text-[#9b633e]" aria-label={`Editar ${row.name}`}><Pencil size={15} /></button> : null}
+                {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-end gap-2">
+              <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
+              {canEdit ? <button type="button" onClick={() => startEdit(row)} className="text-[#9b633e]" aria-label={`Editar ${row.name}`}><Pencil size={15} /></button> : null}
+              {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}
+            </div>
+          )}
         </div>
       )) : <p className="px-5 py-4 text-sm text-[#927e72]">{isLoading ? "Cargando datos guardados durante el onboarding..." : "No hay datos guardados para esta sección."}</p>}
     </div>

@@ -70,6 +70,8 @@ export interface AutomationClinicSettings {
   birthdayLastRunDate: string | null;
   bonoReminderEnabled: boolean;
   bonoReminderNotify: boolean;
+  /** Every automated event, so a new one needs no change here. */
+  automations?: Record<string, { enabled: boolean; notify: boolean }>;
   usesDefaults: boolean;
 }
 

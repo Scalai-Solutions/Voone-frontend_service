@@ -15,6 +15,15 @@ const pointsFormat = new Intl.NumberFormat("es-ES");
 /** A points value for display, always in es-ES ("15.000"), never the runtime's default locale. */
 export const formatPoints = (points: number): string => pointsFormat.format(points);
 
+const eurosFormat = new Intl.NumberFormat("en-US");
+
+/**
+ * A whole-euros amount in the app's money style (dot decimals, comma thousands), with the euro
+ * sign after a plain space ("1,500 €") — the same style formatCents gives, shared by every
+ * euro figure a screen shows.
+ */
+export const formatEuros = (euros: number): string => `${eurosFormat.format(euros)} €`;
+
 /**
  * A points movement with an explicit sign: "+150" for a credit, "−50" (a real minus sign, not a
  * hyphen) for a debit, "0" for nothing.

@@ -23,11 +23,14 @@ const ALLOWED: string[][] = [
   ["clinics", "*", "notifications", "segment"],
   ["clinics", "*", "notification-settings"],
   ["clinics", "*", "geo-locations"],
+  ["clinics", "*", "audiences"],
+  ["clinics", "*", "audiences", "*"],
   ["clinics", "*", "users"],
   ["clinics", "*", "users", "*"],
   ["members", "*", "notifications"],
   ["members", "*", "notification-quota"],
   ["notifications", "*"],
+  ["notification-automations", "catalog"],
 ];
 
 export const isForwardableStaffPath = (segments: string[]): boolean =>

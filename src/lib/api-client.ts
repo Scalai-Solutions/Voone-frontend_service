@@ -288,6 +288,15 @@ export interface Clinic {
   isActive: boolean;
   privacyPolicyVersion: string;
   voonePlan: VoonePlan;
+  /**
+   * Billing details for invoicing the centre. Null when never filled in; absent on an older
+   * backend, so a screen must treat a missing field like null rather than crash on it.
+   */
+  billingName?: string | null;
+  billingTaxId?: string | null;
+  billingEmail?: string | null;
+  billingAddressLine?: string | null;
+  billingPostalCode?: string | null;
   notificationsMonthlyQuota: number;
   notificationsUsedThisMonth: number;
   notificationsRemainingThisMonth: number;
@@ -319,7 +328,9 @@ export type NotificationType =
   | "POINTS"
   | "TIER"
   | "BIRTHDAY"
-  | "BONO_REMINDER";
+  | "BONO_REMINDER"
+  | "REVIEW_REQUEST"
+  | "REFERRAL_PROMO";
 export type NotificationStatus =
   "QUEUED" | "PROCESSING" | "SENT" | "PARTIAL_FAILED" | "FAILED" | "CANCELLED";
 export type NotificationDeliveryStatus =
@@ -345,6 +356,47 @@ export interface NotificationSegmentInput {
 
 export interface SegmentNotificationInput extends NotificationMessageInput {
   segment: NotificationSegmentInput;
+}
+
+/**
+ * A saved audience (the Audiencias tab): a name plus the segment criteria it filters members
+ * by. The criteria are the same shape a segment send accepts, so what a centre saves is exactly
+ * what a message can target.
+ */
+export interface ClinicAudience {
+  id: string;
+  name: string;
+  criteria: NotificationSegmentInput;
+  /** How many members the criteria match today; resolved by the backend on every read. */
+  memberCount: number;
+  updatedAt: string;
+}
+
+/** The centre's saved audiences (Audiencias), newest first. */
+export function getAudiences(clinicId: string) {
+  return staffProxyFetch<ClinicAudience[]>(
+    `/clinics/${encodeURIComponent(clinicId)}/audiences`,
+    { method: "GET" },
+  );
+}
+
+/** Saves a named audience. Server-side validation: a name, and criteria a send can target. */
+export function createAudience(
+  clinicId: string,
+  input: { name: string; criteria: NotificationSegmentInput },
+) {
+  return staffProxyFetch<ClinicAudience>(
+    `/clinics/${encodeURIComponent(clinicId)}/audiences`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+/** Removes a saved audience. Scoped to the clinic by the backend. */
+export function deleteAudience(clinicId: string, audienceId: string) {
+  return staffProxyFetch<{ status: "deleted" }>(
+    `/clinics/${encodeURIComponent(clinicId)}/audiences/${encodeURIComponent(audienceId)}`,
+    { method: "DELETE" },
+  );
 }
 
 export interface NotificationSummary {
@@ -392,18 +444,50 @@ export interface NotificationQuotaResponse {
   resetsAt: string | null;
 }
 
+/** The automated messages. Mirrors the backend catalog (modules/notifications/automations). */
+export type AutomationEvent =
+  | "BIRTHDAY"
+  | "BONO_INACTIVE"
+  | "REVIEW_REQUEST"
+  | "REFERRAL_PROMO"
+  | "TIER_UPGRADE";
+
+/** A clinic's own value an automation needs before it can be switched on. */
+export type ClinicVariableKey = "googleReviewUrl" | "referralRewardText";
+
+export interface AutomationSetting {
+  enabled: boolean;
+  header: string;
+  body: string;
+  /** true = a real push, false = a silent card message. */
+  notify: boolean;
+}
+
+export interface AutomationCatalogEntry {
+  event: AutomationEvent;
+  label: string;
+  description: string;
+  /** The {variables} the copy may use. */
+  variables: string[];
+  marketing: boolean;
+  requires?: ClinicVariableKey;
+  defaults: AutomationSetting;
+}
+
 export interface NotificationSettings {
   notifyOnCredit: NotifyOnCredit;
   marketingEnabled: boolean;
-  birthdayEnabled: boolean;
-  birthdayHeader: string;
-  birthdayBody: string;
-  birthdayNotify: boolean;
-  bonoReminderEnabled: boolean;
-  bonoReminderHeader: string;
-  bonoReminderBody: string;
-  bonoReminderNotify: boolean;
+  googleReviewUrl: string | null;
+  referralRewardText: string | null;
+  automations: Record<AutomationEvent, AutomationSetting>;
 }
+
+/** Only what changed: a screen that does not know a field can never overwrite it. */
+export type NotificationSettingsPatch = Partial<
+  Omit<NotificationSettings, "automations">
+> & {
+  automations?: Partial<Record<AutomationEvent, Partial<AutomationSetting>>>;
+};
 
 export interface ClinicGeoLocation {
   id?: string;
@@ -893,14 +977,21 @@ export function getNotificationSettings(clinicId: string) {
   );
 }
 
-export function saveNotificationSettings(
+export function patchNotificationSettings(
   clinicId: string,
-  input: NotificationSettings,
+  patch: NotificationSettingsPatch,
 ) {
   return staffProxyFetch<NotificationSettings>(
     `/clinics/${encodeURIComponent(clinicId)}/notification-settings`,
-    { method: "PUT", body: JSON.stringify(input) },
+    { method: "PATCH", body: JSON.stringify(patch) },
   );
+}
+
+export function getAutomationCatalog() {
+  return staffProxyFetch<{ automations: AutomationCatalogEntry[] }>(
+    "/notification-automations/catalog",
+    { method: "GET" },
+  ).then((response) => response.automations);
 }
 
 export function getClinicGeoLocations(clinicId: string) {
@@ -1194,6 +1285,56 @@ export function getCurrentClinic() {
   return staffProxyFetch<Clinic>("/clinic", { method: "GET" });
 }
 
+/**
+ * The centre's own details, as Settings › Información del centro edits them. The commercial name,
+ * address and postal code are required and cannot be emptied; the billing fields are optional and
+ * an empty string clears one (null on the backend).
+ */
+export interface ClinicInfoPatch {
+  name: string;
+  addressLine: string;
+  pincode: string;
+  billingName?: string | null;
+  billingTaxId?: string | null;
+  billingEmail?: string | null;
+  billingAddressLine?: string | null;
+  billingPostalCode?: string | null;
+}
+
+/**
+ * Saves the signed-in clinic's own details and billing information.
+ *
+ * Goes through this app's `/api/staff/clinic` handler, which checks the clinic-edit permission,
+ * scopes the clinic from the session and strips credential setup URLs from the response — so the
+ * browser cannot edit another clinic and never sees a setup link.
+ */
+export function saveCurrentClinicInfo(patch: ClinicInfoPatch) {
+  return staffProxyFetch<Clinic>("/clinic", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+/** The billing details onboarding collects. An empty string clears a field (null on the backend). */
+export type ClinicBillingPatch = Partial<
+  Record<
+    | "billingName"
+    | "billingTaxId"
+    | "billingEmail"
+    | "billingAddressLine"
+    | "billingPostalCode",
+    string
+  >
+>;
+
+/** Saves a centre's billing details during onboarding (admin session). */
+export function saveClinicBilling(clinicId: string, patch: ClinicBillingPatch) {
+  return adminProxyFetch<Clinic>(`/clinics/${encodeURIComponent(clinicId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
 export function getClinic(clinicId: string) {
   return adminProxyFetch<Clinic>(`/clinics/${encodeURIComponent(clinicId)}`);
 }
@@ -1444,6 +1585,8 @@ export interface ProvisionClinicInput {
   tierLabel?: string;
   benefitsText?: string;
   infoText?: string;
+  /** Further wallet buttons beside the main one. */
+  extraButtons?: Array<{ label: string; url: string }>;
   treatments?: TemplateTreatmentInput[];
 }
 
