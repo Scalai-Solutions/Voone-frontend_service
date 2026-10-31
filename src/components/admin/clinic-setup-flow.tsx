@@ -187,7 +187,7 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
           center.
         </p>
       </div>
-      <AutomationsPanel api={api} />
+      <AutomationsPanel api={api} openFirstByDefault />
     </div>
   );
 }
