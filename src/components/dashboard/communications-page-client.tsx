@@ -1,23 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, ChevronDown, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
+import { AutomationsPanel } from "@/features/notifications/components/automations-panel";
+import { staffSettingsApi } from "@/features/notifications/settings-api";
+import { useNotificationSettings } from "@/features/notifications/use-notification-settings";
 import {
   ApiError,
   broadcastNotification,
   getAudiences,
   getNotification,
-  getNotificationSettings,
-  saveNotificationSettings,
   sendSegmentNotification,
   type ClinicAudience,
-  type NotificationSettings,
   type NotificationStatus,
-  type NotifyOnCredit,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -32,191 +31,6 @@ const finalNotificationStatuses = new Set<NotificationStatus>([
   "FAILED",
   "CANCELLED",
 ]);
-const defaultBirthdayHeader = "¡Feliz cumpleaños!";
-const defaultBirthdayBody =
-  "¡Feliz cumpleaños! Disfruta de un 10% de descuento en nuestros servicios. Esperamos verte pronto.";
-const defaultBonoReminderHeader = "Tienes sesiones pendientes";
-const defaultBonoReminderBody =
-  "Te quedan sesiones de tu bono. Reserva tu próxima cita cuando quieras.";
-/**
- * The automatic communications a centre has — exactly the ones onboarding establishes, because the
- * wizard's messages step saves the same notification settings this panel reads. Listed in a
- * dropdown so the panel stays short.
- */
-const automationOptions = [
-  { key: "birthday", label: "Cumpleaños" },
-  { key: "visit", label: "Después de una visita" },
-  { key: "bono", label: "Recordatorio de bonos" },
-] as const;
-
-type AutomationKey = (typeof automationOptions)[number]["key"];
-
-/** An automation's status tag: green while it goes out, muted while it does not. */
-const statusTagClass = (active: boolean) =>
-  cn(
-    "shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
-    active
-      ? "border border-[#86b37e]/40 bg-[#f3fbf1] text-[#456f3f]"
-      : "border border-[#e0cfc2] bg-[#f4e9df] text-[#927e72]",
-  );
-
-/** The automation's own name, as the deactivation dialog addresses it. */
-const automationLabel = (key: AutomationKey) =>
-  automationOptions.find((option) => option.key === key)?.label ??
-  "la automatización";
-
-/**
- * One automation in the list. The collapsed row carries its name, what it does and its status
- * tag, so the whole list reads without opening anything; the header (chevron included) toggles
- * its details open.
- */
-function AutomationCard({
-  title,
-  description,
-  active,
-  expanded,
-  onToggleExpand,
-  children,
-}: {
-  title: string;
-  description: string;
-  active: boolean;
-  expanded: boolean;
-  onToggleExpand: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          aria-expanded={expanded}
-          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left"
-        >
-          <ChevronDown
-            size={16}
-            aria-hidden
-            className={cn(
-              "mt-1 h-4 w-4 shrink-0 text-[#b8864b] transition-transform",
-              expanded && "rotate-180",
-            )}
-          />
-          <span className="min-w-0">
-            <span className="block font-semibold">{title}</span>
-            <span className="mt-1 block text-sm leading-6 text-[#927e72]">
-              {description}
-            </span>
-          </span>
-        </button>
-        <span className={statusTagClass(active)}>
-          {active ? "Activa" : "Inactiva"}
-        </span>
-      </div>
-      {expanded ? <div className="mt-4">{children}</div> : null}
-    </div>
-  );
-}
-
-/**
- * The dedicated switch of one automation, in its expanded details next to the save button:
- * Desactivar opens the confirmation dialog first; Activar acts on the click, because nothing
- * stops going out because of a reactivation.
- */
-function AutomationOnOffButton({
-  active,
-  busy,
-  onTurnOff,
-  onTurnOn,
-}: {
-  active: boolean;
-  busy: boolean;
-  onTurnOff: () => void;
-  onTurnOn: () => void;
-}) {
-  return active ? (
-    <button
-      type="button"
-      onClick={onTurnOff}
-      disabled={busy}
-      className="rounded-full border border-[#d86d5e]/50 bg-[#fff7f5] px-4 py-2.5 text-sm font-semibold text-[#b94135] disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      Desactivar automatización
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={onTurnOn}
-      disabled={busy}
-      className="rounded-full bg-[#2d211e] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      Activar automatización
-    </button>
-  );
-}
-
-/**
- * The confirmation before an automation stops going out: a switch-off must be deliberate, so
- * the dedicated Desactivar button opens this dialog instead of acting on the click.
- */
-function DeactivationDialog({
-  name,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  name: string;
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#2d211e]/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="deactivation-dialog-title"
-    >
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#b94135] text-white">
-            <AlertTriangle className="h-5 w-5" />
-          </span>
-          <div>
-            <h3
-              id="deactivation-dialog-title"
-              className="font-serif text-2xl font-semibold"
-            >
-              ¿Desactivar «{name}»?
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-[#806d63]">
-              ¿Seguro que quieres desactivarla? Tus clientes dejarán de
-              recibir esta comunicación automática.
-            </p>
-          </div>
-        </div>
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-full border border-[#cdb9aa] px-4 py-2 text-sm font-semibold text-[#754b36]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            className="rounded-full bg-[#b94135] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy ? "Desactivando..." : "Sí, desactivar"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function CommunicationsPageClient() {
   const currentClinic = useCurrentClinic();
   // The centre's saved audiences (Audiencias): what the Segmento dropdown offers beyond the
@@ -240,91 +54,23 @@ export function CommunicationsPageClient() {
     "idle" | "sending" | "sent" | "error"
   >("idle");
   const [sendMessage, setSendMessage] = React.useState<string | null>(null);
-  const [, setSettings] = React.useState<NotificationSettings | null>(null);
-  const [settingsState, setSettingsState] = React.useState<
-    "idle" | "loading" | "saving" | "saved" | "error"
-  >("idle");
-  const [settingsMessage, setSettingsMessage] = React.useState<string | null>(
-    null,
-  );
-  const [birthdayHeader, setBirthdayHeader] = React.useState(
-    defaultBirthdayHeader,
-  );
-  const [birthdayBody, setBirthdayBody] = React.useState(defaultBirthdayBody);
-  const [birthdayEnabled, setBirthdayEnabled] = React.useState(true);
-  const [birthdayNotify, setBirthdayNotify] = React.useState(true);
-  const [bonoReminderHeader, setBonoReminderHeader] = React.useState(
-    defaultBonoReminderHeader,
-  );
-  const [bonoReminderBody, setBonoReminderBody] = React.useState(
-    defaultBonoReminderBody,
-  );
-  const [bonoReminderEnabled, setBonoReminderEnabled] = React.useState(true);
-  const [bonoReminderNotify, setBonoReminderNotify] = React.useState(true);
-  const [notifyOnCredit, setNotifyOnCredit] =
-    React.useState<NotifyOnCredit>("MILESTONE_AND_TIER");
-  const [marketingEnabled, setMarketingEnabled] = React.useState(true);
-  /** Which automation's details are expanded; null collapses the whole list. */
-  const [expandedAutomation, setExpandedAutomation] =
-    React.useState<AutomationKey | null>("birthday");
-  /** The automation waiting on the deactivation dialog before it is saved off. */
-  const [pendingOff, setPendingOff] = React.useState<AutomationKey | null>(
-    null,
-  );
-  /** Whether a turn on/off is being saved; the automation switches wait while one is. */
-  const [togglingAutomation, setTogglingAutomation] = React.useState(false);
   const maxLength = 180;
   // No message quota is shown anywhere: the plan does not limit how many messages a centre
   // sends, only how many it has actually sent this month.
-  const manualSentThisMonth = currentClinic.data?.notificationsUsedThisMonth ?? 0;
-  // Whether each automation really goes out: its own switch (birthday, bonos) or the push
-  // decision (visits). These drive the tag on every list row and the counts above them.
-  const birthdayAutomationActive = birthdayEnabled;
-  const visitAutomationActive = notifyOnCredit !== "NEVER";
-  const bonoAutomationActive = bonoReminderEnabled;
-  const activeAutomationsCount = [
-    birthdayAutomationActive,
-    visitAutomationActive,
-    bonoAutomationActive,
-  ].filter(Boolean).length;
-
-  React.useEffect(() => {
-    if (!currentClinic.data) return;
-
-    let cancelled = false;
-
-    void getNotificationSettings(currentClinic.data.id)
-      .then((value) => {
-        if (cancelled) return;
-        setSettings(value);
-        setBirthdayHeader(value.birthdayHeader || defaultBirthdayHeader);
-        setBirthdayBody(value.birthdayBody || defaultBirthdayBody);
-        setBirthdayEnabled(value.birthdayEnabled);
-        setBirthdayNotify(value.birthdayNotify);
-        setBonoReminderHeader(
-          value.bonoReminderHeader || defaultBonoReminderHeader,
-        );
-        setBonoReminderBody(value.bonoReminderBody || defaultBonoReminderBody);
-        setBonoReminderEnabled(value.bonoReminderEnabled);
-        setBonoReminderNotify(value.bonoReminderNotify);
-        setNotifyOnCredit(value.notifyOnCredit);
-        setMarketingEnabled(value.marketingEnabled);
-        setSettingsState("idle");
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setSettingsState("error");
-        setSettingsMessage(
-          error instanceof ApiError && error.detail
-            ? error.detail
-            : "No se pudieron cargar las automatizaciones.",
-        );
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentClinic.data]);
+  const manualSentThisMonth =
+    currentClinic.data?.notificationsUsedThisMonth ?? 0;
+  // The same settings the panel edits (one cache entry), for the count on the tab.
+  const settingsApi = React.useMemo(
+    () => staffSettingsApi(currentClinic.data?.id ?? ""),
+    [currentClinic.data?.id],
+  );
+  const automationSettings = useNotificationSettings(settingsApi, {
+    enabled: Boolean(currentClinic.data?.id),
+  }).settings.data;
+  const activeAutomationsCount = automationSettings
+    ? Object.values(automationSettings.automations).filter((a) => a.enabled)
+        .length
+    : null;
 
   const selectedSchedule = () => {
     if (sendWhen === "now") return undefined;
@@ -346,128 +92,6 @@ export function CommunicationsPageClient() {
     }
 
     return "QUEUED" as NotificationStatus;
-  };
-
-  const saveAutomationSettings = async (
-    message: string,
-    patch: Partial<NotificationSettings>,
-  ) => {
-    if (!currentClinic.data) {
-      setSettingsState("error");
-      setSettingsMessage("No se pudo resolver la clínica actual.");
-      return;
-    }
-
-    const next: NotificationSettings = {
-      notifyOnCredit,
-      marketingEnabled,
-      birthdayEnabled,
-      birthdayHeader: birthdayHeader.trim(),
-      birthdayBody: birthdayBody.trim(),
-      birthdayNotify,
-      bonoReminderEnabled,
-      bonoReminderHeader: bonoReminderHeader.trim(),
-      bonoReminderBody: bonoReminderBody.trim(),
-      bonoReminderNotify,
-      ...patch,
-    };
-
-    setSettingsState("saving");
-    setSettingsMessage(null);
-
-    try {
-      const saved = await saveNotificationSettings(currentClinic.data.id, next);
-
-      setSettings(saved);
-      setNotifyOnCredit(saved.notifyOnCredit);
-      setMarketingEnabled(saved.marketingEnabled);
-      setBirthdayEnabled(saved.birthdayEnabled);
-      setBirthdayHeader(saved.birthdayHeader || defaultBirthdayHeader);
-      setBirthdayBody(saved.birthdayBody || defaultBirthdayBody);
-      setBirthdayNotify(saved.birthdayNotify);
-      setBonoReminderHeader(
-        saved.bonoReminderHeader || defaultBonoReminderHeader,
-      );
-      setBonoReminderBody(saved.bonoReminderBody || defaultBonoReminderBody);
-      setBonoReminderEnabled(saved.bonoReminderEnabled);
-      setBonoReminderNotify(saved.bonoReminderNotify);
-      setSettingsState("saved");
-      setSettingsMessage(message);
-    } catch (error) {
-      setSettingsState("error");
-      setSettingsMessage(
-        error instanceof ApiError && error.detail
-          ? error.detail
-          : "No se pudieron guardar las automatizaciones.",
-      );
-    }
-  };
-
-  /**
-   * Saves the birthday automation. `nextEnabled` is the dedicated Desactivar/Activar button,
-   * which saves straight away rather than flipping a checkbox that still needed Guardar.
-   */
-  const saveBirthdayAutomation = async (nextEnabled?: boolean) => {
-    await saveAutomationSettings("Automatización de cumpleaños guardada.", {
-      birthdayEnabled: nextEnabled ?? birthdayEnabled,
-      birthdayHeader: birthdayHeader.trim(),
-      birthdayBody: birthdayBody.trim(),
-      birthdayNotify,
-    });
-  };
-
-  /** Same, for the after-visit automation: `nextNotify` is NEVER to switch off, or the on default. */
-  const saveVisitAutomation = async (nextNotify?: NotifyOnCredit) => {
-    await saveAutomationSettings("Automatización después de visita guardada.", {
-      notifyOnCredit: nextNotify ?? notifyOnCredit,
-      marketingEnabled,
-    });
-  };
-
-  /** Same, for the monthly bono reminder. */
-  const saveBonoReminderAutomation = async (nextEnabled?: boolean) => {
-    await saveAutomationSettings("Automatización de bonos guardada.", {
-      bonoReminderEnabled: nextEnabled ?? bonoReminderEnabled,
-      bonoReminderHeader: bonoReminderHeader.trim(),
-      bonoReminderBody: bonoReminderBody.trim(),
-      bonoReminderNotify,
-    });
-  };
-
-  /** Turns an automation back on. No confirmation: nothing stops going out because of it. */
-  const turnAutomationOn = async (key: AutomationKey) => {
-    if (settingsState === "saving" || togglingAutomation) return;
-
-    setTogglingAutomation(true);
-    try {
-      if (key === "birthday") await saveBirthdayAutomation(true);
-      if (key === "visit") await saveVisitAutomation("MILESTONE_AND_TIER");
-      if (key === "bono") await saveBonoReminderAutomation(true);
-    } finally {
-      setTogglingAutomation(false);
-    }
-  };
-
-  /**
-   * The dialog's Sí, desactivar: the automation is saved off, the confirmation already made.
-   * The birthday one switches off its own flag, the visit one falls to NEVER, the bono one its
-   * own — the same three switches the tags read.
-   */
-  const confirmTurnOff = async () => {
-    if (settingsState === "saving" || togglingAutomation) return;
-
-    const key = pendingOff;
-    if (!key) return;
-
-    setTogglingAutomation(true);
-    try {
-      if (key === "birthday") await saveBirthdayAutomation(false);
-      if (key === "visit") await saveVisitAutomation("NEVER");
-      if (key === "bono") await saveBonoReminderAutomation(false);
-    } finally {
-      setTogglingAutomation(false);
-      setPendingOff(null);
-    }
   };
 
   const sendCommunication = async () => {
@@ -516,7 +140,9 @@ export function CommunicationsPageClient() {
             : savedAudiences.find((row) => row.id === audience)?.criteria;
 
         if (!criteria) {
-          throw new Error("Ese segmento ya no existe. Elige otro y vuelve a enviar.");
+          throw new Error(
+            "Ese segmento ya no existe. Elige otro y vuelve a enviar.",
+          );
         }
 
         response = await sendSegmentNotification(
@@ -600,14 +226,17 @@ export function CommunicationsPageClient() {
             Automatizaciones activas
           </p>
           <p className="mt-3 font-serif text-4xl font-semibold">
-            {currentClinic.isLoading ? "..." : activeAutomationsCount}
+            {activeAutomationsCount ?? "..."}
             <span className="font-sans text-sm font-normal text-[#927e72]">
               {" "}
-              de {automationOptions.length}
+              de{" "}
+              {automationSettings
+                ? Object.keys(automationSettings.automations).length
+                : "…"}
             </span>
           </p>
           <p className="mt-2 text-sm text-[#927e72]">
-            Las mismas que guardaste durante el alta
+            Las mismas que configuraste durante el alta
           </p>
         </div>
       </div>
@@ -623,20 +252,6 @@ export function CommunicationsPageClient() {
           role="status"
         >
           {sendMessage}
-        </div>
-      ) : null}
-
-      {settingsMessage ? (
-        <div
-          className={cn(
-            "mt-4 max-w-[940px] rounded-2xl px-4 py-3 text-sm font-semibold",
-            settingsState === "error"
-              ? "border border-[#d86d5e]/40 bg-[#fff7f5] text-[#8f3f35]"
-              : "border border-[#86b37e]/40 bg-[#f3fbf1] text-[#456f3f]",
-          )}
-          role="status"
-        >
-          {settingsMessage}
         </div>
       ) : null}
 
@@ -663,13 +278,13 @@ export function CommunicationsPageClient() {
         >
           Automáticos{" "}
           <span className="ml-1 text-xs opacity-70">
-            {activeAutomationsCount} activas
+            {activeAutomationsCount ?? "…"} activas
           </span>
         </button>
       </div>
 
-      <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
+      <div className="mt-4 flex flex-col lg:flex-row">
+        <div className="min-w-0 flex-1 rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">
@@ -686,271 +301,86 @@ export function CommunicationsPageClient() {
             <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">
               {noticeTab === "manuales"
                 ? "Sin límite de envíos"
-                : `${automationOptions.length} automatizaciones`}
+                : "Se envían solas"}
             </span>
           </div>
 
-          {noticeTab === "manuales" ? (
-            <>
-              <label className="mt-5 block text-sm font-semibold">
-                Título del mensaje
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  maxLength={60}
-                  placeholder="Título del mensaje"
-                  className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
-                />
-                <span className="mt-1 block text-xs font-normal text-[#927e72]">
-                  Se muestra como título en Google Wallet y como primera parte
-                  del aviso en Apple Wallet.
-                </span>
-              </label>
-              <label className="mt-4 block text-sm font-semibold">
-                Texto del mensaje
-                <textarea
-                  value={body}
-                  onChange={(event) =>
-                    setBody(event.target.value.slice(0, maxLength))
-                  }
-                  rows={4}
-                  placeholder="Escribe el contenido del mensaje"
-                  className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
-                />
-                <span className="mt-1 block text-right text-xs text-[#927e72]">
-                  {body.length}/{maxLength}
-                </span>
-              </label>
-              <button
-                onClick={() => setComposeOpen(true)}
-                className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Configurar envío
-              </button>
-            </>
-          ) : (
-            <div className="mt-5 space-y-4">
-              <p className="text-sm leading-6 text-[#927e72]">
-                Las mismas automatizaciones que guardaste durante el alta:
-                ábrelas para editarlas, o desactívalas.
-              </p>
-
-              <AutomationCard
-                title="Cumpleaños"
-                description="Se envía cada día a las 9:00 en España a clientes con cumpleaños y pase Wallet activo."
-                active={birthdayAutomationActive}
-                expanded={expandedAutomation === "birthday"}
-                onToggleExpand={() =>
-                  setExpandedAutomation((current) =>
-                    current === "birthday" ? null : "birthday",
-                  )
-                }
-              >
-
-                <label className="mt-4 block text-sm font-semibold">
-                  Título
+          <div
+            key={noticeTab}
+            className="content-in"
+          >
+            {noticeTab === "manuales" ? (
+              <>
+                <label className="mt-5 block text-sm font-semibold">
+                  Título del mensaje
                   <input
-                    value={birthdayHeader}
-                    onChange={(event) =>
-                      setBirthdayHeader(event.target.value.slice(0, 60))
-                    }
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
                     maxLength={60}
+                    placeholder="Título del mensaje"
                     className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
                   />
+                  <span className="mt-1 block text-xs font-normal text-[#927e72]">
+                    Se muestra como título en Google Wallet y como primera parte
+                    del aviso en Apple Wallet.
+                  </span>
                 </label>
                 <label className="mt-4 block text-sm font-semibold">
-                  Mensaje de cumpleaños
+                  Texto del mensaje
                   <textarea
-                    value={birthdayBody}
+                    value={body}
                     onChange={(event) =>
-                      setBirthdayBody(event.target.value.slice(0, 500))
+                      setBody(event.target.value.slice(0, maxLength))
                     }
                     rows={4}
+                    placeholder="Escribe el contenido del mensaje"
                     className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
                   />
                   <span className="mt-1 block text-right text-xs text-[#927e72]">
-                    {birthdayBody.length}/500
+                    {body.length}/{maxLength}
                   </span>
                 </label>
-                <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#806d63]">
-                  <input
-                    type="checkbox"
-                    checked={birthdayNotify}
-                    onChange={(event) =>
-                      setBirthdayNotify(event.target.checked)
-                    }
-                    className="h-4 w-4 accent-[#b8864b]"
-                  />
-                  Enviar como notificación push si el Wallet lo permite
-                </label>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    onClick={() => void saveBirthdayAutomation()}
-                    disabled={
-                      settingsState === "saving" ||
-                      !birthdayHeader.trim() ||
-                      !birthdayBody.trim()
-                    }
-                    className="rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {settingsState === "saving"
-                      ? "Guardando..."
-                      : "Guardar cumpleaños"}
-                  </button>
-                  <AutomationOnOffButton
-                    active={birthdayAutomationActive}
-                    busy={settingsState === "saving" || togglingAutomation}
-                    onTurnOff={() => setPendingOff("birthday")}
-                    onTurnOn={() => void turnAutomationOn("birthday")}
-                  />
-                </div>
-              </AutomationCard>
-
-              <AutomationCard
-                title="Después de una visita"
-                description="Actualiza el pase cuando se registran puntos y decide cuándo enviar push."
-                active={visitAutomationActive}
-                expanded={expandedAutomation === "visit"}
-                onToggleExpand={() =>
-                  setExpandedAutomation((current) =>
-                    current === "visit" ? null : "visit",
-                  )
-                }
-              >
-                <label className="flex items-center gap-2 text-xs font-semibold text-[#806d63]">
-                  <input
-                    type="checkbox"
-                    checked={marketingEnabled}
-                    onChange={(event) =>
-                      setMarketingEnabled(event.target.checked)
-                    }
-                    className="h-4 w-4 accent-[#b8864b]"
-                  />
-                  Marketing activo (también abre o cierra los mensajes
-                  manuales)
-                </label>
-                <label className="mt-4 block text-sm font-semibold">
-                  Notificación push
-                  <select
-                    value={notifyOnCredit}
-                    onChange={(event) => {
-                      const next = event.target.value as NotifyOnCredit;
-
-                      // Choosing "Nunca" is the same turn-off as the dedicated button, so it
-                      // opens the confirmation dialog too.
-                      if (next === "NEVER" && visitAutomationActive) {
-                        setPendingOff("visit");
-                        return;
-                      }
-
-                      setNotifyOnCredit(next);
-                    }}
-                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
-                  >
-                    <option value="NEVER">Nunca, solo actualizar puntos</option>
-                    <option value="MILESTONE_AND_TIER">
-                      Solo hitos y cambios de nivel
-                    </option>
-                    <option value="ALWAYS">Después de cada visita</option>
-                  </select>
-                </label>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    onClick={() => void saveVisitAutomation()}
-                    disabled={settingsState === "saving"}
-                    className="rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {settingsState === "saving"
-                      ? "Guardando..."
-                      : "Guardar después de visita"}
-                  </button>
-                  <AutomationOnOffButton
-                    active={visitAutomationActive}
-                    busy={settingsState === "saving" || togglingAutomation}
-                    onTurnOff={() => setPendingOff("visit")}
-                    onTurnOn={() => void turnAutomationOn("visit")}
-                  />
-                </div>
-              </AutomationCard>
-
-              <AutomationCard
-                title="Recordatorio de bonos"
-                description="Se envía el día 1 de cada mes a clientes con un bono activo y pase Wallet sincronizado."
-                active={bonoAutomationActive}
-                expanded={expandedAutomation === "bono"}
-                onToggleExpand={() =>
-                  setExpandedAutomation((current) =>
-                    current === "bono" ? null : "bono",
-                  )
-                }
-              >
-
-                <label className="mt-4 block text-sm font-semibold">
-                  Título
-                  <input
-                    value={bonoReminderHeader}
-                    onChange={(event) =>
-                      setBonoReminderHeader(event.target.value.slice(0, 60))
-                    }
-                    maxLength={60}
-                    className="mt-2 w-full rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
-                  />
-                </label>
-                <label className="mt-4 block text-sm font-semibold">
-                  Mensaje de recordatorio
-                  <textarea
-                    value={bonoReminderBody}
-                    onChange={(event) =>
-                      setBonoReminderBody(event.target.value.slice(0, 500))
-                    }
-                    rows={4}
-                    className="mt-2 w-full resize-none rounded-xl border border-[#ded1c8] bg-white px-3 py-3 font-normal outline-none focus:border-[#b8864b]"
-                  />
-                  <span className="mt-1 block text-right text-xs text-[#927e72]">
-                    {bonoReminderBody.length}/500
-                  </span>
-                </label>
-                <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#806d63]">
-                  <input
-                    type="checkbox"
-                    checked={bonoReminderNotify}
-                    onChange={(event) =>
-                      setBonoReminderNotify(event.target.checked)
-                    }
-                    className="h-4 w-4 accent-[#b8864b]"
-                  />
-                  Enviar como notificación push si el Wallet lo permite
-                </label>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    onClick={() => void saveBonoReminderAutomation()}
-                    disabled={
-                      settingsState === "saving" ||
-                      !bonoReminderHeader.trim() ||
-                      !bonoReminderBody.trim()
-                    }
-                    className="rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {settingsState === "saving"
-                      ? "Guardando..."
-                      : "Guardar recordatorio de bonos"}
-                  </button>
-                  <AutomationOnOffButton
-                    active={bonoAutomationActive}
-                    busy={settingsState === "saving" || togglingAutomation}
-                    onTurnOff={() => setPendingOff("bono")}
-                    onTurnOn={() => void turnAutomationOn("bono")}
-                  />
-                </div>
-              </AutomationCard>
-            </div>
-          )}
+                <button
+                  onClick={() => setComposeOpen(true)}
+                  className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  Configurar envío
+                </button>
+              </>
+            ) : currentClinic.data ? (
+              <div className="mt-5">
+                <p className="mb-4 text-sm leading-6 text-[#927e72]">
+                  Mensajes que se envían solos. Edita el texto, añade datos del
+                  cliente con los botones y comprueba cómo se verá en el iPhone
+                  antes de guardar.
+                </p>
+                <AutomationsPanel
+                  api={settingsApi}
+                  clinicName={currentClinic.data.name}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
-        <Preview
-          title={title}
-          body={body}
-          clinicName={currentClinic.data?.name}
-        />
+        {/* The preview slides away on the automatic tab so the panel can take the full width. */}
+        <div
+          inert={noticeTab !== "manuales"}
+          aria-hidden={noticeTab !== "manuales"}
+          className={cn(
+            "overflow-hidden transition-[max-height,width,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:max-h-none lg:shrink-0",
+            noticeTab === "manuales"
+              ? "max-h-[1400px] opacity-100 lg:w-[380px]"
+              : "max-h-0 opacity-0 lg:w-0",
+          )}
+        >
+          <div className="pt-5 lg:w-[380px] lg:pl-5 lg:pt-0">
+            <Preview
+              title={title}
+              body={body}
+              clinicName={currentClinic.data?.name}
+            />
+          </div>
+        </div>
       </div>
 
       {composeOpen ? (
@@ -1083,15 +513,6 @@ export function CommunicationsPageClient() {
             />
           </div>
         </div>
-      ) : null}
-
-      {pendingOff ? (
-        <DeactivationDialog
-          name={automationLabel(pendingOff)}
-          busy={settingsState === "saving" || togglingAutomation}
-          onConfirm={() => void confirmTurnOff()}
-          onCancel={() => setPendingOff(null)}
-        />
       ) : null}
     </section>
   );

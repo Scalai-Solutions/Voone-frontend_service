@@ -3,17 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Plus, X } from "lucide-react";
 
 import { ENGLISH_UPLOAD_LABELS, ImageUploadButton } from "@/components/shared/image-upload-button";
+import { GoogleWalletCardPreview } from "@/components/shared/google-wallet-card-preview";
 import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
-import { CharCounter } from "@/components/shared/char-counter";
 import { toPoints } from "@/lib/points";
-import { WALLET_TEXT_MAX, clampChars, countChars } from "@/lib/wallet-text";
 import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
   DEFAULT_WALLET_BACKGROUND_COLOR,
@@ -25,6 +23,9 @@ import {
 } from "@/lib/default-wallet-template";
 
 const steps = ["Owner", "Center", "Pass"];
+
+/** Mirrors the backend limit on further wallet buttons. */
+const EXTRA_BUTTONS_MAX = 5;
 
 /** One URL and nothing else. Anything pasted alongside it (a caption, a second link) is refused. */
 const isSingleUrl = (value: string): boolean => {
@@ -68,13 +69,14 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
       ["Logo for dark background", values.logoOnDark],
       ["Hero image URL", values.heroImageUrl],
       ["Button URL", values.appointmentUrl],
+      ...values.extraButtons.map((button, index): [string, string] => [`Extra button ${index + 1} URL`, button.url]),
     ];
     const bad = fields.find(([, value]) => !isSingleUrl(value));
 
     if (bad) return `${bad[0]} must be a single web address, with no extra text or spaces.`;
   }
-  if (step === 2 && (countChars(values.benefitsText) > WALLET_TEXT_MAX || countChars(values.infoText) > WALLET_TEXT_MAX)) {
-    return `Member benefits and pass information are limited to ${WALLET_TEXT_MAX} characters each.`;
+  if (step === 2 && values.extraButtons.some((button) => !button.label.trim() || !button.url.trim())) {
+    return "Give every extra button a text and a web address, or remove it.";
   }
 
   return null;
@@ -114,6 +116,8 @@ type OnboardingValues = {
   tierLabel: string;
   benefitsText: string;
   infoText: string;
+  /** Further wallet buttons beside the main one. */
+  extraButtons: Array<{ label: string; url: string }>;
 };
 
 const initialValues: OnboardingValues = {
@@ -146,6 +150,7 @@ const initialValues: OnboardingValues = {
   tierLabel: DEFAULT_WALLET_TIER_LABEL,
   benefitsText: "",
   infoText: "",
+  extraButtons: [],
 };
 
 type OnboardingTemplateOption = Pick<VooneTemplate, "id" | "presetId" | "preset" | "name" | "description" | "programName" | "hexBackgroundColor" | "logoUrl" | "heroImageUrl" | "pointsLabel" | "tierLabel" | "benefitsText" | "infoText" | "buttons">;
@@ -199,6 +204,14 @@ const treatmentsPayload = (values: OnboardingValues) => {
   return treatments;
 };
 
+/** The values after choosing a design: its id, preset and background colour. */
+const withTemplate = (current: OnboardingValues, template: OnboardingTemplateOption): OnboardingValues => ({
+  ...current,
+  vooneTemplateId: template.id,
+  presetId: template.presetId ?? template.preset?.id ?? current.presetId,
+  colors: [template.hexBackgroundColor, current.colors[1], current.colors[2]],
+});
+
 export function OnboardingWizard({ presets, templates }: { presets: TemplatePreset[]; templates: VooneTemplate[] }) {
   const router = useRouter();
   const templateOptions = templateOptionsFor(presets, templates);
@@ -207,6 +220,12 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
     ...initialValues,
     presetId: presets[0]?.id ?? "",
   }));
+
+  // Design 1 is selected until the user picks another, so the card editor is open on arrival.
+  // Adjusted during render (not in an effect) so there is never a frame without a selection.
+  if (!values.vooneTemplateId && templateOptions[0]) {
+    setValues(withTemplate(values, templateOptions[0]));
+  }
   const [status, setStatus] = React.useState<string | null>(null);
   const [setupLinkCopied, setSetupLinkCopied] = React.useState(false);
   const selectedTemplate = templateOptions.find((template) => template.id === values.vooneTemplateId);
@@ -218,8 +237,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
         values.heroImageUrl.trim().length > 0 ||
         values.appointmentUrl.trim().length > 0 ||
         values.appLinkText.trim().length > 0 ||
-        values.benefitsText.trim().length > 0 ||
-        values.infoText.trim().length > 0),
+        values.extraButtons.length > 0),
   );
   const provisionMutation = useProvisionClinic({
     onSuccess: (provisionedClinic) => {
@@ -241,14 +259,10 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   }
 
   function selectTemplate(template: OnboardingTemplateOption) {
-    setValues((current) => ({
-      ...current,
-      vooneTemplateId: template.id,
-      presetId: template.presetId ?? template.preset?.id ?? current.presetId,
-      colors: [template.hexBackgroundColor, current.colors[1], current.colors[2]],
-    }));
+    setValues((current) => withTemplate(current, template));
     setStatus(null);
   }
+
 
   function next() {
     const reason = blockedReason(step, values);
@@ -290,6 +304,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       tierLabel: DEFAULT_WALLET_TIER_LABEL,
       benefitsText: values.benefitsText,
       infoText: values.infoText,
+      extraButtons: values.extraButtons.map((button) => ({ label: button.label.trim(), url: button.url.trim() })),
       treatments: treatmentsPayload(values),
     });
   }
@@ -423,14 +438,38 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                   <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Ver beneficios" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
                 <WizardField label="Button URL">
-                  <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/benefits" className="rounded-xl bg-[#fffaf6]" />
+                  <div className="flex items-center gap-2">
+                    <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/benefits" className="min-w-0 flex-1 rounded-xl bg-[#fffaf6]" />
+                    <button
+                      type="button"
+                      onClick={() => update("extraButtons", [...values.extraButtons, { label: "", url: "" }])}
+                      disabled={values.extraButtons.length >= EXTRA_BUTTONS_MAX}
+                      aria-label="Add another wallet button"
+                      title={values.extraButtons.length >= EXTRA_BUTTONS_MAX ? `Up to ${EXTRA_BUTTONS_MAX} extra buttons` : "Add another wallet button"}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#cdb9aa] bg-white text-[#704f40] transition hover:bg-[#f4e9df] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </WizardField>
-                <WizardField label="Member benefits" className="sm:col-span-2" action={<CharCounter text={values.benefitsText} />}>
-                  <Textarea value={values.benefitsText} onChange={(event) => update("benefitsText", clampChars(event.target.value))} className="min-h-20 rounded-xl bg-[#fffaf6]" />
-                </WizardField>
-                <WizardField label="Pass information" className="sm:col-span-2" action={<CharCounter text={values.infoText} />}>
-                  <Textarea value={values.infoText} onChange={(event) => update("infoText", clampChars(event.target.value))} className="min-h-20 rounded-xl bg-[#fffaf6]" />
-                </WizardField>
+                {values.extraButtons.map((button, index) => (
+                  <div key={index} className="grid gap-2 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3 sm:col-span-2 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+                    <WizardField label={`Button ${index + 2} text`}>
+                      <Input value={button.label} maxLength={30} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)))} placeholder="Reservar cita" className="rounded-xl bg-white" />
+                    </WizardField>
+                    <WizardField label={`Button ${index + 2} URL`}>
+                      <Input value={button.url} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} placeholder="https://clinic.com/book" className="rounded-xl bg-white" />
+                    </WizardField>
+                    <button
+                      type="button"
+                      onClick={() => update("extraButtons", values.extraButtons.filter((_, i) => i !== index))}
+                      aria-label={`Remove button ${index + 2}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e8b9b1] bg-white text-[#b94135] transition hover:bg-[#fff3f1]"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </form>
 
@@ -440,8 +479,8 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
               logoUrl={values.logo}
               programName={values.programName}
               heroImageUrl={values.heroImageUrl}
-              benefitsText={values.benefitsText}
-              infoText={values.infoText}
+              buttonText={values.appLinkText}
+              extraButtons={values.extraButtons}
             />
           </div>
         ) : null}
@@ -452,16 +491,38 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
   );
 }
 
-function CardPreviewPanel({ centerName, color, logoUrl, programName, heroImageUrl, benefitsText, infoText }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; benefitsText: string; infoText: string }) {
+function CardPreviewPanel({ centerName, color, logoUrl, programName, heroImageUrl, buttonText, extraButtons }: { centerName: string; color: string; logoUrl: string; programName: string; heroImageUrl: string; buttonText: string; extraButtons: Array<{ label: string }> }) {
+  const [wallet, setWallet] = React.useState<"apple" | "google">("apple");
+  const options = [
+    { id: "apple", label: "Apple Wallet" },
+    { id: "google", label: "Google Wallet" },
+  ] as const;
+
   return (
     <aside className="rounded-[22px] border border-[#ded2cb] bg-[#fffaf6] p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
-      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Live preview</p>
-      <div className="mt-4 flex justify-center">
-        <WalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Live preview</p>
+        <div role="tablist" aria-label="Wallet preview" className="flex rounded-full bg-[#efe5dc] p-0.5 text-xs font-semibold">
+          {options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="tab"
+              aria-selected={wallet === option.id}
+              onClick={() => setWallet(option.id)}
+              className={`rounded-full px-3 py-1.5 transition ${wallet === option.id ? "bg-[#201715] text-white shadow-sm" : "text-[#806d63] hover:text-[#201715]"}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="mt-4 space-y-2 text-xs text-[#806d63]">
-        <p><span className="font-semibold text-[#2e2421]">Benefits:</span> {benefitsText || "Member benefits appear in pass details."}</p>
-        <p><span className="font-semibold text-[#2e2421]">Info:</span> {infoText || "Pass information appears in pass details."}</p>
+      <div className="mt-4 flex justify-center">
+        {wallet === "apple" ? (
+          <WalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} />
+        ) : (
+          <GoogleWalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} buttonText={buttonText} extraButtons={extraButtons} />
+        )}
       </div>
     </aside>
   );

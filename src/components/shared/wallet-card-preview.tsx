@@ -30,7 +30,7 @@ type Props = {
   className?: string;
 };
 
-function relativeLuminance(hex: string) {
+export function relativeLuminance(hex: string) {
   const value = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : "30221f";
   const [r, g, b] = [0, 2, 4].map((offset) => parseInt(value.slice(offset, offset + 2), 16) / 255);
 

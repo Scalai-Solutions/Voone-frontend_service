@@ -328,7 +328,9 @@ export type NotificationType =
   | "POINTS"
   | "TIER"
   | "BIRTHDAY"
-  | "BONO_REMINDER";
+  | "BONO_REMINDER"
+  | "REVIEW_REQUEST"
+  | "REFERRAL_PROMO";
 export type NotificationStatus =
   "QUEUED" | "PROCESSING" | "SENT" | "PARTIAL_FAILED" | "FAILED" | "CANCELLED";
 export type NotificationDeliveryStatus =
@@ -442,18 +444,50 @@ export interface NotificationQuotaResponse {
   resetsAt: string | null;
 }
 
+/** The automated messages. Mirrors the backend catalog (modules/notifications/automations). */
+export type AutomationEvent =
+  | "BIRTHDAY"
+  | "BONO_INACTIVE"
+  | "REVIEW_REQUEST"
+  | "REFERRAL_PROMO"
+  | "TIER_UPGRADE";
+
+/** A clinic's own value an automation needs before it can be switched on. */
+export type ClinicVariableKey = "googleReviewUrl" | "referralRewardText";
+
+export interface AutomationSetting {
+  enabled: boolean;
+  header: string;
+  body: string;
+  /** true = a real push, false = a silent card message. */
+  notify: boolean;
+}
+
+export interface AutomationCatalogEntry {
+  event: AutomationEvent;
+  label: string;
+  description: string;
+  /** The {variables} the copy may use. */
+  variables: string[];
+  marketing: boolean;
+  requires?: ClinicVariableKey;
+  defaults: AutomationSetting;
+}
+
 export interface NotificationSettings {
   notifyOnCredit: NotifyOnCredit;
   marketingEnabled: boolean;
-  birthdayEnabled: boolean;
-  birthdayHeader: string;
-  birthdayBody: string;
-  birthdayNotify: boolean;
-  bonoReminderEnabled: boolean;
-  bonoReminderHeader: string;
-  bonoReminderBody: string;
-  bonoReminderNotify: boolean;
+  googleReviewUrl: string | null;
+  referralRewardText: string | null;
+  automations: Record<AutomationEvent, AutomationSetting>;
 }
+
+/** Only what changed: a screen that does not know a field can never overwrite it. */
+export type NotificationSettingsPatch = Partial<
+  Omit<NotificationSettings, "automations">
+> & {
+  automations?: Partial<Record<AutomationEvent, Partial<AutomationSetting>>>;
+};
 
 export interface ClinicGeoLocation {
   id?: string;
@@ -943,14 +977,21 @@ export function getNotificationSettings(clinicId: string) {
   );
 }
 
-export function saveNotificationSettings(
+export function patchNotificationSettings(
   clinicId: string,
-  input: NotificationSettings,
+  patch: NotificationSettingsPatch,
 ) {
   return staffProxyFetch<NotificationSettings>(
     `/clinics/${encodeURIComponent(clinicId)}/notification-settings`,
-    { method: "PUT", body: JSON.stringify(input) },
+    { method: "PATCH", body: JSON.stringify(patch) },
   );
+}
+
+export function getAutomationCatalog() {
+  return staffProxyFetch<{ automations: AutomationCatalogEntry[] }>(
+    "/notification-automations/catalog",
+    { method: "GET" },
+  ).then((response) => response.automations);
 }
 
 export function getClinicGeoLocations(clinicId: string) {
@@ -1268,7 +1309,30 @@ export interface ClinicInfoPatch {
  * browser cannot edit another clinic and never sees a setup link.
  */
 export function saveCurrentClinicInfo(patch: ClinicInfoPatch) {
-  return staffProxyFetch<Clinic>("/clinic", { method: "PATCH", body: JSON.stringify(patch) });
+  return staffProxyFetch<Clinic>("/clinic", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+/** The billing details onboarding collects. An empty string clears a field (null on the backend). */
+export type ClinicBillingPatch = Partial<
+  Record<
+    | "billingName"
+    | "billingTaxId"
+    | "billingEmail"
+    | "billingAddressLine"
+    | "billingPostalCode",
+    string
+  >
+>;
+
+/** Saves a centre's billing details during onboarding (admin session). */
+export function saveClinicBilling(clinicId: string, patch: ClinicBillingPatch) {
+  return adminProxyFetch<Clinic>(`/clinics/${encodeURIComponent(clinicId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 }
 
 export function getClinic(clinicId: string) {
@@ -1521,6 +1585,8 @@ export interface ProvisionClinicInput {
   tierLabel?: string;
   benefitsText?: string;
   infoText?: string;
+  /** Further wallet buttons beside the main one. */
+  extraButtons?: Array<{ label: string; url: string }>;
   treatments?: TemplateTreatmentInput[];
 }
 
