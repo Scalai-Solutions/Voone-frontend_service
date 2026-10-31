@@ -15,6 +15,13 @@ export const queryKeys = {
   memberBonos: (memberId: string) => ["member-bonos", memberId] as const,
   treatmentCatalogue: () => ["treatment-catalogue"] as const,
   treatmentCategories: () => ["treatment-categories"] as const,
+  changeRequests: {
+    all: () => ["change-requests"] as const,
+    list: (status: string | null) =>
+      ["change-requests", "list", status] as const,
+    detail: (id: string) => ["change-requests", "detail", id] as const,
+    openCount: () => ["change-requests", "open-count"] as const,
+  },
   templates: () => ["templates"] as const,
   templateRefreshStatus: () => ["template-refresh-status"] as const,
   vooneTemplates: () => ["voone-templates"] as const,
