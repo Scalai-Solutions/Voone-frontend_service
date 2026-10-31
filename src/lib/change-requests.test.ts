@@ -12,6 +12,7 @@ import {
   actionNeedsNote,
   actionTarget,
   statusActions,
+  unresolvedCount,
   TYPE_LABEL,
 } from "./change-requests.ts";
 
@@ -81,5 +82,23 @@ describe("change request helpers", () => {
     assert.equal(actionNeedsNote("reject"), true);
     for (const a of ["start", "back_to_open", "reopen"] as const)
       assert.equal(actionNeedsNote(a), false, a);
+  });
+
+  it("unresolvedCount adds the pages and flags a lower bound", () => {
+    assert.deepEqual(
+      unresolvedCount([
+        { items: [1, 2], nextCursor: null },
+        { items: [3], nextCursor: null },
+      ]),
+      { count: 3, more: false },
+    );
+    assert.deepEqual(
+      unresolvedCount([
+        { items: [1, 2], nextCursor: "c" },
+        { items: [], nextCursor: null },
+      ]),
+      { count: 2, more: true },
+    );
+    assert.deepEqual(unresolvedCount([]), { count: 0, more: false });
   });
 });

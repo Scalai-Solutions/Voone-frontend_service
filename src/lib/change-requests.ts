@@ -224,3 +224,11 @@ export const actionTarget: Record<StatusAction, ChangeRequestStatus> = {
   reject: "REJECTED",
   reopen: "OPEN",
 };
+
+/** The size of the pages together; `more` when a page had a next one (so the count is a lower bound). */
+export const unresolvedCount = (
+  pages: ReadonlyArray<{ items: readonly unknown[]; nextCursor: string | null }>,
+): { count: number; more: boolean } => ({
+  count: pages.reduce((sum, page) => sum + page.items.length, 0),
+  more: pages.some((page) => page.nextCursor !== null),
+});
