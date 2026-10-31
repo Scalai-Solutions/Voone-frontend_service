@@ -1,5 +1,5 @@
 import { parseListQuery } from "@/lib/change-request-parsers";
-import { adminTicketFetch, invalidRequest } from "@/lib/admin-ticket-proxy";
+import { adminApiFetch, invalidRequest } from "@/lib/admin-api-proxy";
 import { forwardResponse } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -27,7 +27,7 @@ export async function GET(
   const qs = query.value.toString();
 
   return forwardResponse(
-    await adminTicketFetch(
+    await adminApiFetch(
       `/v1/admin/clinics/${encodeURIComponent(clinicId)}/change-requests${qs ? `?${qs}` : ""}`,
       { method: "GET" },
     ),

@@ -1,4 +1,4 @@
-import { forwardValidatedWrite } from "@/lib/admin-ticket-proxy";
+import { forwardValidatedWrite } from "@/lib/admin-api-proxy";
 import { parseStatusBody } from "@/lib/change-request-parsers";
 import { requireAdminSession } from "@/lib/staff-guard";
 

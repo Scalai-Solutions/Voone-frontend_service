@@ -136,6 +136,16 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
           </div>
           <Button asChild className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/program`}>{programActionLabel} <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f1e2d6] text-[#704f40]"><WalletCards className="h-4 w-4" /></span>
+            <div>
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Services</h2>
+              <p className="mt-1 max-w-xl text-sm text-[#806d63]">Add, edit or remove the clinic&apos;s treatments and session vouchers. Owners can only request changes.</p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/services`}>Edit services <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
+        </div>
         <SetupPanel icon={WalletCards} title="Treatments" description="Clinic dashboard treatment catalog and points setup.">
           <TreatmentsPreview treatments={clinic.treatments ?? []} />
         </SetupPanel>

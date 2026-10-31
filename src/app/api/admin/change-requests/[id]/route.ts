@@ -1,4 +1,4 @@
-import { adminTicketFetch } from "@/lib/admin-ticket-proxy";
+import { adminApiFetch } from "@/lib/admin-api-proxy";
 import { forwardResponse } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -15,7 +15,7 @@ export async function GET(
   const { id } = await context.params;
 
   return forwardResponse(
-    await adminTicketFetch(
+    await adminApiFetch(
       `/v1/admin/change-requests/${encodeURIComponent(id)}`,
       { method: "GET" },
     ),

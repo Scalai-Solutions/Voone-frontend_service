@@ -1,8 +1,8 @@
 import { parseListQuery } from "@/lib/change-request-parsers";
 import {
-  adminTicketFetch,
+  adminApiFetch,
   invalidRequest,
-} from "@/lib/admin-ticket-proxy";
+} from "@/lib/admin-api-proxy";
 import { forwardResponse } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const qs = query.value.toString();
 
   return forwardResponse(
-    await adminTicketFetch(`/v1/admin/change-requests${qs ? `?${qs}` : ""}`, {
+    await adminApiFetch(`/v1/admin/change-requests${qs ? `?${qs}` : ""}`, {
       method: "GET",
     }),
   );
