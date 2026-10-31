@@ -1,4 +1,4 @@
-import { forwardResponse, staffFetch } from "@/lib/staff-api";
+import { ADMIN_ACTOR_HEADERS, forwardResponse, staffFetch } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
 export async function GET(_request: Request, context: { params: Promise<{ clinicId: string }> }) {
@@ -27,6 +27,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ clini
   const response = await staffFetch(`/v1/admin/clinics/${encodeURIComponent(clinicId)}`, {
     method: "PATCH",
     body: await request.text(),
+    // The backend honours voonePlan / isActive only with this header (see ADMIN_ACTOR_HEADERS).
+    headers: ADMIN_ACTOR_HEADERS,
   });
 
   return forwardResponse(response);
@@ -42,6 +44,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ cli
   const { clinicId } = await context.params;
   const response = await staffFetch(`/v1/admin/clinics/${encodeURIComponent(clinicId)}`, {
     method: "DELETE",
+    headers: ADMIN_ACTOR_HEADERS,
   });
 
   return forwardResponse(response);
