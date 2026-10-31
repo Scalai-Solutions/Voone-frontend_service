@@ -476,6 +476,41 @@ export const getCalculator = (
     },
   );
 
+/* ------------------------------------------------------------------------ comparison */
+
+/**
+ * The edited programme against the engine's own recommendation for the same answers, over five
+ * years, at standard values. Admin only; only yearly totals, never what one gift is worth.
+ * `delta` is this plan minus the recommended one: negative means this plan earns less. The
+ * recommended figures are null, with a `reason` (Spanish, from the backend), when there is
+ * nothing to compare against.
+ */
+export interface ProgramComparisonYear {
+  year: number;
+  recommendedNet: number | null;
+  currentNet: number;
+  recommendedCumulative: number | null;
+  currentCumulative: number;
+}
+
+export interface ProgramComparison {
+  /** The standard values both plans were computed with. */
+  inputs: { clients: number; ticket: number };
+  recommendedNet5y: number | null;
+  currentNet5y: number;
+  delta: number | null;
+  years: ProgramComparisonYear[];
+  reason?: string | null;
+}
+
+/** A read, though it is a POST with no body: the backend computes it from the stored draft. */
+export const getProgramComparison = (clinicId: string, programId: string) =>
+  request<ProgramComparison>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/comparison`,
+    { method: "POST" },
+  );
+
 /* ---------------------------------------------------------------------------- bonos */
 
 import type {

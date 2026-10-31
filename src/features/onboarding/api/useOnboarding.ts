@@ -8,6 +8,7 @@ import {
 
 import { ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { useDebounced } from "@/lib/use-debounced";
 import type { BonoPlansStore } from "@/components/shared/bono-plans-editor";
 import type { TierKey } from "@/lib/onboarding-api";
 import {
@@ -20,6 +21,7 @@ import {
   getCatalog,
   getEstimates,
   getProgram,
+  getProgramComparison,
   getRecalibration,
   importCatalogCsv,
   listPrograms,
@@ -147,6 +149,45 @@ export function useCalculator(
     retry: false,
     staleTime: 60_000,
   });
+}
+
+/** How long the draft must stay unchanged before its comparison is asked for again. */
+const COMPARISON_DEBOUNCE_MS = 400;
+
+/**
+ * The 5-year comparison of a DRAFT against the recommended plan.
+ *
+ * `revision` is anything that changes whenever the draft does (the programme query's
+ * `dataUpdatedAt`: every successful edit, swap or refetch rewrites it), so one place covers every
+ * kind of edit instead of each mutation invalidating it. It is debounced, so a run of quick edits
+ * asks once. While the draft is still changing, or the answer is on its way, `loading` is true and
+ * no number is returned: a figure for the previous draft would be wrong at the moment someone is
+ * about to publish. `programId` null (not a draft) asks for nothing.
+ */
+export function useProgramComparison(
+  clinicId: string,
+  programId: string | null,
+  revision: number,
+) {
+  const settled = useDebounced(revision, COMPARISON_DEBOUNCE_MS);
+  const settling = settled !== revision;
+  const query = useQuery({
+    queryKey: queryKeys.onboarding.comparison(
+      clinicId,
+      programId ?? "",
+      settled,
+    ),
+    queryFn: () => getProgramComparison(clinicId, programId as string),
+    enabled: programId !== null,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    data: settling ? undefined : query.data,
+    loading: programId !== null && (settling || query.isPending),
+    failed: programId !== null && !settling && query.isError,
+  };
 }
 
 export function usePrograms(clinicId: string) {

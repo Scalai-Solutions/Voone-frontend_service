@@ -13,6 +13,7 @@ import {
   useCreateDraft,
   useEstimates,
   useProgram,
+  useProgramComparison,
   usePrograms,
   usePublishProgram,
   useRecalibration,
@@ -30,6 +31,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { CalculatorSection } from "./calculator-section";
 import { CatalogStep } from "./catalog-step";
+import { ComparisonSummary } from "./comparison-summary";
 import { ProgramView } from "./program-view";
 import { QuestionsStep } from "./questions-step";
 
@@ -198,6 +200,12 @@ function ProgramSetupLoaded({
 
   const program = shown.data;
   const isDraft = program?.status === "BORRADOR";
+  // `dataUpdatedAt` moves on every successful edit or swap, which is when the comparison is stale.
+  const comparison = useProgramComparison(
+    clinicId,
+    isDraft ? shownId : null,
+    shown.dataUpdatedAt,
+  );
   const blockedByReview = (program?.program.review.length ?? 0) > 0;
 
   return (
@@ -313,6 +321,15 @@ function ProgramSetupLoaded({
                   </span>
                 </Badge>
               </div>
+
+              {isDraft ? (
+                <ComparisonSummary
+                  variant="banner"
+                  comparison={comparison.data}
+                  loading={comparison.loading}
+                  failed={comparison.failed}
+                />
+              ) : null}
 
               {isDraft && active ? (
                 <p className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">

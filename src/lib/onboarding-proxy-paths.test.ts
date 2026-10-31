@@ -28,6 +28,7 @@ const USED_BY_ONBOARDING_API: Array<[method: string, path: string]> = [
   ["PATCH", "programs/prog_1/texts"],
   ["POST", "programs/prog_1/draft"],
   ["POST", "programs/prog_1/calculator"],
+  ["POST", "programs/prog_1/comparison"],
   ["GET", "recalibration"],
   ["GET", "bonos"],
   ["POST", "bonos"],
@@ -100,6 +101,19 @@ describe("onboarding proxy allowlist", () => {
     }
     for (const path of ["programs/p/texts/extra", "programs//texts", "programs/p/draft/x"]) {
       assert.equal(isForwardableOnboardingPath(segments(path), "PATCH"), false, path);
+      assert.equal(isForwardableOnboardingPath(segments(path), "POST"), false, path);
+    }
+  });
+
+  it("forwards the comparison only as POST on exactly that path", () => {
+    for (const method of ["GET", "PUT", "PATCH", "DELETE"]) {
+      assert.equal(
+        isForwardableOnboardingPath(segments("programs/p/comparison"), method),
+        false,
+        `comparison ${method}`,
+      );
+    }
+    for (const path of ["programs/p/comparison/x", "programs//comparison", "comparison"]) {
       assert.equal(isForwardableOnboardingPath(segments(path), "POST"), false, path);
     }
   });
