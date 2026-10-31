@@ -1,4 +1,4 @@
-import { parseCreateRequest, parseListQuery, listQueryString } from "@/lib/change-requests";
+import { parseCreateRequest, parseListQuery, listQueryString } from "@/lib/staff-change-requests";
 import {
   forwardChangeRequest,
   invalid,

@@ -18,7 +18,7 @@ import {
   REASON_MAX,
   SHORT_TEXT_MAX,
   TITLE_MAX,
-} from "@/lib/change-requests";
+} from "@/lib/staff-change-requests";
 import { formatEuros } from "@/lib/euros";
 import { cn } from "@/lib/utils";
 

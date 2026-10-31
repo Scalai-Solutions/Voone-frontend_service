@@ -11,11 +11,11 @@ import {
   listChangeRequests,
   reopenChangeRequest,
   replyToChangeRequest,
-} from "@/lib/change-requests-api";
+} from "@/lib/staff-change-requests-api";
 import type {
   ChangeRequestStatus,
   CreateChangeRequestBody,
-} from "@/lib/change-requests";
+} from "@/lib/staff-change-requests";
 import { queryKeys } from "@/lib/query-keys";
 
 /** The request list, newest first, a page at a time; `status` null is every status. */

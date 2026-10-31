@@ -1,7 +1,7 @@
 import type {
   ChangeRequestStatus,
   ChangeRequestType,
-} from "./change-requests.ts";
+} from "./staff-change-requests.ts";
 
 /**
  * How a change request reads to the centre: Spanish labels and a plain-language summary of the

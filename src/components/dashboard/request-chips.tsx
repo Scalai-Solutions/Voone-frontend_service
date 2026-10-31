@@ -5,7 +5,7 @@ import {
 import type {
   ChangeRequestStatus,
   ChangeRequestType,
-} from "@/lib/change-requests";
+} from "@/lib/staff-change-requests";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLE: Record<ChangeRequestStatus, string> = {

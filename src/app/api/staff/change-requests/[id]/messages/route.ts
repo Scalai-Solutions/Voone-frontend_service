@@ -1,4 +1,4 @@
-import { parseMessageBody } from "@/lib/change-requests";
+import { parseMessageBody } from "@/lib/staff-change-requests";
 import {
   forwardChangeRequest,
   invalid,

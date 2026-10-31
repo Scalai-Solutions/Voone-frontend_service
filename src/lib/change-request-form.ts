@@ -10,7 +10,7 @@ import {
   TITLE_MAX,
   parseCreateRequest,
   type CreateChangeRequestBody,
-} from "./change-requests.ts";
+} from "./staff-change-requests.ts";
 import { parsePrice, priceToText } from "./treatment-price.ts";
 
 /**

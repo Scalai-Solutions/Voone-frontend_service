@@ -22,7 +22,7 @@ import {
   isClosed,
   isReopenable,
 } from "@/lib/change-request-display";
-import { MESSAGE_MAX, parseMessageBody } from "@/lib/change-requests";
+import { MESSAGE_MAX, parseMessageBody } from "@/lib/staff-change-requests";
 import { cn } from "@/lib/utils";
 
 const textareaClass =

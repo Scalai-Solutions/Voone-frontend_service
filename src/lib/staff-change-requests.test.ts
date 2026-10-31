@@ -9,7 +9,7 @@ import {
   parseMessageBody,
   parseReopenBody,
   type CreateChangeRequestBody,
-} from "./change-requests.ts";
+} from "./staff-change-requests.ts";
 
 /** Run with `npm test`. The shapes mirror the backend README of the change-requests module. */
 

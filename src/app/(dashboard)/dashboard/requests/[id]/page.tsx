@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { RequestDetailClient } from "@/components/dashboard/request-detail-client";
 import { getCurrentSession } from "@/lib/auth";
 import { changeRequestRole } from "@/lib/change-request-guard";
-import { isValidRequestId } from "@/lib/change-requests";
+import { isValidRequestId } from "@/lib/staff-change-requests";
 
 /**
  * One request and its thread. This is the address Voone's emails link to

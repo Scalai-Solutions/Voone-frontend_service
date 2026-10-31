@@ -3,7 +3,7 @@ import type {
   ChangeRequestStatus,
   ChangeRequestType,
   CreateChangeRequestBody,
-} from "@/lib/change-requests";
+} from "@/lib/staff-change-requests";
 
 /**
  * The centre's change requests, as the browser calls them: through this app's own

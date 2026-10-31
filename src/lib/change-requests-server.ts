@@ -4,7 +4,7 @@ import type { TicketRole } from "@/lib/change-request-guard";
 import {
   isValidRequestId,
   type ParseResult,
-} from "@/lib/change-requests";
+} from "@/lib/staff-change-requests";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
 import type { VooneSession } from "@/lib/auth";
 

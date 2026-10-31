@@ -1,4 +1,4 @@
-import { parseReopenBody } from "@/lib/change-requests";
+import { parseReopenBody } from "@/lib/staff-change-requests";
 import {
   forwardChangeRequest,
   notFound,

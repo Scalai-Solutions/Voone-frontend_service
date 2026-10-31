@@ -16,7 +16,7 @@ import {
 import {
   CHANGE_REQUEST_STATUSES,
   type ChangeRequestStatus,
-} from "@/lib/change-requests";
+} from "@/lib/staff-change-requests";
 import { cn } from "@/lib/utils";
 
 const FILTERS: Array<{ value: ChangeRequestStatus | null; label: string }> = [
