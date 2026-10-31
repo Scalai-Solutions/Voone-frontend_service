@@ -1,6 +1,8 @@
 import "server-only";
 
+import { changeRequestRole, type TicketRole } from "@/lib/change-request-guard";
 import {
+  PERMISSIONS,
   getCurrentSession,
   hasPermission,
   isDashboardRole,
@@ -90,4 +92,37 @@ export const requireAdminSession = async (): Promise<
   }
 
   return { session };
+};
+
+/**
+ * The session behind a change-request route handler, with the role to send to the backend.
+ *
+ * Clinic-edit permission AND the owner or manager role: a team member granted clinic-edit
+ * passes the permission check but is not one of the roles the backend accepts for tickets,
+ * and Voone admins are already turned away by `requireStaffSession`.
+ */
+export const requireChangeRequestSession = async (): Promise<
+  { session: VooneSession; role: TicketRole } | { response: Response }
+> => {
+  const guard = await requirePermission(PERMISSIONS.clinicEdit);
+
+  if ("response" in guard) {
+    return guard;
+  }
+
+  const role = changeRequestRole(guard.session);
+
+  if (!role) {
+    return {
+      response: Response.json(
+        {
+          code: "FORBIDDEN",
+          message: "Solo el propietario o un gestor pueden solicitar cambios.",
+        },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return { session: guard.session, role };
 };
