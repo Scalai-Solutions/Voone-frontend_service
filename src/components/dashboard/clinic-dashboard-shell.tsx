@@ -4,12 +4,13 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, LayoutDashboard, ScanLine, Settings, Users, WalletCards, type LucideIcon } from "lucide-react";
+import { BarChart3, Bell, ClipboardList, LayoutDashboard, ScanLine, Settings, Users, WalletCards, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth-shared";
+import { changeRequestRole } from "@/lib/change-request-guard";
 
 export type ClinicShellIcon = "overview" | "templates" | "members" | "scan" | "engage" | "settings";
 
@@ -123,6 +124,7 @@ export function ClinicDashboardShell({
                 <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-56 rounded-2xl border border-[#e3d5cd] bg-[#fffaf6] p-2 shadow-xl">
                   <Link href="/dashboard/settings" onClick={() => setProfileOpen(false)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><Settings className="h-4 w-4" /> Ajustes de perfil</Link>
                   <Link href="/dashboard/metrics" onClick={() => setProfileOpen(false)} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><BarChart3 className="h-4 w-4" /> Métricas</Link>
+                  {changeRequestRole(session) ? <Link href="/dashboard/requests" onClick={() => setProfileOpen(false)} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><ClipboardList className="h-4 w-4" /> Mis solicitudes</Link> : null}
                   <LogoutButton showLabel className="mt-1 w-full justify-start gap-2 rounded-xl border-0 bg-transparent px-3 py-2.5 text-sm font-semibold text-[#8e4d41] hover:bg-[#f4e8df]" variant="ghost" />
                 </div>
               ) : null}
