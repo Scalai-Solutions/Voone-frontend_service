@@ -165,3 +165,62 @@ export const countLabel = (page: {
   items: readonly unknown[];
   nextCursor: string | null;
 }): string => `${page.items.length}${page.nextCursor ? "+" : ""}`;
+
+export interface ListParams {
+  status?: ChangeRequestStatus | "";
+  type?: ChangeRequestType | "";
+  clinicId?: string;
+  q?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+/** The query string for a list call; empty filters are left out. */
+export const listSearch = (params: ListParams): string => {
+  const search = new URLSearchParams();
+
+  if (params.status) search.set("status", params.status);
+  if (params.type) search.set("type", params.type);
+  if (params.clinicId) search.set("clinicId", params.clinicId);
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.limit) search.set("limit", String(params.limit));
+  if (params.cursor) search.set("cursor", params.cursor);
+
+  const text = search.toString();
+
+  return text ? `?${text}` : "";
+};
+
+export type StatusAction =
+  | "start"
+  | "back_to_open"
+  | "resolve"
+  | "reject"
+  | "reopen";
+
+/**
+ * The status moves the admin may make from a status, mirroring the backend's table:
+ * OPEN to IN_PROGRESS, RESOLVED or REJECTED; IN_PROGRESS to OPEN, RESOLVED or REJECTED; a
+ * closed ticket only back to OPEN. Resolve and reject need a note; the rest do not.
+ */
+export const statusActions = (status: ChangeRequestStatus): StatusAction[] => {
+  switch (status) {
+    case "OPEN":
+      return ["start", "resolve", "reject"];
+    case "IN_PROGRESS":
+      return ["resolve", "reject", "back_to_open"];
+    default:
+      return ["reopen"];
+  }
+};
+
+export const actionNeedsNote = (action: StatusAction): boolean =>
+  action === "resolve" || action === "reject";
+
+export const actionTarget: Record<StatusAction, ChangeRequestStatus> = {
+  start: "IN_PROGRESS",
+  back_to_open: "OPEN",
+  resolve: "RESOLVED",
+  reject: "REJECTED",
+  reopen: "OPEN",
+};

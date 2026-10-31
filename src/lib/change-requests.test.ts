@@ -9,6 +9,9 @@ import {
   unresolvedLinkedTo,
   CHANGE_REQUEST_TYPES,
   STATUS_LABEL,
+  actionNeedsNote,
+  actionTarget,
+  statusActions,
   TYPE_LABEL,
 } from "./change-requests.ts";
 
@@ -60,5 +63,23 @@ describe("change request helpers", () => {
   it("every status and type has English copy", () => {
     assert.equal(STATUS_LABEL.IN_PROGRESS, "In progress");
     for (const type of CHANGE_REQUEST_TYPES) assert.ok(TYPE_LABEL[type], type);
+  });
+
+  it("status actions follow the backend's transition table", () => {
+    assert.deepEqual(statusActions("OPEN"), ["start", "resolve", "reject"]);
+    assert.deepEqual(statusActions("IN_PROGRESS"), ["resolve", "reject", "back_to_open"]);
+    assert.deepEqual(statusActions("RESOLVED"), ["reopen"]);
+    assert.deepEqual(statusActions("REJECTED"), ["reopen"]);
+    assert.equal(actionTarget.start, "IN_PROGRESS");
+    assert.equal(actionTarget.reopen, "OPEN");
+    assert.equal(actionTarget.resolve, "RESOLVED");
+    assert.equal(actionTarget.reject, "REJECTED");
+  });
+
+  it("only resolve and reject need a note", () => {
+    assert.equal(actionNeedsNote("resolve"), true);
+    assert.equal(actionNeedsNote("reject"), true);
+    for (const a of ["start", "back_to_open", "reopen"] as const)
+      assert.equal(actionNeedsNote(a), false, a);
   });
 });

@@ -29,10 +29,11 @@ export const adminServicesKeys = {
   bonos: (clinicId: string) => ["admin-services", clinicId, "bonos"] as const,
 };
 
-export const useClinicTreatments = (clinicId: string) =>
+export const useClinicTreatments = (clinicId: string, enabled = true) =>
   useQuery({
     queryKey: adminServicesKeys.treatments(clinicId),
     queryFn: () => getClinicTreatments(clinicId),
+    enabled,
   });
 
 export const useClinicTreatmentCategories = (
@@ -84,10 +85,11 @@ export function useDeleteClinicTreatment(clinicId: string) {
   });
 }
 
-export const useClinicBonoPlans = (clinicId: string) =>
+export const useClinicBonoPlans = (clinicId: string, enabled = true) =>
   useQuery({
     queryKey: adminServicesKeys.bonos(clinicId),
     queryFn: () => getClinicBonoPlans(clinicId),
+    enabled,
   });
 
 export function useCreateClinicBonoPlan(clinicId: string) {
