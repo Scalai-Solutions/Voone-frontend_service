@@ -5,6 +5,7 @@ import {
   appliedLine,
   describeRequest,
   emailStatusLine,
+  resolutionMessageId,
   formatEuroAmount,
   formatTimestamp,
   type DescribeLookup,
@@ -185,5 +186,24 @@ describe("appliedLine", () => {
     );
     assert.equal(appliedLine({ appliedAt: null, appliedByEmail: null }), null);
     assert.equal(appliedLine({}), null);
+  });
+});
+
+describe("resolutionMessageId", () => {
+  const msgs = [
+    { id: "m1", authorKind: "CLINIC" as const, body: "Done.", createdAt: "2026-03-01T00:00:00Z" },
+    { id: "m2", authorKind: "VOONE" as const, body: "Done.", createdAt: "2026-03-02T00:00:00Z" },
+    { id: "m3", authorKind: "VOONE" as const, body: "Done.", createdAt: "2026-03-03T00:00:00Z" },
+  ];
+
+  it("picks the latest Voone message with the resolution note on a closed ticket", () => {
+    assert.equal(resolutionMessageId({ status: "RESOLVED", resolutionNote: "Done." }, msgs), "m3");
+    assert.equal(resolutionMessageId({ status: "REJECTED", resolutionNote: "Done." }, msgs), "m3");
+  });
+
+  it("nothing when the ticket is open, has no note, or no message matches", () => {
+    assert.equal(resolutionMessageId({ status: "OPEN", resolutionNote: "Done." }, msgs), null);
+    assert.equal(resolutionMessageId({ status: "RESOLVED", resolutionNote: null }, msgs), null);
+    assert.equal(resolutionMessageId({ status: "RESOLVED", resolutionNote: "Other" }, msgs), null);
   });
 });

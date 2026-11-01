@@ -13,6 +13,7 @@ import {
   actionTarget,
   statusActions,
   unresolvedCount,
+  knownErrorMessage,
   statusesFor,
   mergeNewestFirst,
   chipCount,
@@ -139,5 +140,18 @@ describe("change request helpers", () => {
       }),
       "3+",
     );
+  });
+
+  it("knownErrorMessage names the two admin-specific backend errors", () => {
+    assert.equal(
+      knownErrorMessage("STAFF_KEY_NOT_CONFIGURED"),
+      "Backend is not configured for admin access.",
+    );
+    assert.equal(
+      knownErrorMessage("CHANGE_REQUEST_ALREADY_APPLIED"),
+      "This ticket was already applied.",
+    );
+    assert.equal(knownErrorMessage("CHANGE_REQUEST_CONFLICT"), null);
+    assert.equal(knownErrorMessage(undefined), null);
   });
 });

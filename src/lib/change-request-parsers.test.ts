@@ -106,6 +106,16 @@ describe("parseApplyBody", () => {
     assert.ok(message(parseApplyBody({ note: 1 })));
     assert.ok(message(parseApplyBody({ clinicId: "x" })));
   });
+
+  it("forwards a category id only when it is given and well-formed", () => {
+    assert.deepEqual(okValue(parseApplyBody({ categoryId: " FAC ", note: "ok" })), {
+      note: "ok",
+      categoryId: "FAC",
+    });
+    assert.deepEqual(okValue(parseApplyBody({ categoryId: null })), {});
+    for (const bad of ["", "a/b", "x".repeat(33), 5, "../x"])
+      assert.ok(message(parseApplyBody({ categoryId: bad })), String(bad));
+  });
 });
 
 describe("parseResolveTicketsBody", () => {

@@ -55,12 +55,18 @@ function ApplyPanel({
   ticket,
   description,
   lookupState,
+  categories,
+  onProblem,
   result,
   onResult,
 }: {
   ticket: ChangeRequestDetail;
   description: RequestDescription;
   lookupState: "ready" | "loading" | "failed";
+  /** The catalogue's categories, for a SERVICE_ADD that needs one chosen. */
+  categories: Array<{ id: string; label: string }>;
+  /** The parent shows the error: a refresh after "already applied" replaces this panel. */
+  onProblem: (problem: string | null) => void;
   /** Kept by the parent: applying resolves the ticket, which would otherwise unmount this. */
   result: ApplyResult | null;
   onResult: (result: ApplyResult) => void;
@@ -68,20 +74,28 @@ function ApplyPanel({
   const apply = useApply(ticket.id);
   const [confirming, setConfirming] = React.useState(false);
   const [note, setNote] = React.useState("");
-  const [problem, setProblem] = React.useState<string | null>(null);
+  const [categoryId, setCategoryId] = React.useState("");
+  // Only a SERVICE_ADD at a catalogue centre with no category proposed (the backend says so).
+  const needsCategory = ticket.needsCategory === true;
 
   function run() {
-    setProblem(null);
-    apply.mutate(note.trim() || undefined, {
-      onSuccess: (done) => {
-        onResult(done);
-        setConfirming(false);
+    onProblem(null);
+    apply.mutate(
+      {
+        note: note.trim() || undefined,
+        ...(needsCategory ? { categoryId } : {}),
       },
-      onError: (error) => {
-        setProblem(errorText(error, "Could not apply the change. Try again."));
-        setConfirming(false);
+      {
+        onSuccess: (done) => {
+          onResult(done);
+          setConfirming(false);
+        },
+        onError: (error) => {
+          onProblem(errorText(error, "Could not apply the change. Try again."));
+          setConfirming(false);
+        },
       },
-    });
+    );
   }
 
   if (result) {
@@ -100,6 +114,7 @@ function ApplyPanel({
 
   const blocked = description.missing.length > 0;
   const waiting = lookupState !== "ready";
+  const categoryMissing = needsCategory && !categoryId;
 
   return (
     <div>
@@ -108,7 +123,7 @@ function ApplyPanel({
         disabled={blocked || waiting || apply.isPending}
         onClick={() => {
           setConfirming(true);
-          setProblem(null);
+          onProblem(null);
         }}
         className="rounded-full bg-[#2d211e] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
       >
@@ -143,6 +158,28 @@ function ApplyPanel({
           {ticket.catalogueImpact && ticket.catalogueImpact.length > 0 ? (
             <AmberNote title="Effect on the live programme" items={ticket.catalogueImpact} />
           ) : null}
+          {needsCategory ? (
+            <div>
+              <label htmlFor={`apply-category-${ticket.id}`} className="text-sm font-semibold">
+                Category (required: the owner did not choose one)
+              </label>
+              <select
+                id={`apply-category-${ticket.id}`}
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
+                className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm"
+              >
+                <option value="">
+                  {categories.length === 0 ? "Loading categories..." : "Choose a category"}
+                </option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div>
             <label htmlFor={`apply-note-${ticket.id}`} className="text-sm font-semibold">
               Note for the owner (optional)
@@ -160,7 +197,7 @@ function ApplyPanel({
             <button
               type="button"
               onClick={run}
-              disabled={apply.isPending}
+              disabled={apply.isPending || categoryMissing}
               className="inline-flex items-center rounded-full bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               {apply.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -175,12 +212,6 @@ function ApplyPanel({
             </button>
           </div>
         </div>
-      ) : null}
-
-      {problem ? (
-        <p role="alert" className="mt-3 text-sm font-semibold text-[#b94135]">
-          {problem}
-        </p>
       ) : null}
     </div>
   );
@@ -255,12 +286,15 @@ export function TypeActions({
   ticket,
   description,
   lookupState,
+  categories,
 }: {
   ticket: ChangeRequestDetail;
   description: RequestDescription;
   lookupState: "ready" | "loading" | "failed";
+  categories: Array<{ id: string; label: string }>;
 }) {
   const [applyResult, setApplyResult] = React.useState<ApplyResult | null>(null);
+  const [applyProblem, setApplyProblem] = React.useState<string | null>(null);
   const applied = appliedLine(ticket);
   // A ticket already applied (appliedAt) never offers Apply again; an older backend sends no
   // appliedAt, and then a closed ticket simply has nothing to apply either.
@@ -270,7 +304,13 @@ export function TypeActions({
   const showDraft =
     canDraftType(ticket.type) && (isUnresolved(ticket.status) || ticket.programId);
 
-  if (!showApply && !showDraft && !(applied && canApplyType(ticket.type))) return null;
+  if (
+    !showApply &&
+    !showDraft &&
+    !(applied && canApplyType(ticket.type)) &&
+    !applyProblem
+  )
+    return null;
 
   return (
     <div className={cardClass}>
@@ -288,11 +328,18 @@ export function TypeActions({
             ticket={ticket}
             description={description}
             lookupState={lookupState}
+            categories={categories}
+            onProblem={setApplyProblem}
             result={applyResult}
             onResult={setApplyResult}
           />
         ) : null}
         {showDraft ? <DraftPanel ticket={ticket} /> : null}
+        {applyProblem && !applyResult ? (
+          <p role="alert" className="mt-3 text-sm font-semibold text-[#b94135]">
+            {applyProblem}
+          </p>
+        ) : null}
       </div>
     </div>
   );

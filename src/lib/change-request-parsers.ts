@@ -107,21 +107,42 @@ export const parseStatusBody = (
   });
 };
 
-export const parseApplyBody = (raw: unknown): Parsed<{ note?: string }> => {
+/**
+ * `{note?, categoryId?}`. The backend accepts `categoryId` only for a SERVICE_ADD ticket that
+ * needs one (a 422 otherwise), so it is only forwarded when given.
+ */
+export const parseApplyBody = (
+  raw: unknown,
+): Parsed<{ note?: string; categoryId?: string }> => {
   if (!isRecord(raw)) return fail("Send a JSON object.");
 
-  const extra = onlyKeys(raw, ["note"]);
+  const extra = onlyKeys(raw, ["note", "categoryId"]);
   if (extra) return fail(extra);
 
-  if (raw.note === undefined || raw.note === null) return ok({});
-  if (typeof raw.note !== "string") return fail("The note must be text.");
+  const out: { note?: string; categoryId?: string } = {};
 
-  const note = cleanText(raw.note);
+  if (raw.note !== undefined && raw.note !== null) {
+    if (typeof raw.note !== "string") return fail("The note must be text.");
 
-  if (note.length > NOTE_MAX)
-    return fail(`The note can have up to ${NOTE_MAX} characters.`);
+    const note = cleanText(raw.note);
 
-  return ok(note ? { note } : {});
+    if (note.length > NOTE_MAX)
+      return fail(`The note can have up to ${NOTE_MAX} characters.`);
+
+    if (note) out.note = note;
+  }
+
+  if (raw.categoryId !== undefined && raw.categoryId !== null) {
+    if (
+      typeof raw.categoryId !== "string" ||
+      !/^[A-Za-z0-9_-]{1,32}$/.test(raw.categoryId.trim())
+    )
+      return fail("Choose a category from the list.");
+
+    out.categoryId = raw.categoryId.trim();
+  }
+
+  return ok(out);
 };
 
 /** The note every ticket linked to a published programme is resolved with: required. */

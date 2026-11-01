@@ -161,7 +161,8 @@ export function useApply(id: string) {
   const refresh = useRefreshTickets();
 
   return useMutation({
-    mutationFn: (note?: string) => applyChangeRequest(id, note),
+    mutationFn: (input: { note?: string; categoryId?: string }) =>
+      applyChangeRequest(id, input),
     onSuccess: (result) => refresh(result.request),
     // A 409 means the ticket changed under us (already applied, target gone): reload it.
     onError: () => refresh(),

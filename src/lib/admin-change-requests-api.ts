@@ -42,10 +42,16 @@ export const replyToChangeRequest = (id: string, body: string) =>
     ...jsonBody({ body }),
   });
 
-export const applyChangeRequest = (id: string, note?: string) =>
+export const applyChangeRequest = (
+  id: string,
+  input: { note?: string; categoryId?: string } = {},
+) =>
   adminRequest<ApplyResult>(`${one(id)}/apply`, {
     method: "POST",
-    ...jsonBody(note ? { note } : {}),
+    ...jsonBody({
+      ...(input.note ? { note: input.note } : {}),
+      ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+    }),
   });
 
 export const createChangeRequestDraft = (id: string) =>

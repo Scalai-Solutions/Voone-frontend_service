@@ -74,6 +74,11 @@ export interface ChangeRequestListItem extends ChangeRequest {
 
 export interface ChangeRequestDetail extends ChangeRequest {
   messages: ChangeRequestMessage[];
+  /**
+   * True for a SERVICE_ADD ticket at a catalogue centre whose owner proposed no category: apply
+   * then needs a `categoryId`. Absent on an older backend.
+   */
+  needsCategory?: boolean;
   /** Warnings about the clinic's active programme; null when there is nothing to say. */
   catalogueImpact: string[] | null;
 }
@@ -293,4 +298,19 @@ export const chipCount = (
   );
 
   return `${counted.count}${counted.more ? "+" : ""}`;
+};
+
+/**
+ * A clear sentence for the backend errors that mean something specific to the admin, or null to
+ * fall back to the backend's own message.
+ */
+export const knownErrorMessage = (code: string | undefined): string | null => {
+  switch (code) {
+    case "STAFF_KEY_NOT_CONFIGURED":
+      return "Backend is not configured for admin access.";
+    case "CHANGE_REQUEST_ALREADY_APPLIED":
+      return "This ticket was already applied.";
+    default:
+      return null;
+  }
 };

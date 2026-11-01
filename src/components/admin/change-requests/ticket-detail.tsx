@@ -29,6 +29,7 @@ import {
   describeRequest,
   emailStatusLine,
   formatTimestamp,
+  resolutionMessageId,
   type DescribeLookup,
 } from "@/lib/change-request-describe";
 import {
@@ -51,7 +52,9 @@ function useLookup(ticket: ChangeRequestDetail | undefined): {
   const treatments = useClinicTreatments(clinicId, Boolean(ticket) && needsTreatments);
   const categories = useClinicTreatmentCategories(
     clinicId,
-    Boolean(ticket) && needsTreatments && Boolean(treatments.data?.usesCatalogue),
+    Boolean(ticket) &&
+      needsTreatments &&
+      (Boolean(treatments.data?.usesCatalogue) || ticket?.needsCategory === true),
   );
   const bonos = useClinicBonoPlans(clinicId, Boolean(ticket) && type === "BONO");
 
@@ -87,20 +90,29 @@ function useLookup(ticket: ChangeRequestDetail | undefined): {
   return { lookup, state };
 }
 
-function Message({ message }: { message: ChangeRequestMessage }) {
+function Message({
+  message,
+  isResolution,
+}: {
+  message: ChangeRequestMessage;
+  /** The note the ticket was closed with, written into the thread by the backend. */
+  isResolution: boolean;
+}) {
   const fromVoone = message.authorKind === "VOONE";
 
   return (
     <li className={fromVoone ? "flex justify-end" : "flex justify-start"}>
       <div
         className={`max-w-[86%] rounded-2xl p-4 text-sm ${
-          fromVoone
-            ? "bg-[#f1d6bd] text-[#402d26]"
-            : "border border-[#e4d8d1] bg-white text-[#2e2421]"
+          isResolution
+            ? "border border-dashed border-[#c9a77f] bg-[#fbf1e4] text-[#402d26]"
+            : fromVoone
+              ? "bg-[#f1d6bd] text-[#402d26]"
+              : "border border-[#e4d8d1] bg-white text-[#2e2421]"
         }`}
       >
         <p className="text-xs font-semibold">
-          {fromVoone ? "Voone" : "Clinic"}
+          {isResolution ? "Resolution" : fromVoone ? "Voone" : "Clinic"}
           <span className="font-normal opacity-70">
             {" "}
             · {message.authorEmail} · {formatTimestamp(message.createdAt)}
@@ -179,6 +191,10 @@ export function TicketDetail({ id }: { id: string }) {
   const query = useChangeRequest(id);
   const ticket = query.data;
   const { lookup, state: lookupState } = useLookup(ticket);
+  const categoryOptions = React.useMemo(
+    () => Array.from(lookup.categories ?? [], ([id, label]) => ({ id, label })),
+    [lookup.categories],
+  );
 
   const back = (
     <Link
@@ -214,6 +230,7 @@ export function TicketDetail({ id }: { id: string }) {
   const description = describeRequest(ticket.type, ticket.targetRef, ticket.proposed, lookup);
   const unresolved = isUnresolved(ticket.status);
   const impact = ticket.catalogueImpact ?? [];
+  const resolutionId = resolutionMessageId(ticket, ticket.messages);
 
   return (
     <div className="space-y-5">
@@ -302,7 +319,12 @@ export function TicketDetail({ id }: { id: string }) {
         ) : null}
       </section>
 
-      <TypeActions ticket={ticket} description={description} lookupState={lookupState} />
+      <TypeActions
+        ticket={ticket}
+        description={description}
+        lookupState={lookupState}
+        categories={categoryOptions}
+      />
 
       <section className={cardClass}>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">
@@ -313,7 +335,11 @@ export function TicketDetail({ id }: { id: string }) {
         ) : (
           <ul className="mt-4 space-y-3">
             {ticket.messages.map((message) => (
-              <Message key={message.id} message={message} />
+              <Message
+                key={message.id}
+                message={message}
+                isResolution={message.id === resolutionId}
+              />
             ))}
           </ul>
         )}

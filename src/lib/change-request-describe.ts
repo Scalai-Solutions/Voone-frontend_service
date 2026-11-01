@@ -1,5 +1,6 @@
 import type {
   ChangeRequest,
+  ChangeRequestMessage,
   ChangeRequestType,
 } from "./admin-change-requests.ts";
 
@@ -335,4 +336,28 @@ export const appliedLine = (
   const when = formatTimestamp(ticket.appliedAt, timeZone);
 
   return `Applied on ${when}${ticket.appliedByEmail ? ` by ${ticket.appliedByEmail}` : ""}`;
+};
+
+/**
+ * Closing a ticket writes its resolution note into the thread as a Voone message with the very
+ * same text. This finds that message (the latest one matching the ticket's current note on a
+ * closed ticket) so the thread can label it "Resolution" instead of letting it read as a
+ * second, separate reply. After a reopen the note is cleared, so older ones show as replies.
+ */
+export const resolutionMessageId = (
+  ticket: Pick<ChangeRequest, "status" | "resolutionNote">,
+  messages: readonly Pick<ChangeRequestMessage, "id" | "authorKind" | "body" | "createdAt">[],
+): string | null => {
+  if (
+    (ticket.status !== "RESOLVED" && ticket.status !== "REJECTED") ||
+    !ticket.resolutionNote
+  )
+    return null;
+
+  const matches = messages.filter(
+    (message) =>
+      message.authorKind === "VOONE" && message.body === ticket.resolutionNote,
+  );
+
+  return matches.length > 0 ? matches[matches.length - 1].id : null;
 };

@@ -4,6 +4,7 @@ import {
   type ChangeRequestStatus,
   type ChangeRequestType,
 } from "@/lib/admin-change-requests";
+import { knownErrorMessage } from "@/lib/admin-change-requests";
 import { ApiError } from "@/lib/api-client";
 
 const STATUS_STYLE: Record<ChangeRequestStatus, string> = {
@@ -33,7 +34,14 @@ export function TypeChip({ type }: { type: ChangeRequestType }) {
 
 /** The backend's own message when it sent one (409s are written to be read), else a fallback. */
 export function errorText(error: unknown, fallback: string): string {
-  return error instanceof ApiError && error.detail ? error.detail : fallback;
+  if (error instanceof ApiError) {
+    const known = knownErrorMessage(error.code);
+
+    if (known) return known;
+    if (error.detail) return error.detail;
+  }
+
+  return fallback;
 }
 
 export const cardClass =
