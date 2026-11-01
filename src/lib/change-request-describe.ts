@@ -324,3 +324,15 @@ export const emailStatusLine = (
 
   return "No email recorded for this request.";
 };
+
+/** "Applied on 12 Mar 2026, 10:04 by a@b.c", or null when the ticket was not applied (or the backend does not say). */
+export const appliedLine = (
+  ticket: Pick<ChangeRequest, "appliedAt" | "appliedByEmail">,
+  timeZone?: string,
+): string | null => {
+  if (!ticket.appliedAt) return null;
+
+  const when = formatTimestamp(ticket.appliedAt, timeZone);
+
+  return `Applied on ${when}${ticket.appliedByEmail ? ` by ${ticket.appliedByEmail}` : ""}`;
+};

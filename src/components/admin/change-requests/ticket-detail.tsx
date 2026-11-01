@@ -37,8 +37,13 @@ import {
   type ChangeRequestMessage,
 } from "@/lib/admin-change-requests";
 
+type LookupState = "ready" | "loading" | "failed";
+
 /** Current treatments and bonos, so "45 € → 50 €" can show the 45. Only fetched for the types that need them. */
-function useLookup(ticket: ChangeRequestDetail | undefined): DescribeLookup {
+function useLookup(ticket: ChangeRequestDetail | undefined): {
+  lookup: DescribeLookup;
+  state: LookupState;
+} {
   const clinicId = ticket?.clinicId ?? "";
   const type = ticket?.type;
   const needsTreatments =
@@ -50,7 +55,23 @@ function useLookup(ticket: ChangeRequestDetail | undefined): DescribeLookup {
   );
   const bonos = useClinicBonoPlans(clinicId, Boolean(ticket) && type === "BONO");
 
-  return React.useMemo(
+  // Edits, removals and bono changes can only be previewed (old to new) and checked for a
+  // missing target once the current catalogue is here.
+  const required =
+    type === "SERVICE_EDIT" || type === "SERVICE_REMOVE"
+      ? treatments
+      : type === "BONO"
+        ? bonos
+        : null;
+  const state: LookupState = !required
+    ? "ready"
+    : required.isError
+      ? "failed"
+      : required.data
+        ? "ready"
+        : "loading";
+
+  const lookup = React.useMemo(
     () => ({
       treatments: treatments.data
         ? new Map(treatments.data.items.map((item) => [item.id, item]))
@@ -62,6 +83,8 @@ function useLookup(ticket: ChangeRequestDetail | undefined): DescribeLookup {
     }),
     [treatments.data, bonos.data, categories.data],
   );
+
+  return { lookup, state };
 }
 
 function Message({ message }: { message: ChangeRequestMessage }) {
@@ -155,7 +178,7 @@ function ReplyBox({ id }: { id: string }) {
 export function TicketDetail({ id }: { id: string }) {
   const query = useChangeRequest(id);
   const ticket = query.data;
-  const lookup = useLookup(ticket);
+  const { lookup, state: lookupState } = useLookup(ticket);
 
   const back = (
     <Link
@@ -279,7 +302,7 @@ export function TicketDetail({ id }: { id: string }) {
         ) : null}
       </section>
 
-      <TypeActions ticket={ticket} description={description} />
+      <TypeActions ticket={ticket} description={description} lookupState={lookupState} />
 
       <section className={cardClass}>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">

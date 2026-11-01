@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  appliedLine,
   describeRequest,
   emailStatusLine,
   formatEuroAmount,
@@ -169,5 +170,20 @@ describe("listSearch", () => {
       listSearch({ status: "OPEN", type: "BONO", q: " glow ", limit: 20, cursor: "abc" }),
       "?status=OPEN&type=BONO&q=glow&limit=20&cursor=abc",
     );
+  });
+});
+
+describe("appliedLine", () => {
+  it("says when and by whom, and tolerates an older backend", () => {
+    assert.equal(
+      appliedLine({ appliedAt: "2026-03-12T10:04:00Z", appliedByEmail: "a@b.c" }, "UTC"),
+      "Applied on 12 Mar 2026, 10:04 by a@b.c",
+    );
+    assert.equal(
+      appliedLine({ appliedAt: "2026-03-12T10:04:00Z", appliedByEmail: null }, "UTC"),
+      "Applied on 12 Mar 2026, 10:04",
+    );
+    assert.equal(appliedLine({ appliedAt: null, appliedByEmail: null }), null);
+    assert.equal(appliedLine({}), null);
   });
 });

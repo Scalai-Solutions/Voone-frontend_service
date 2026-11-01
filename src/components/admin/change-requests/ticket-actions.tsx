@@ -10,7 +10,7 @@ import {
   useApply,
   useCreateDraft,
 } from "@/features/change-requests/api/useAdminChangeRequests";
-import type { RequestDescription } from "@/lib/change-request-describe";
+import { appliedLine, type RequestDescription } from "@/lib/change-request-describe";
 import {
   canApplyType,
   canDraftType,
@@ -53,11 +53,13 @@ export function AmberNote({
 function ApplyPanel({
   ticket,
   description,
+  lookupState,
   result,
   onResult,
 }: {
   ticket: ChangeRequestDetail;
   description: RequestDescription;
+  lookupState: "ready" | "loading" | "failed";
   /** Kept by the parent: applying resolves the ticket, which would otherwise unmount this. */
   result: ApplyResult | null;
   onResult: (result: ApplyResult) => void;
@@ -96,12 +98,13 @@ function ApplyPanel({
   }
 
   const blocked = description.missing.length > 0;
+  const waiting = lookupState !== "ready";
 
   return (
     <div>
       <button
         type="button"
-        disabled={blocked || apply.isPending}
+        disabled={blocked || waiting || apply.isPending}
         onClick={() => {
           setConfirming(true);
           setProblem(null);
@@ -110,6 +113,13 @@ function ApplyPanel({
       >
         Apply change
       </button>
+      {waiting ? (
+        <p className="mt-2 text-xs text-[#806d63]">
+          {lookupState === "loading"
+            ? "Loading the clinic's current catalogue so the change can be previewed..."
+            : "Could not load the clinic's current catalogue, so the change cannot be previewed. Reload the page to try again."}
+        </p>
+      ) : null}
       {blocked ? (
         <p className="mt-2 text-xs text-[#806d63]">
           The item this request points at is no longer in the catalogue, so it cannot be applied.
@@ -243,28 +253,40 @@ function DraftPanel({ ticket }: { ticket: ChangeRequestDetail }) {
 export function TypeActions({
   ticket,
   description,
+  lookupState,
 }: {
   ticket: ChangeRequestDetail;
   description: RequestDescription;
+  lookupState: "ready" | "loading" | "failed";
 }) {
   const [applyResult, setApplyResult] = React.useState<ApplyResult | null>(null);
+  const applied = appliedLine(ticket);
+  // A ticket already applied (appliedAt) never offers Apply again; an older backend sends no
+  // appliedAt, and then a closed ticket simply has nothing to apply either.
   const showApply =
-    canApplyType(ticket.type) && (isUnresolved(ticket.status) || applyResult !== null);
+    canApplyType(ticket.type) &&
+    (applyResult !== null || (isUnresolved(ticket.status) && !ticket.appliedAt));
   const showDraft =
     canDraftType(ticket.type) && (isUnresolved(ticket.status) || ticket.programId);
 
-  if (!showApply && !showDraft) return null;
+  if (!showApply && !showDraft && !(applied && canApplyType(ticket.type))) return null;
 
   return (
     <div className={cardClass}>
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">
-        {showApply ? "Apply" : "Programme"}
+        {canApplyType(ticket.type) ? "Apply" : "Programme"}
       </p>
       <div className="mt-3">
+        {applied && !applyResult ? (
+          <p role="status" className="text-sm font-semibold text-[#2f6b3c]">
+            {applied}
+          </p>
+        ) : null}
         {showApply ? (
           <ApplyPanel
             ticket={ticket}
             description={description}
+            lookupState={lookupState}
             result={applyResult}
             onResult={setApplyResult}
           />

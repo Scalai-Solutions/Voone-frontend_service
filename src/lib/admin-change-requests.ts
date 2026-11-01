@@ -58,6 +58,9 @@ export interface ChangeRequest {
   resolvedAt: string | null;
   resolutionNote: string | null;
   programId: string | null;
+  /** Set once a SERVICE_* or BONO ticket's change was applied. Absent on an older backend. */
+  appliedAt?: string | null;
+  appliedByEmail?: string | null;
   emailSentAt: string | null;
   lastEmailError: string | null;
   createdAt: string;
