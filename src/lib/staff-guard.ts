@@ -2,7 +2,7 @@ import "server-only";
 
 import {
   changeRequestRole,
-  serviceWriteRefusal,
+  gateServiceWrite,
   type TicketRole,
 } from "@/lib/change-request-guard";
 import {
@@ -149,7 +149,7 @@ export const requireServiceWriteAllowed = async (): Promise<
     return guard;
   }
 
-  const refusal = serviceWriteRefusal(guard.session.role);
+  const refusal = gateServiceWrite(guard.session);
 
   if (refusal) {
     return { response: Response.json(refusal, { status: 403 }) };

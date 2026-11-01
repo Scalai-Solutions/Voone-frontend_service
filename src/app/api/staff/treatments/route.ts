@@ -1,5 +1,12 @@
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
+import { serviceWriteHandlers } from "@/lib/service-write-handlers";
 import { requireServiceWriteAllowed, requireStaffSession } from "@/lib/staff-guard";
+
+const handlers = serviceWriteHandlers("treatments", {
+  requireAllowed: requireServiceWriteAllowed,
+  staffFetch,
+  forwardResponse,
+});
 
 /**
  * The signed-in centre's treatments: list (any staff member) and create (owners and managers).
@@ -28,17 +35,4 @@ export async function GET() {
   );
 }
 
-export async function POST(request: Request) {
-  const guard = await requireServiceWriteAllowed();
-
-  if ("response" in guard) {
-    return guard.response;
-  }
-
-  return forwardResponse(
-    await staffFetch(`/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/treatments`, {
-      method: "POST",
-      body: await request.text(),
-    }),
-  );
-}
+export const POST = handlers.POST;

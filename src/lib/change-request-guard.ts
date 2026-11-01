@@ -39,3 +39,11 @@ export const serviceWriteRefusal = (
   role: string | null | undefined,
 ): typeof USE_CHANGE_REQUEST | null =>
   role === "voone_admin" ? null : USE_CHANGE_REQUEST;
+
+/**
+ * The decision for a service write as data: the session's role in, a ready 403 body out (or
+ * null to go on). `requireServiceWriteAllowed` turns it into a Response; tests call it directly.
+ */
+export const gateServiceWrite = (
+  session: { role: string } | null | undefined,
+): typeof USE_CHANGE_REQUEST | null => serviceWriteRefusal(session?.role);

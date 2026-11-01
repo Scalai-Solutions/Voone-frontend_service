@@ -5,6 +5,8 @@ import {
   isValidRequestId,
   type ParseResult,
 } from "@/lib/staff-change-requests";
+import { changeRequestForward } from "@/lib/change-request-forward";
+import { readCappedText } from "@/lib/read-capped-body";
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
 import type { VooneSession } from "@/lib/auth";
 
@@ -16,8 +18,8 @@ import type { VooneSession } from "@/lib/auth";
  * session's email) on writes. The backend's `{ code, message }` errors pass through unchanged.
  */
 
-/** Largest body a ticket or a reply can need: a 2000-character text plus structure. */
-const MAX_BODY_CHARS = 20_000;
+/** Largest body a ticket or a reply can need (a 2000-character text plus structure), in bytes. */
+const MAX_BODY_BYTES = 32_000;
 
 export const invalid = (message: string) =>
   Response.json({ code: "INVALID_REQUEST", message }, { status: 400 });
@@ -28,20 +30,29 @@ export const notFound = () =>
     { status: 404 },
   );
 
-/** The JSON body of a request, `undefined` when empty, or a 400 for text that is not JSON. */
+/**
+ * The JSON body of a request, `undefined` when empty, a 413 when it is over the cap (checked
+ * from Content-Length first, and while streaming, so an oversized body is never fully read),
+ * or a 400 for text that is not JSON.
+ */
 export const readJsonBody = async (
   request: Request,
 ): Promise<{ value: unknown } | { response: Response }> => {
-  const text = await request.text();
+  const read = await readCappedText(request, MAX_BODY_BYTES);
 
-  if (text.length > MAX_BODY_CHARS) {
-    return { response: invalid("La solicitud es demasiado grande.") };
+  if ("tooLarge" in read) {
+    return {
+      response: Response.json(
+        { code: "PAYLOAD_TOO_LARGE", message: "La solicitud es demasiado grande." },
+        { status: 413 },
+      ),
+    };
   }
 
-  if (!text.trim()) return { value: undefined };
+  if (!read.text.trim()) return { value: undefined };
 
   try {
-    return { value: JSON.parse(text) as unknown };
+    return { value: JSON.parse(read.text) as unknown };
   } catch {
     return { response: invalid("La solicitud no es válida.") };
   }
@@ -55,17 +66,17 @@ export const forwardChangeRequest = async (
   role: TicketRole,
   subpath: string,
   init: { method: "GET" | "POST"; body?: unknown },
-): Promise<Response> =>
-  forwardResponse(
-    await staffFetch(
-      `/v1/clinics/${encodeURIComponent(session.clinicSlug)}/change-requests${subpath}`,
-      {
-        method: init.method,
-        headers: { "x-actor-role": role },
-        ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
-      },
-    ),
-  );
+): Promise<Response> => {
+  const { path, init: request } = changeRequestForward({
+    clinicSlug: session.clinicSlug,
+    role,
+    subpath,
+    method: init.method,
+    body: init.body,
+  });
+
+  return forwardResponse(await staffFetch(path, request));
+};
 
 /** An id from the URL, or null when it is not an opaque id. */
 export const requestIdFrom = async (

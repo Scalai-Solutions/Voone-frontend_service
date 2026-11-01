@@ -1,5 +1,12 @@
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
+import { serviceWriteHandlers } from "@/lib/service-write-handlers";
 import { requireServiceWriteAllowed, requireStaffSession } from "@/lib/staff-guard";
+
+const handlers = serviceWriteHandlers("bonos", {
+  requireAllowed: requireServiceWriteAllowed,
+  staffFetch,
+  forwardResponse,
+});
 
 /**
  * The signed-in centre's bono plans: list (any staff member, the visit form reads it) and
@@ -27,20 +34,4 @@ export async function GET() {
   );
 }
 
-export async function POST(request: Request) {
-  const guard = await requireServiceWriteAllowed();
-
-  if ("response" in guard) {
-    return guard.response;
-  }
-
-  return forwardResponse(
-    await staffFetch(
-      `/v1/clinics/${encodeURIComponent(guard.session.clinicSlug)}/bonos`,
-      {
-        method: "POST",
-        body: await request.text(),
-      },
-    ),
-  );
-}
+export const POST = handlers.POST;
