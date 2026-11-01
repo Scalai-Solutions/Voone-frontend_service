@@ -35,7 +35,8 @@ import type {
   MemberReward,
   VisitOutcome,
 } from "@/lib/staff-program-api";
-import { formatEuros, formatPoints } from "@/lib/points";
+import { formatEuros } from "@/lib/euros";
+import { formatPoints } from "@/lib/points";
 
 /**
  * Recording a visit and redeeming rewards, for a centre that has a loyalty programme.

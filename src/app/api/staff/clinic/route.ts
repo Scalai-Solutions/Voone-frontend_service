@@ -1,5 +1,6 @@
 import type { Clinic } from "@/lib/api-client";
 import { PERMISSIONS } from "@/lib/auth";
+import { parseClinicInfoBody } from "@/lib/clinic-info-fields";
 import { staffFetch } from "@/lib/staff-api";
 import { requirePermission, requireStaffSession } from "@/lib/staff-guard";
 
@@ -52,6 +53,12 @@ export async function GET() {
  * centro). Clinic-edit permission: the centre's commercial identity is what members' cards and
  * invoices read, so not every signed-in role may change it. The clinic comes from the session —
  * never from the body — so a signed-in member of one clinic cannot edit another's.
+ *
+ * The backend route behind this is the Voone admin's clinic editor, which also writes the plan,
+ * the active flag and the notification quota. So the body is never forwarded as received: it is
+ * parsed, anything outside the centre-info/billing allowlist is refused with a 400, and only
+ * the parsed fields go on. This request also carries no `x-actor-role: voone_admin`, which the
+ * backend requires before it honours the privileged fields (defence in depth).
  */
 export async function PATCH(request: Request) {
   const guard = await requirePermission(PERMISSIONS.clinicEdit);
@@ -60,9 +67,15 @@ export async function PATCH(request: Request) {
     return guard.response;
   }
 
+  const parsed = parseClinicInfoBody(await request.text());
+
+  if (!parsed.ok) {
+    return Response.json({ code: "INVALID_BODY", message: parsed.message }, { status: 400 });
+  }
+
   const response = await staffFetch(
     `/v1/admin/clinics/${encodeURIComponent(guard.session.clinicId)}`,
-    { method: "PATCH", body: await request.text() }
+    { method: "PATCH", body: JSON.stringify(parsed.value) }
   );
 
   if (!response.ok) {

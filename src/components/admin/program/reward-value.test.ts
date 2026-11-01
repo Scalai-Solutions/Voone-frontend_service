@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { formatEuro } from "./format.ts";
+import { formatEuros } from "../../../lib/euros.ts";
 import { infoNotes, rewardValueLabel } from "./reward-value.ts";
 
 describe("rewardValueLabel", () => {
   it("shows the retail value as es-ES euros, labelled", () => {
     assert.equal(
       rewardValueLabel({ rewardValueEuro: 45 }),
-      `Reward value ${formatEuro(45)}`,
+      `Reward value ${formatEuros(45)}`,
     );
     assert.match(rewardValueLabel({ rewardValueEuro: 45 }) ?? "", /^Reward value 45\s€$/);
   });

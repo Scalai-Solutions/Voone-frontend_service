@@ -23,12 +23,19 @@ const CREDIT_OPTIONS: Array<{ value: NotifyOnCredit; label: string }> = [
 export function AutomationsPanel({
   api,
   clinicName = "Tu centro",
+  openFirstByDefault = false,
 }: {
   api: NotificationSettingsApi;
   clinicName?: string;
+  /** Start with the first automation of the catalog open (until the user opens or closes one). */
+  openFirstByDefault?: boolean;
 }) {
   const { settings, catalog, patch } = useNotificationSettings(api);
-  const [expanded, setExpanded] = React.useState<string | null>(null);
+  // `undefined` = the user has not chosen yet; `null` = they closed everything. The catalog
+  // loads asynchronously, so the default-open card is derived from it rather than stored.
+  const [expanded, setExpanded] = React.useState<string | null | undefined>(
+    undefined,
+  );
   const [generalError, setGeneralError] = React.useState<string | null>(null);
 
   if (settings.isError || catalog.isError) {
@@ -66,6 +73,12 @@ export function AutomationsPanel({
       setGeneralError(errorText(error, "No se pudo guardar."));
     }
   };
+  const open =
+    expanded === undefined
+      ? openFirstByDefault
+        ? (catalog.data[0]?.event ?? null)
+        : null
+      : expanded;
   const activeCount = catalog.data.filter(
     (entry) => current.automations[entry.event].enabled,
   ).length;
@@ -84,9 +97,9 @@ export function AutomationsPanel({
           setting={current.automations[entry.event]}
           clinic={current}
           clinicName={clinicName}
-          expanded={expanded === entry.event}
+          expanded={open === entry.event}
           onToggleExpand={() =>
-            setExpanded(expanded === entry.event ? null : entry.event)
+            setExpanded(open === entry.event ? null : entry.event)
           }
           onSave={save}
         />

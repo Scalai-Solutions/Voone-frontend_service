@@ -1,4 +1,4 @@
-import { formatEuro } from "./format.ts";
+import { formatEuros } from "../../../lib/euros.ts";
 
 /**
  * The reward's retail price as a short label for its milestone row, or null when there is
@@ -14,7 +14,7 @@ export const rewardValueLabel = (milestone: {
     return null;
   }
 
-  return `Reward value ${formatEuro(value)}`;
+  return `Reward value ${formatEuros(value)}`;
 };
 
 /** Informational notes to show, trimmed, without blanks or repeats. Never part of the blocking review. */

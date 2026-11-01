@@ -7,8 +7,8 @@ import { useCalculator } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type { CalcInput, CalcResult, CalcYear, TierKey } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
+import { formatEuros } from "@/lib/euros";
 import { useDebounced } from "@/lib/use-debounced";
-import { formatEuro } from "./format";
 
 /**
  * Five years of what the programme costs and what it brings in.
@@ -49,7 +49,7 @@ const compact = (value: number): string =>
     : Math.round(value).toLocaleString("es-ES");
 
 const signed = (value: number): string =>
-  `${value >= 0 ? "+" : "−"}${formatEuro(Math.abs(Math.round(value)))}`;
+  `${value >= 0 ? "+" : "−"}${formatEuros(Math.abs(Math.round(value)))}`;
 
 export function CalculatorSection({
   clinicId,
@@ -73,7 +73,7 @@ export function CalculatorSection({
   const ticketProblem =
     ticket !== undefined &&
     (!Number.isFinite(ticket) || ticket < LIMITS.ticket.min || ticket > LIMITS.ticket.max)
-      ? `Entre ${LIMITS.ticket.min} y ${LIMITS.ticket.max.toLocaleString("es-ES")} €.`
+      ? `Entre ${formatEuros(LIMITS.ticket.min)} y ${formatEuros(LIMITS.ticket.max)}.`
       : null;
 
   // Asked for only when both figures are valid, and after a short pause, so a half-typed "1" on
@@ -249,7 +249,7 @@ function YearsChart({ years }: { years: CalcYear[] }) {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Lo que genera, lo que cuesta y el resultado de cada uno de los cinco años. En el año 5 genera ${formatEuro(Math.round(years[4].generates.total))} y cuesta ${formatEuro(Math.round(years[4].costs.total))}.`}
+        aria-label={`Lo que genera, lo que cuesta y el resultado de cada uno de los cinco años. En el año 5 genera ${formatEuros(Math.round(years[4].generates.total))} y cuesta ${formatEuros(Math.round(years[4].costs.total))}.`}
         className="h-auto w-full max-w-3xl"
       >
         {ticks.map((t) => (
@@ -397,8 +397,8 @@ function YearsTable({ result }: { result: CalcResult }) {
             <tr key={y.year} className="border-t border-border">
               <th scope="row" className="px-4 py-2 text-left font-semibold">{y.year}</th>
               <td className="px-4 py-2 text-right">{Math.round(y.avgMembers).toLocaleString("es-ES")}</td>
-              <td className="px-4 py-2 text-right">{formatEuro(Math.round(y.generates.total))}</td>
-              <td className="px-4 py-2 text-right">{formatEuro(Math.round(y.costs.total))}</td>
+              <td className="px-4 py-2 text-right">{formatEuros(Math.round(y.generates.total))}</td>
+              <td className="px-4 py-2 text-right">{formatEuros(Math.round(y.costs.total))}</td>
               <td className={cn("px-4 py-2 text-right font-semibold", y.net < 0 ? "text-destructive" : "text-success")}>
                 {signed(y.net)}
               </td>

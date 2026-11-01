@@ -9,7 +9,7 @@ import type {
   CreateBonoPlanInput,
   UpdateBonoPlanInput,
 } from "@/lib/bono-api";
-import { formatEuros } from "@/lib/points";
+import { formatEuros } from "@/lib/euros";
 
 /**
  * The bono plans editor, presentational: the same table for the admin onboarding flow and

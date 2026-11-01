@@ -66,6 +66,15 @@ export const staffFetch = async (path: string, init: RequestInit = {}): Promise<
 };
 
 /**
+ * Marks a write as made by the Voone admin portal, for routes the backend shares with the
+ * clinic's own self-service saves (`PATCH /v1/admin/clinics/:id`): without this header the
+ * backend ignores the privileged fields (plan, active flag, quota). Only the admin proxy
+ * handlers, after `requireAdminSession`, may send it. It is exactly as trustworthy as the
+ * staff key that travels with it. Pass it as `init.headers`, which staffFetch spreads last.
+ */
+export const ADMIN_ACTOR_HEADERS = { "x-actor-role": "voone_admin" } as const;
+
+/**
  * Forwards the backend's status and body unchanged.
  *
  * Deliberately transparent: the backend's 422 messages are the Spanish copy the form

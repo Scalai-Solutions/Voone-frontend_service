@@ -1,4 +1,4 @@
-import { forwardResponse, staffFetch } from "@/lib/staff-api";
+import { ADMIN_ACTOR_HEADERS, forwardResponse, staffFetch } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
 export async function GET(request: Request) {
@@ -31,7 +31,8 @@ export async function POST(request: Request) {
 
   const response = await staffFetch("/v1/admin/clinics", {
     method: "POST",
-    body: await request.text()
+    body: await request.text(),
+    headers: ADMIN_ACTOR_HEADERS
   });
 
   return forwardResponse(response);

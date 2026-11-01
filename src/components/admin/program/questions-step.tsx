@@ -13,7 +13,7 @@ import type {
   OnboardingEstimates,
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
-import { formatEuro } from "./format";
+import { formatEuros } from "@/lib/euros";
 
 /**
  * The six questions.
@@ -121,7 +121,7 @@ export function QuestionsStep({
         <Question
           number={1}
           title="¿Cuánto gasta un cliente en una visita normal?"
-          note={`Recomendado según tu catálogo: ${formatEuro(estimates.ticketEstimate)}. Puedes escribir tu cifra exacta: el programa entero se rehace con ella.`}
+          note={`Recomendado según tu catálogo: ${formatEuros(estimates.ticketEstimate)}. Puedes escribir tu cifra exacta: el programa entero se rehace con ella.`}
         >
           <Options
             label="Ticket medio"

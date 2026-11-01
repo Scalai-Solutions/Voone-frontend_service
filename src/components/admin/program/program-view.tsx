@@ -43,7 +43,7 @@ import {
 } from "./benefit-overrides";
 import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { EditableText, type TextsEditing } from "./editable-text";
-import { formatEuro, formatProgress } from "./format";
+import { formatEuros, formatProgress } from "@/lib/euros";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
 import { infoNotes, rewardValueLabel } from "./reward-value";
 import { swapRefusalMessage } from "./swap-refusal";
@@ -194,7 +194,7 @@ export function ProgramView({
       <dl className="grid gap-4 rounded-lg border border-border bg-card p-5 sm:grid-cols-3">
         <Fact
           label="Ticket medio"
-          value={formatEuro(program.estimates.ticket)}
+          value={formatEuros(program.estimates.ticket)}
         />
         <Fact
           label="Visitas al año"
@@ -202,7 +202,7 @@ export function ProgramView({
         />
         <Fact
           label="Gasto anual de un cliente"
-          value={formatEuro(program.estimates.annualSpend)}
+          value={formatEuros(program.estimates.annualSpend)}
         />
       </dl>
 
@@ -1005,7 +1005,7 @@ function MilestoneRow({
                   <option value="">Elegir…</option>
                   {giftable.map((item) => (
                     <option key={item.externalId} value={item.externalId}>
-                      {item.name} · {item.priceEuro.toLocaleString("es-ES")} €
+                      {item.name} · {formatEuros(item.priceEuro)}
                     </option>
                   ))}
                 </select>
