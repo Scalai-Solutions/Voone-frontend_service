@@ -1,11 +1,15 @@
 import "server-only";
 
 import { ApiError, type Clinic, type Member, type WalletInfrastructure } from "@/lib/api-client";
+import { unresolvedCount, type ChangeRequestPage } from "@/lib/admin-change-requests";
 import type { ProgramListItem } from "@/lib/onboarding-api";
 import { staffFetch } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
-async function adminFetch<T>(path: string): Promise<T> {
+async function adminFetch<T>(
+  path: string,
+  headers?: Record<string, string>,
+): Promise<T> {
   const guard = await requireAdminSession();
 
   if ("response" in guard) {
@@ -22,7 +26,7 @@ async function adminFetch<T>(path: string): Promise<T> {
     );
   }
 
-  const response = await staffFetch(path, { method: "GET" });
+  const response = await staffFetch(path, { method: "GET", headers });
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {
@@ -170,4 +174,26 @@ export function getAdminClinicNotificationReport(clinicId: string) {
   return adminFetch<ClinicAutomationReport>(
     `/v1/admin/notifications/clinics/${encodeURIComponent(clinicId)}`
   );
+}
+
+/**
+ * How many of a clinic's change requests still need attention (open or in progress), for the
+ * clinic profile. Soft by design: the profile must keep working when the tickets API is not
+ * there (an older backend) or fails, so any failure is null and the profile just shows no count.
+ */
+export async function getAdminClinicOpenRequests(
+  clinicId: string,
+): Promise<{ count: number; more: boolean } | null> {
+  try {
+    const base = `/v1/admin/clinics/${encodeURIComponent(clinicId)}/change-requests`;
+    const asAdmin = { "x-actor-role": "voone_admin" };
+    const [open, inProgress] = await Promise.all([
+      adminFetch<ChangeRequestPage>(`${base}?status=OPEN&limit=50`, asAdmin),
+      adminFetch<ChangeRequestPage>(`${base}?status=IN_PROGRESS&limit=50`, asAdmin),
+    ]);
+
+    return unresolvedCount([open, inProgress]);
+  } catch {
+    return null;
+  }
 }

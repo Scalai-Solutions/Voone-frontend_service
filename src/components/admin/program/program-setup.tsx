@@ -34,6 +34,7 @@ import { CatalogStep } from "./catalog-step";
 import { ComparisonSummary } from "./comparison-summary";
 import { ProgramView } from "./program-view";
 import { QuestionsStep } from "./questions-step";
+import { ResolveLinkedTickets } from "./resolve-linked-tickets";
 
 /**
  * A centre going from a price list to an approved loyalty programme.
@@ -147,6 +148,7 @@ function ProgramSetupLoaded({
   const confirmRef = React.useRef<HTMLElement | null>(null);
   const activateRef = React.useRef<HTMLButtonElement | null>(null);
   const returnFocus = React.useRef(false);
+  const [publishedId, setPublishedId] = React.useState<string | null>(null);
 
   const answers = answersOverride ?? shown.data?.answers ?? DEFAULT_ANSWERS;
 
@@ -193,15 +195,18 @@ function ProgramSetupLoaded({
 
     setProblem(null);
     publish.mutate(shownId, {
-      // Straight to the centre: nothing is left to do on this page once the programme is live.
-      onSuccess: () =>
-        onPublished
-          ? onPublished()
-          : router.push(`/admin/clinics/${encodeURIComponent(clinicId)}`),
+      // Offers to resolve linked tickets first (it continues at once when there are none).
+      onSuccess: (live) => setPublishedId(live.id),
       onError: (error) =>
         setProblem(messageOf(error, "No se ha podido activar el programa.")),
     });
   };
+
+  // Straight to the centre: nothing is left to do on this page once the programme is live.
+  const finishPublish = () =>
+    onPublished
+      ? onPublished()
+      : router.push(`/admin/clinics/${encodeURIComponent(clinicId)}`);
 
   const program = shown.data;
   const isDraft = program?.status === "BORRADOR";
@@ -230,7 +235,16 @@ function ProgramSetupLoaded({
   }, [confirmOpen]);
 
   return (
-    <div className="grid gap-8">
+    <>
+      {/* Rendered in the tree, never as an early return, so every hook above and below always runs. */}
+      {publishedId ? (
+        <ResolveLinkedTickets
+          clinicId={clinicId}
+          programId={publishedId}
+          onDone={finishPublish}
+        />
+      ) : null}
+    <div className={publishedId ? "hidden" : "grid gap-8"}>
       <nav aria-label="Pasos" className="flex flex-wrap items-center gap-2">
         {STEPS.map((label, index) => {
           const reachable = index <= step;
@@ -530,5 +544,6 @@ function ProgramSetupLoaded({
         </div>
       ) : null}
     </div>
+    </>
   );
 }
