@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getCurrentSession } from "@/lib/auth";
+import { staffHeaders } from "@/lib/staff-headers";
 
 /**
  * Server-side calls to the backend's staff surface.
@@ -53,13 +54,11 @@ export const staffFetch = async (path: string, init: RequestInit = {}): Promise<
 
   return fetch(`${resolveBaseUrl()}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      // Omitted when unset so a local backend without a key behaves the same way.
-      ...(key ? { "x-voone-staff-key": key } : {}),
-      ...(actor ? { "x-actor": actor } : {}),
-      ...init.headers,
-    },
+    headers: staffHeaders({
+      key,
+      actor,
+      extra: init.headers as Record<string, string> | undefined,
+    }),
     // These are writes; a cached one would be a bug rather than an optimization.
     cache: "no-store",
   });

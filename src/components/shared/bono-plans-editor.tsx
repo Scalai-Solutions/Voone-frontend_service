@@ -43,7 +43,32 @@ const parsePrice = (raw: string): number | null => {
   return value;
 };
 
-export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
+/**
+ * Request mode, for the centre's own screen: the plans are read-only and every change is a
+ * request to Voone (a plan is part of the price list, which only Voone edits). The add form,
+ * the "Activo" toggle and the remove button give way to request buttons. Omitted, the editor is
+ * the admin's, unchanged.
+ */
+export interface BonoRequestMode {
+  /** False for someone who may look but not ask (no buttons, plans only). */
+  enabled: boolean;
+  /** Each handler gets the clicked button, so the caller can return focus to it when the panel closes. */
+  onAdd: (trigger: HTMLElement) => void;
+  onEdit: (plan: BonoPlanRow, trigger: HTMLElement) => void;
+  onRemove: (plan: BonoPlanRow, trigger: HTMLElement) => void;
+  /** The plan whose request panel is open, or "new" for a new plan; null for none. */
+  activePlanId: string | null;
+  /** The open request panel, rendered under the plan it belongs to (or at the top for "new"). */
+  panel: React.ReactNode;
+}
+
+export function BonoPlansEditor({
+  store,
+  requests,
+}: {
+  store: BonoPlansStore;
+  requests?: BonoRequestMode;
+}) {
   const [name, setName] = React.useState("");
   const [price, setPrice] = React.useState("");
   const [sessions, setSessions] = React.useState("");
@@ -102,6 +127,24 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
         suma su parte como progreso.
       </p>
 
+      {requests?.enabled ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={(event) => requests.onAdd(event.currentTarget)}
+            className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"
+          >
+            <Plus size={15} className="mr-1 inline" />
+            Solicitar un nuevo bono
+          </button>
+          {requests.activePlanId === "new" ? (
+            <div className="mt-3 overflow-hidden rounded-2xl border border-[#eadfd8]">
+              {requests.panel}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {store.plans.length > 0 ? (
         <ul className="mt-3 divide-y divide-border rounded-md border border-border">
           {store.plans.map((plan) => (
@@ -123,30 +166,56 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
                     : `${plan.issuedCount} cliente${plan.issuedCount === 1 ? "" : "s"}`}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={plan.active}
+              {requests ? (
+                plan.active && requests.enabled ? (
+                  <div className="flex shrink-0 items-center gap-3 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={(event) => requests.onEdit(plan, event.currentTarget)}
+                      className="text-[#9b633e] underline-offset-2 hover:underline"
+                    >
+                      Solicitar cambio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => requests.onRemove(plan, event.currentTarget)}
+                      className="text-[#b94135] underline-offset-2 hover:underline"
+                    >
+                      Solicitar baja
+                    </button>
+                  </div>
+                ) : null
+              ) : (
+                <div className="flex shrink-0 items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={plan.active}
+                      disabled={store.pending}
+                      onChange={(event) =>
+                        store.update(plan.id, { active: event.target.checked })
+                      }
+                      aria-label={`Activar ${plan.name}`}
+                      className="h-4 w-4"
+                    />
+                    Activo
+                  </label>
+                  <button
+                    type="button"
                     disabled={store.pending}
-                    onChange={(event) =>
-                      store.update(plan.id, { active: event.target.checked })
-                    }
-                    aria-label={`Activar ${plan.name}`}
-                    className="h-4 w-4"
-                  />
-                  Activo
-                </label>
-                <button
-                  type="button"
-                  disabled={store.pending}
-                  onClick={() => store.remove(plan.id)}
-                  aria-label={`Quitar ${plan.name}`}
-                  className="text-muted-foreground transition hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+                    onClick={() => store.remove(plan.id)}
+                    aria-label={`Quitar ${plan.name}`}
+                    className="text-muted-foreground transition hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              {requests && requests.activePlanId === plan.id ? (
+                <div className="-mx-3 -mb-2.5 basis-full overflow-hidden rounded-b-md border-t border-border">
+                  {requests.panel}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -156,65 +225,67 @@ export function BonoPlansEditor({ store }: { store: BonoPlansStore }) {
         </p>
       )}
 
-      <div className="mt-3 grid items-end gap-2 sm:grid-cols-[1fr_110px_90px_auto]">
-        <label className="text-xs font-medium text-muted-foreground">
-          Nombre
-          <input
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              setProblem(null);
-            }}
-            placeholder="Bono facial"
-            className={inputClass}
-          />
-        </label>
-        <label className="text-xs font-medium text-muted-foreground">
-          Precio del bono (€)
-          <input
-            inputMode="decimal"
-            value={price}
-            onChange={(event) => {
-              setPrice(event.target.value);
-              setProblem(null);
-            }}
-            placeholder="199,50"
-            className={inputClass}
-          />
-        </label>
-        <label className="text-xs font-medium text-muted-foreground">
-          Sesiones
-          <input
-            inputMode="numeric"
-            value={sessions}
-            onChange={(event) => {
-              setSessions(event.target.value);
-              setProblem(null);
-            }}
-            placeholder="5"
-            className={inputClass}
-          />
-        </label>
-        <Button
-          type="button"
-          size="sm"
-          disabled={store.pending}
-          onClick={add}
-          className="h-10"
-        >
-          {store.pending ? (
-            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="mr-1.5 h-4 w-4" />
-          )}
-          <span>
-            Añadir
-            {total !== null
-              ? ` (${formatEuros(total)}${perSession !== null ? ` · ${formatEuros(perSession)}/sesión` : ""})`
-              : ""}
-          </span>
-        </Button>
-      </div>
+      {requests ? null : (
+        <div className="mt-3 grid items-end gap-2 sm:grid-cols-[1fr_110px_90px_auto]">
+          <label className="text-xs font-medium text-muted-foreground">
+            Nombre
+            <input
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setProblem(null);
+              }}
+              placeholder="Bono facial"
+              className={inputClass}
+            />
+          </label>
+          <label className="text-xs font-medium text-muted-foreground">
+            Precio del bono (€)
+            <input
+              inputMode="decimal"
+              value={price}
+              onChange={(event) => {
+                setPrice(event.target.value);
+                setProblem(null);
+              }}
+              placeholder="199,50"
+              className={inputClass}
+            />
+          </label>
+          <label className="text-xs font-medium text-muted-foreground">
+            Sesiones
+            <input
+              inputMode="numeric"
+              value={sessions}
+              onChange={(event) => {
+                setSessions(event.target.value);
+                setProblem(null);
+              }}
+              placeholder="5"
+              className={inputClass}
+            />
+          </label>
+          <Button
+            type="button"
+            size="sm"
+            disabled={store.pending}
+            onClick={add}
+            className="h-10"
+          >
+            {store.pending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-1.5 h-4 w-4" />
+            )}
+            <span>
+              Añadir
+              {total !== null
+                ? ` (${formatEuros(total)}${perSession !== null ? ` · ${formatEuros(perSession)}/sesión` : ""})`
+                : ""}
+            </span>
+          </Button>
+        </div>
+      )}
 
       {problem ? (
         <p role="alert" className="mt-2 text-xs text-destructive">

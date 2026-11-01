@@ -2,11 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Plus } from "lucide-react";
 
+import { useOpenRequestCount } from "@/features/change-requests/api/useChangeRequests";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
+import { ChangeRequestPanel } from "@/components/dashboard/change-request-panel";
+import { useRestoreFocus } from "@/components/dashboard/use-restore-focus";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
+import type { RequestContext } from "@/lib/change-request-form";
 import type { MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import type { PresentedProgram } from "@/lib/onboarding-api";
 import { formatEuros } from "@/lib/euros";
@@ -14,7 +18,10 @@ import { toPoints } from "@/lib/points";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
+  /** Opens My Center and the Tarjeta Wallet tab (the clinic-edit permission). */
   canEdit: boolean;
+  /** May ask Voone for changes to services, rewards and levels: the owner or a manager. */
+  canRequest: boolean;
 }
 
 type CenterTab = "tratamientos" | "recompensas" | "niveles" | "tarjeta";
@@ -29,6 +36,12 @@ interface SetupItem {
    * whenever the list renders one. Absent on single-column lists.
    */
   secondValue?: string;
+  /**
+   * What a change request about this row points at: the ladder step (rewards) or the tier key
+   * (levels). Absent on rows that are not part of a live programme, which cannot be requested.
+   */
+  milestone?: number;
+  tier?: string;
 }
 
 const formatNumber = (value: number) => value.toLocaleString("es-ES");
@@ -52,6 +65,7 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
         name,
         detail,
         value: formatEuros(step.realSpend),
+        ...(Number.isInteger(step.n) && step.n >= 1 ? { milestone: step.n } : {}),
       };
     });
 }
@@ -76,6 +90,7 @@ function programTierRows(program: PresentedProgram): SetupItem[] {
       detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
       value: formatNumber(floorPoints),
       secondValue: formatEuros(floorSpend),
+      tier: tier.key,
     };
   });
 }
@@ -114,7 +129,7 @@ function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
   ];
 }
 
-export function CenterView({ canEdit }: CenterViewProps) {
+export function CenterView({ canEdit, canRequest }: CenterViewProps) {
   const currentClinic = useCurrentClinic();
   const clinic = currentClinic.data;
   const [tab, setTab] = React.useState<CenterTab>("tratamientos");
@@ -124,6 +139,7 @@ export function CenterView({ canEdit }: CenterViewProps) {
   const liveProgram = staffProgram.data?.program ?? null;
   const rewardRowsFromClinic = React.useMemo(() => liveProgram ? programRewardRows(liveProgram) : toRewardRows(clinic?.template?.tierRewards), [liveProgram, clinic?.template?.tierRewards]);
   const tierRowsFromClinic = React.useMemo(() => liveProgram ? programTierRows(liveProgram) : toTierRows(clinic?.template?.milestoneRewards), [liveProgram, clinic?.template?.milestoneRewards]);
+  const openRequests = useOpenRequestCount(canRequest);
   const programLoading = staffProgram.isPending;
   // Only a 404 (null above) means "no live programme". Any other failure is shown, not papered over
   // with the card design's figures, which may not match what the centre actually runs.
@@ -139,16 +155,24 @@ export function CenterView({ canEdit }: CenterViewProps) {
 
       {currentClinic.isError ? <p className="mt-4 rounded-2xl border border-[#ead0bd] bg-[#fff8f2] px-4 py-3 text-sm font-semibold text-[#8a4d2a]">No se pudieron cargar los datos del centro.</p> : null}
 
-      <div className="mt-7 flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/60 p-1">
+      <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/60 p-1">
         <button type="button" onClick={() => setTab("tratamientos")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tratamientos" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tratamientos</button>
         <button type="button" onClick={() => setTab("recompensas")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "recompensas" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Recompensas</button>
         <button type="button" onClick={() => setTab("niveles")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "niveles" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Niveles</button>
         {canEdit && clinic?.template?.id ? <button type="button" onClick={() => setTab("tarjeta")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tarjeta" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tarjeta Wallet</button> : null}
       </div>
+      {canRequest ? (
+        <Link href="/dashboard/requests" className="inline-flex items-center gap-2 rounded-2xl border border-[#e2d5cc] bg-white/60 px-4 py-3 text-sm font-semibold text-[#806b60] transition hover:bg-[#f4e9df]">
+          Mis solicitudes
+          {openRequests.data ? <span className="rounded-full bg-[#b8864b] px-2 py-0.5 text-xs font-bold text-white" aria-label={`${openRequests.data} abiertas`}>{openRequests.data}</span> : null}
+        </Link>
+      ) : null}
+      </div>
 
-      {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} /> : null}
-      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, contacta con Voone." nameLabel="Premio o ventaja" valueLabel="Total gastado por la clienta" initialRows={rewardRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
-      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, contacta con Voone." nameLabel="Nivel" valueLabel={liveProgram ? "Puntos" : "Requisito (gasto · puntos)"} secondValueLabel={liveProgram ? "Total gastado" : undefined} initialRows={tierRowsFromClinic} canEdit={false} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} canRequest={canRequest} /> : null}
+      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, solicita un cambio." requestKind="reward" nameLabel="Premio o ventaja" valueLabel="Total gastado por el cliente" initialRows={rewardRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, solicita un cambio." requestKind="level" nameLabel="Nivel" valueLabel={liveProgram ? "Puntos" : "Requisito (gasto · puntos)"} secondValueLabel={liveProgram ? "Total gastado" : undefined} initialRows={tierRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
         <div className="mt-4 rounded-3xl border border-[#e2d5cc] bg-white/80 p-6">
@@ -166,41 +190,26 @@ function ProgramLoadError() {
 }
 
 function rowsKey(rows: SetupItem[]) {
-  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}:${row.secondValue ?? ""}`).join("|") || "empty";
+  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}:${row.secondValue ?? ""}:${row.milestone ?? ""}:${row.tier ?? ""}`).join("|") || "empty";
 }
 
-function SetupList({ title, description, nameLabel, valueLabel, secondValueLabel, initialRows, canEdit, isLoading }: { title: string; description: string; nameLabel: string; valueLabel: string; secondValueLabel?: string; initialRows: SetupItem[]; canEdit: boolean; isLoading: boolean }) {
-  const emptyDraft = { name: "", detail: "", value: "" };
-  const [rows, setRows] = React.useState(initialRows);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [draft, setDraft] = React.useState(emptyDraft);
-
-  function startAdd() {
-    setEditingId("new");
-    setDraft(emptyDraft);
-  }
-
-  function startEdit(row: SetupItem) {
-    setEditingId(row.id);
-    setDraft({ name: row.name, detail: row.detail, value: row.value });
-  }
-
-  function saveItem(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const nextItem = {
-      id: editingId === "new" ? `setup-${Date.now()}` : editingId ?? `setup-${Date.now()}`,
-      name: draft.name.trim(),
-      detail: draft.detail.trim(),
-      value: draft.value.trim(),
-    };
-
-    if (!nextItem.name || !nextItem.detail || !nextItem.value) return;
-
-    setRows((currentRows) => editingId === "new" ? [nextItem, ...currentRows] : currentRows.map((row) => row.id === editingId ? nextItem : row));
-    setEditingId(null);
-    setDraft(emptyDraft);
-  }
+function SetupList({ title, description, requestKind, nameLabel, valueLabel, secondValueLabel, initialRows, canRequest, isLoading }: { title: string; description: string; requestKind: "reward" | "level"; nameLabel: string; valueLabel: string; secondValueLabel?: string; initialRows: SetupItem[]; canRequest: boolean; isLoading: boolean }) {
+  const rows = initialRows;
+  // "general" (the button at the top), a row id, or null. One request panel is open at a time.
+  const [requesting, setRequesting] = React.useState<string | null>(null);
+  const focus = useRestoreFocus();
+  const open = (id: string, event: React.MouseEvent<HTMLElement>) => {
+    focus.remember(event.currentTarget);
+    setRequesting(id);
+  };
+  const close = () => {
+    setRequesting(null);
+    focus.restore();
+  };
+  const rowContext = (row: SetupItem): RequestContext =>
+    requestKind === "reward"
+      ? { kind: "reward", milestone: row.milestone, label: row.name, detail: row.detail }
+      : { kind: "level", tier: row.tier, label: row.name, detail: row.detail };
 
   return (
     <div className="mt-4 overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80">
@@ -209,19 +218,13 @@ function SetupList({ title, description, nameLabel, valueLabel, secondValueLabel
           <h2 className="font-serif text-2xl font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-[#927e72]">{description}</p>
         </div>
-        {canEdit ? <button type="button" onClick={startAdd} className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />Añadir</button> : null}
+        {canRequest ? <button type="button" onClick={(event) => open("general", event)} className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />Solicitar un cambio</button> : null}
       </div>
 
-      {canEdit && editingId ? (
-        <form onSubmit={saveItem} className="grid gap-3 border-b border-[#eadfd8] bg-[#fffaf6] p-5 md:grid-cols-[1fr_1.2fr_160px_auto]">
-          <input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Nombre" className="h-11 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none focus:border-[#b8864b]" />
-          <input value={draft.detail} onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))} placeholder="Descripción" className="h-11 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none focus:border-[#b8864b]" />
-          <input value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} placeholder={valueLabel} className="h-11 rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none focus:border-[#b8864b]" />
-          <div className="flex gap-2">
-            <button type="submit" className="inline-flex h-11 items-center rounded-xl bg-[#2d211e] px-3 text-sm font-semibold text-white"><Save size={15} className="mr-1" />Guardar</button>
-            <button type="button" onClick={() => setEditingId(null)} className="inline-flex h-11 items-center rounded-xl border border-[#cdb9aa] px-3 text-sm font-semibold text-[#754b36]" aria-label="Cancelar"><X size={15} /></button>
-          </div>
-        </form>
+      {canRequest && requesting === "general" ? (
+        <div className="border-b border-[#eadfd8]">
+          <ChangeRequestPanel key="general" context={requestKind === "reward" ? { kind: "reward" } : { kind: "level" }} onClose={close} />
+        </div>
       ) : null}
 
       {/* The header and every row share one grid, so each column keeps its own width however
@@ -239,38 +242,47 @@ function SetupList({ title, description, nameLabel, valueLabel, secondValueLabel
         {secondValueLabel ? <span className="text-right text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{secondValueLabel}</span> : null}
       </div>
 
-      {rows.length > 0 ? rows.map((row) => (
-        <div key={row.id} className={cn(
-          "grid items-center gap-3 border-b border-[#eadfd8] px-5 py-4 last:border-0",
-          secondValueLabel
-            ? "grid-cols-[minmax(0,60fr)_minmax(0,20fr)_minmax(0,20fr)]"
-            : "grid-cols-[minmax(0,60fr)_minmax(0,40fr)]",
-        )}>
-          {/* The name and description wrap inside their own column, never pushing the figures out of theirs. */}
-          <div className="min-w-0">
-            <p className="break-words font-semibold">{row.name}</p>
-            <p className="mt-1 break-words text-xs leading-5 text-[#927e72]">{row.detail}</p>
-          </div>
-          {secondValueLabel ? (
-            <>
-              {/* The card's points, at the right edge of their own column. */}
-              <p className="justify-self-end break-words text-right text-sm font-semibold">{row.value}</p>
-              {/* The euros as the pill, at the right edge of theirs. */}
-              <div className="flex items-center justify-end gap-2">
-                <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.secondValue ?? "—"}</span>
-                {canEdit ? <button type="button" onClick={() => startEdit(row)} className="text-[#9b633e]" aria-label={`Editar ${row.name}`}><Pencil size={15} /></button> : null}
-                {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}
+      {rows.length > 0 ? rows.map((row) => {
+        // Only rows of a live programme point at something a ticket can name.
+        const requestable = canRequest && (requestKind === "reward" ? row.milestone !== undefined : row.tier !== undefined);
+
+        return (
+          <div key={row.id} className="border-b border-[#eadfd8] last:border-0">
+            <div className={cn(
+              "grid items-center gap-3 px-5 py-4",
+              secondValueLabel
+                ? "grid-cols-[minmax(0,60fr)_minmax(0,20fr)_minmax(0,20fr)]"
+                : "grid-cols-[minmax(0,60fr)_minmax(0,40fr)]",
+            )}>
+              {/* The name and description wrap inside their own column, never pushing the figures out of theirs. */}
+              <div className="min-w-0">
+                <p className="break-words font-semibold">{row.name}</p>
+                <p className="mt-1 break-words text-xs leading-5 text-[#927e72]">{row.detail}</p>
+                {requestable ? <button type="button" onClick={(event) => open(row.id, event)} className="mt-2 text-xs font-semibold text-[#9b633e] underline-offset-2 hover:underline" aria-label={`Solicitar cambio en ${row.name}`}>Solicitar cambio</button> : null}
               </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-end gap-2">
-              <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
-              {canEdit ? <button type="button" onClick={() => startEdit(row)} className="text-[#9b633e]" aria-label={`Editar ${row.name}`}><Pencil size={15} /></button> : null}
-              {canEdit ? <button type="button" onClick={() => setRows((currentRows) => currentRows.filter((item) => item.id !== row.id))} className="text-[#b94135]" aria-label={`Eliminar ${row.name}`}><Trash2 size={15} /></button> : null}
+              {secondValueLabel ? (
+                <>
+                  {/* The card's points, at the right edge of their own column. */}
+                  <p className="justify-self-end break-words text-right text-sm font-semibold">{row.value}</p>
+                  {/* The euros as the pill, at the right edge of theirs. */}
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.secondValue ?? "—"}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-end gap-2">
+                  <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )) : <p className="px-5 py-4 text-sm text-[#927e72]">{isLoading ? "Cargando datos guardados durante el onboarding..." : "No hay datos guardados para esta sección."}</p>}
+            {requestable && requesting === row.id ? (
+              <div className="border-t border-[#eadfd8]">
+                <ChangeRequestPanel key={row.id} context={rowContext(row)} onClose={close} />
+              </div>
+            ) : null}
+          </div>
+        );
+      }) : <p className="px-5 py-4 text-sm text-[#927e72]">{isLoading ? "Cargando datos guardados durante el onboarding..." : "No hay datos guardados para esta sección."}</p>}
     </div>
   );
 }
