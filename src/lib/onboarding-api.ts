@@ -48,6 +48,11 @@ export interface CatalogRow {
   category: CategoryCode | null;
   classifiedBy: string | null;
   needsReview: boolean;
+  /**
+   * Whether the admin may give this row as a reward by hand: it has a price and a category, and
+   * is not medical. Absent from an older backend, which is read as "yes".
+   */
+  giftable?: boolean;
 }
 
 /** What is sent when saving. Prices are euros as a number, never the text typed. */
@@ -119,9 +124,9 @@ export interface OnboardingEstimates {
 /* ------------------------------------------------------------------------ programme */
 
 /**
- * A gift, by name only. What a gift is worth or costs is deliberately not here: the founders'
- * review is that a centre should see what it gives and what its clients spend, not what each
- * gift is worth. The backend does not send a value, so no screen can show one.
+ * A gift, by name only. What one gift costs is never here, and the owner's programme carries no
+ * value at all. The admin's programme alone carries the retail value of a whole reward, as
+ * `rewardValueEuro` on its milestone, so the admin can see why a swap changes the plan.
  */
 export interface PresentedItem {
   name: string;
@@ -138,6 +143,12 @@ export interface PresentedMilestone {
   realSpend: number;
   /** Months for a typical repeating client to get here. */
   month: number;
+  /**
+   * The retail price of the reward given here, in whole euros. Admin responses only, and only on
+   * reward rows; absent from the owner's programme and from an older backend, where nothing is
+   * shown.
+   */
+  rewardValueEuro?: number;
   tier?: { key: TierKey; label: string };
   reward?: {
     name: string;
@@ -147,14 +158,32 @@ export interface PresentedMilestone {
   perk?: { kind: string; name: string; description: string };
 }
 
+/**
+ * One line of a tier, hidden ones included (flagged) so the screen can show and restore them.
+ * `key` is stable: a generated line's is derived from what it is ("mult", "discount", ...), a line
+ * the centre added is "custom:<index>". `text` is what clients read, `original` what the engine or
+ * the centre wrote.
+ */
+export interface BenefitLine {
+  key: string;
+  text: string;
+  original: string;
+  kind: "generated" | "custom";
+  edited: boolean;
+  hidden: boolean;
+}
+
 export interface PresentedTier {
   key: TierKey;
   label: string;
   threshold: number;
   minTenureMonths: number;
+  /** What clients read: the visible lines' texts, in order. */
   benefits: string[];
-  /** The ones the centre wrote itself: the only ones it can add or remove. */
+  /** The ones the centre wrote itself, in its own list. */
   customBenefits: string[];
+  /** Every line with its key. Absent from an older backend: the screen then falls back to `benefits`. */
+  benefitLines?: BenefitLine[];
 }
 
 export interface PresentedProgram {
@@ -173,7 +202,13 @@ export interface PresentedProgram {
   welcomeProgress: number;
   familyAndFriends: { title: string; description: string; comingSoon: boolean };
   adaptations: string[];
+  /** Only what blocks publishing. An empty list means the programme can go live. */
   review: string[];
+  /**
+   * Informational notes (for example the cost note), admin responses only. They never block
+   * publishing and are never shown as a problem. Absent from an older backend.
+   */
+  notes?: string[];
 }
 
 export interface InternalBlock {
@@ -367,6 +402,29 @@ export const setTierBenefits = (
   );
 
 /**
+ * One change to a line the engine generated. Each entry REPLACES that line's override as a whole:
+ * `text` null/absent clears the edit, `hidden` null/false/absent shows the line, and an entry with
+ * neither clears the override. Display only: the real benefit never changes.
+ */
+export interface BenefitOverrideEntry {
+  key: string;
+  text?: string | null;
+  hidden?: boolean | null;
+}
+
+export const setBenefitOverrides = (
+  clinicId: string,
+  programId: string,
+  tier: TierKey,
+  overrides: BenefitOverrideEntry[],
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/benefit-overrides`,
+    { method: "PUT", ...json({ overrides }) },
+  );
+
+/**
  * The words of a DRAFT, by what they are attached to. Anything omitted is left as it is.
  * `index` is the 0-based position in `program.referrals`; `milestone` is the ladder number `n`
  * of a `ventaja` row (perks) or a `premio` row (rewards). A `null` label restores the engine's
@@ -416,6 +474,41 @@ export const getCalculator = (
       method: "POST",
       ...json(input),
     },
+  );
+
+/* ------------------------------------------------------------------------ comparison */
+
+/**
+ * The edited programme against the engine's own recommendation for the same answers, over five
+ * years, at standard values. Admin only; only yearly totals, never what one gift is worth.
+ * `delta` is this plan minus the recommended one: negative means this plan earns less. The
+ * recommended figures are null, with a `reason` (Spanish, from the backend), when there is
+ * nothing to compare against.
+ */
+export interface ProgramComparisonYear {
+  year: number;
+  recommendedNet: number | null;
+  currentNet: number;
+  recommendedCumulative: number | null;
+  currentCumulative: number;
+}
+
+export interface ProgramComparison {
+  /** The standard values both plans were computed with. */
+  inputs: { clients: number; ticket: number };
+  recommendedNet5y: number | null;
+  currentNet5y: number;
+  delta: number | null;
+  years: ProgramComparisonYear[];
+  reason?: string | null;
+}
+
+/** A read, though it is a POST with no body: the backend computes it from the stored draft. */
+export const getProgramComparison = (clinicId: string, programId: string) =>
+  request<ProgramComparison>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/comparison`,
+    { method: "POST" },
   );
 
 /* ---------------------------------------------------------------------------- bonos */

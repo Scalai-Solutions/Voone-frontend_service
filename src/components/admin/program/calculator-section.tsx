@@ -7,6 +7,7 @@ import { useCalculator } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type { CalcInput, CalcResult, CalcYear, TierKey } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
+import { useDebounced } from "@/lib/use-debounced";
 import { formatEuro } from "./format";
 
 /**
@@ -49,18 +50,6 @@ const compact = (value: number): string =>
 
 const signed = (value: number): string =>
   `${value >= 0 ? "+" : "−"}${formatEuro(Math.abs(Math.round(value)))}`;
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), ms);
-
-    return () => clearTimeout(id);
-  }, [value, ms]);
-
-  return debounced;
-}
 
 export function CalculatorSection({
   clinicId,

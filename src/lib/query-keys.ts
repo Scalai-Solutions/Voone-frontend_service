@@ -33,6 +33,8 @@ export const queryKeys = {
       ["onboarding", clinicId, "recalibration"] as const,
     calculator: (clinicId: string, programId: string, input: unknown) =>
       ["onboarding", clinicId, "calculator", programId, input] as const,
+    comparison: (clinicId: string, programId: string, revision: number) =>
+      ["onboarding", clinicId, "comparison", programId, revision] as const,
   },
   mutations: {
     addMember: () => ["add-member"] as const,

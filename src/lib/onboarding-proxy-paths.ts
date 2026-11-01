@@ -24,7 +24,12 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["programs", "*", "draft"], methods: ["POST"] },
   { pattern: ["programs", "*", "texts"], methods: ["PATCH"] },
   { pattern: ["programs", "*", "calculator"], methods: ["POST"] },
+  { pattern: ["programs", "*", "comparison"], methods: ["POST"] },
   { pattern: ["programs", "*", "tiers", "*", "benefits"], methods: ["PUT"] },
+  {
+    pattern: ["programs", "*", "tiers", "*", "benefit-overrides"],
+    methods: ["PUT"],
+  },
   { pattern: ["recalibration"], methods: ["GET"] },
 ];
 

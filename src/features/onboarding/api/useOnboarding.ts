@@ -1,12 +1,15 @@
+import { useState } from "react";
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 
 import { ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { useDebounced } from "@/lib/use-debounced";
 import type { BonoPlansStore } from "@/components/shared/bono-plans-editor";
 import type { TierKey } from "@/lib/onboarding-api";
 import {
@@ -19,6 +22,7 @@ import {
   getCatalog,
   getEstimates,
   getProgram,
+  getProgramComparison,
   getRecalibration,
   importCatalogCsv,
   listPrograms,
@@ -26,9 +30,11 @@ import {
   publishProgram,
   replaceCatalog,
   setProgramTexts,
+  setBenefitOverrides,
   setTierBenefits,
   swapMilestone,
   updateBonoPlan,
+  type BenefitOverrideEntry,
   type CalcInput,
   type CatalogInputRow,
   type OnboardingAnswers,
@@ -146,6 +152,57 @@ export function useCalculator(
   });
 }
 
+/** How long the draft must stay unchanged before its comparison is asked for again. */
+const COMPARISON_DEBOUNCE_MS = 400;
+
+/**
+ * The 5-year comparison of a DRAFT against the recommended plan.
+ *
+ * `draft` is the programme as the screen holds it (the programme query's `data`). The comparison is
+ * keyed on a revision that moves only when that object CHANGES: react-query keeps the same object
+ * when a refetch (a tab focus, say) returns identical data, so a refocus asks for nothing, while
+ * every real edit or swap stores a new object and asks again at once (after the debounce, so a
+ * run of quick edits asks once). The answer is also kept fresh for 30 s per revision.
+ *
+ * While the draft is still changing, or the answer is on its way, `loading` is true and no number
+ * is returned: a figure for the previous draft would be wrong when someone is about to publish.
+ * `programId` null (not a draft) asks for nothing.
+ */
+export function useProgramComparison(
+  clinicId: string,
+  programId: string | null,
+  draft: unknown,
+) {
+  const [tracked, setTracked] = useState({ draft, revision: 0 });
+
+  // Adjusting state while rendering, the documented way to follow a changing value.
+  if (tracked.draft !== draft) {
+    setTracked({ draft, revision: tracked.revision + 1 });
+  }
+
+  const { revision } = tracked;
+  const settled = useDebounced(revision, COMPARISON_DEBOUNCE_MS);
+  const settling = settled !== revision;
+  const query = useQuery({
+    queryKey: queryKeys.onboarding.comparison(
+      clinicId,
+      programId ?? "",
+      settled,
+    ),
+    queryFn: () => getProgramComparison(clinicId, programId as string),
+    enabled: programId !== null,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+  });
+
+  return {
+    data: settling ? undefined : query.data,
+    loading: programId !== null && (settling || query.isPending),
+    failed: programId !== null && !settling && query.isError,
+  };
+}
+
 export function usePrograms(clinicId: string) {
   return useQuery({
     queryKey: queryKeys.onboarding.programs(clinicId),
@@ -224,6 +281,21 @@ export function useSwapMilestone(clinicId: string, programId: string) {
   });
 }
 
+/**
+ * A draft edit that answers 409 found the draft changed under the editor ("Recarga la página").
+ * Refetching it puts the fresh programme on screen next to that message, so the retry starts from
+ * what is stored.
+ */
+const refreshOnConflict =
+  (queryClient: QueryClient, clinicId: string, programId: string) =>
+  (error: unknown) => {
+    if (error instanceof ApiError && error.status === 409) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.program(clinicId, programId),
+      });
+    }
+  };
+
 export function useSetTierBenefits(clinicId: string, programId: string) {
   const queryClient = useQueryClient();
 
@@ -236,6 +308,28 @@ export function useSetTierBenefits(clinicId: string, programId: string) {
         draft,
       );
     },
+    onError: refreshOnConflict(queryClient, clinicId, programId),
+  });
+}
+
+export function useSetBenefitOverrides(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      tier,
+      overrides,
+    }: {
+      tier: TierKey;
+      overrides: BenefitOverrideEntry[];
+    }) => setBenefitOverrides(clinicId, programId, tier, overrides),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+    },
+    onError: refreshOnConflict(queryClient, clinicId, programId),
   });
 }
 
@@ -251,6 +345,7 @@ export function useSetProgramTexts(clinicId: string, programId: string) {
         draft,
       );
     },
+    onError: refreshOnConflict(queryClient, clinicId, programId),
   });
 }
 
