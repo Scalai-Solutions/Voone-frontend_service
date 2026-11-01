@@ -11,6 +11,7 @@ import {
   errorText,
 } from "@/components/admin/change-requests/chips";
 import { Input } from "@/components/ui/input";
+import { useClinics } from "@/features/clinics/api/useClinics";
 import {
   useInboxList,
   useStatusCounts,
@@ -22,7 +23,7 @@ import {
   CHANGE_REQUEST_TYPES,
   STATUS_LABEL,
   TYPE_LABEL,
-  countLabel,
+  chipCount,
   type ChangeRequestType,
 } from "@/lib/admin-change-requests";
 
@@ -30,11 +31,15 @@ import {
  * The tickets inbox: across all clinics, or one clinic when `clinicId` is given. Filters are
  * a status chip row (with counts), a type select and a text search (title or clinic name).
  */
-export function ChangeRequestsInbox({ clinicId }: { clinicId?: string }) {
-  const [status, setStatus] = React.useState<InboxFilters["status"]>("OPEN");
+export function ChangeRequestsInbox({ clinicId: fixedClinicId }: { clinicId?: string }) {
+  const [status, setStatus] = React.useState<InboxFilters["status"]>("ACTIVE");
   const [type, setType] = React.useState<InboxFilters["type"]>("");
+  const [pickedClinic, setPickedClinic] = React.useState("");
   const [text, setText] = React.useState("");
   const [q, setQ] = React.useState("");
+  // On a clinic's own page the clinic is fixed; in the global inbox it is a filter.
+  const clinicId = fixedClinicId ?? (pickedClinic || undefined);
+  const clinics = useClinics();
 
   // The text filter applies after a pause, so typing does not fire a request per key.
   React.useEffect(() => {
@@ -44,36 +49,35 @@ export function ChangeRequestsInbox({ clinicId }: { clinicId?: string }) {
   }, [text]);
 
   const list = useInboxList(clinicId, { status, type, q });
-  const counts = useStatusCounts(clinicId, { type, q });
-  const rows = list.data?.pages.flatMap((page) => page.items) ?? [];
+  const counts = useStatusCounts(clinicId);
+  const rows = list.rows;
+
+  const chips: Array<{ value: InboxFilters["status"]; label: string }> = [
+    { value: "", label: "All" },
+    { value: "ACTIVE", label: "Active" },
+    ...CHANGE_REQUEST_STATUSES.map((value) => ({
+      value,
+      label: STATUS_LABEL[value],
+    })),
+  ];
 
   return (
     <div className="space-y-4">
       <div className={cardClass}>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by status">
-          <button
-            type="button"
-            aria-pressed={status === ""}
-            onClick={() => setStatus("")}
-            className={chipButton(status === "")}
-          >
-            All
-          </button>
-          {CHANGE_REQUEST_STATUSES.map((value, index) => {
-            const query = counts[index];
+          {chips.map((chip) => {
+            const count = chipCount(chip.value, counts);
 
             return (
               <button
-                key={value}
+                key={chip.value || "all"}
                 type="button"
-                aria-pressed={status === value}
-                onClick={() => setStatus(value)}
-                className={chipButton(status === value)}
+                aria-pressed={status === chip.value}
+                onClick={() => setStatus(chip.value)}
+                className={chipButton(status === chip.value)}
               >
-                {STATUS_LABEL[value]}
-                <span className="ml-1.5 tabular-nums opacity-70">
-                  {query.data ? countLabel(query.data) : "–"}
-                </span>
+                {chip.label}
+                <span className="ml-1.5 tabular-nums opacity-70">{count ?? "–"}</span>
               </button>
             );
           })}
@@ -93,6 +97,21 @@ export function ChangeRequestsInbox({ clinicId }: { clinicId?: string }) {
               </option>
             ))}
           </select>
+          {fixedClinicId ? null : (
+            <select
+              aria-label="Filter by clinic"
+              value={pickedClinic}
+              onChange={(event) => setPickedClinic(event.target.value)}
+              className="h-11 max-w-60 rounded-2xl border border-[#d9c9b6] bg-[#fffaf3]/86 px-3 text-sm"
+            >
+              <option value="">All clinics</option>
+              {(clinics.data ?? []).map((clinic) => (
+                <option key={clinic.id} value={clinic.id}>
+                  {clinic.name}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="relative min-w-60 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -118,7 +137,7 @@ export function ChangeRequestsInbox({ clinicId }: { clinicId?: string }) {
             {errorText(list.error, "Could not load the requests.")}
           </p>
         ) : null}
-        {list.data && rows.length === 0 ? (
+        {list.loaded && rows.length === 0 ? (
           <div className="py-6 text-center text-sm text-[#806d63]">
             <InboxIcon className="mx-auto mb-2 h-5 w-5" />
             No requests match these filters.

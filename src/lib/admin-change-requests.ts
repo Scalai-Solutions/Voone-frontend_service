@@ -235,3 +235,62 @@ export const unresolvedCount = (
   count: pages.reduce((sum, page) => sum + page.items.length, 0),
   more: pages.some((page) => page.nextCursor !== null),
 });
+
+/** The inbox's status filter: one status, "ACTIVE" (open and in progress together) or "" for all. */
+export type InboxStatus = ChangeRequestStatus | "ACTIVE" | "";
+
+/** The backend statuses an inbox filter stands for (one list call each); empty means no status filter. */
+export const statusesFor = (status: InboxStatus): ChangeRequestStatus[] =>
+  status === "ACTIVE"
+    ? ["OPEN", "IN_PROGRESS"]
+    : status === ""
+      ? []
+      : [status];
+
+/** Rows from several list calls as one list, newest first (ties by id), without repeats. */
+export const mergeNewestFirst = <T extends { id: string; createdAt: string }>(
+  lists: ReadonlyArray<readonly T[]>,
+): T[] => {
+  const seen = new Set<string>();
+  const rows: T[] = [];
+
+  for (const list of lists)
+    for (const row of list)
+      if (!seen.has(row.id)) {
+        seen.add(row.id);
+        rows.push(row);
+      }
+
+  return rows.sort((a, b) =>
+    a.createdAt === b.createdAt
+      ? b.id.localeCompare(a.id)
+      : a.createdAt < b.createdAt
+        ? 1
+        : -1,
+  );
+};
+
+/**
+ * What a status chip shows, from the first page fetched for each status (so "50+" when a
+ * page had a next one). "ACTIVE" adds open and in progress; "" (All) adds all four.
+ */
+export const chipCount = (
+  status: InboxStatus,
+  pages: Partial<
+    Record<
+      ChangeRequestStatus,
+      { items: readonly unknown[]; nextCursor: string | null } | undefined
+    >
+  >,
+): string | null => {
+  const wanted = status === "" ? [...CHANGE_REQUEST_STATUSES] : statusesFor(status);
+  const found = wanted.map((key) => pages[key]);
+
+  if (found.some((page) => page === undefined)) return null;
+
+  const counted = unresolvedCount(
+    found as Array<{ items: readonly unknown[]; nextCursor: string | null }>,
+  );
+
+  return `${counted.count}${counted.more ? "+" : ""}`;
+};

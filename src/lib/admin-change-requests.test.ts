@@ -13,6 +13,9 @@ import {
   actionTarget,
   statusActions,
   unresolvedCount,
+  statusesFor,
+  mergeNewestFirst,
+  chipCount,
   TYPE_LABEL,
 } from "./admin-change-requests.ts";
 
@@ -100,5 +103,41 @@ describe("change request helpers", () => {
       { count: 2, more: true },
     );
     assert.deepEqual(unresolvedCount([]), { count: 0, more: false });
+  });
+
+  it("statusesFor maps the inbox filter to backend statuses", () => {
+    assert.deepEqual(statusesFor("ACTIVE"), ["OPEN", "IN_PROGRESS"]);
+    assert.deepEqual(statusesFor("RESOLVED"), ["RESOLVED"]);
+    assert.deepEqual(statusesFor(""), []);
+  });
+
+  it("mergeNewestFirst sorts by date, breaks ties by id and drops repeats", () => {
+    const a = { id: "a", createdAt: "2026-03-01T00:00:00Z" };
+    const b = { id: "b", createdAt: "2026-03-03T00:00:00Z" };
+    const c = { id: "c", createdAt: "2026-03-03T00:00:00Z" };
+
+    assert.deepEqual(
+      mergeNewestFirst([[a, b], [c, a]]).map((r) => r.id),
+      ["c", "b", "a"],
+    );
+    assert.deepEqual(mergeNewestFirst([]), []);
+  });
+
+  it("chipCount sums the statuses a chip stands for and is blank until they are loaded", () => {
+    const open = { items: [1, 2], nextCursor: null };
+    const prog = { items: [1], nextCursor: "c" };
+
+    assert.equal(chipCount("OPEN", { OPEN: open }), "2");
+    assert.equal(chipCount("ACTIVE", { OPEN: open, IN_PROGRESS: prog }), "3+");
+    assert.equal(chipCount("ACTIVE", { OPEN: open }), null);
+    assert.equal(
+      chipCount("", {
+        OPEN: open,
+        IN_PROGRESS: prog,
+        RESOLVED: { items: [], nextCursor: null },
+        REJECTED: { items: [], nextCursor: null },
+      }),
+      "3+",
+    );
   });
 });

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUpRight, Check, Loader2 } from "lucide-react";
 
 import { cardClass, errorText } from "@/components/admin/change-requests/chips";
@@ -187,9 +188,9 @@ function ApplyPanel({
 
 /** "Create programme draft" for REWARD and LEVEL tickets, and the link to the linked programme. */
 function DraftPanel({ ticket }: { ticket: ChangeRequestDetail }) {
+  const router = useRouter();
   const createDraft = useCreateDraft(ticket.id);
   const [problem, setProblem] = React.useState<string | null>(null);
-  const [justCreated, setJustCreated] = React.useState(false);
   const programHref = `/admin/clinics/${encodeURIComponent(ticket.clinicId)}/program`;
   const open = isUnresolved(ticket.status);
 
@@ -197,7 +198,6 @@ function DraftPanel({ ticket }: { ticket: ChangeRequestDetail }) {
     <div className="space-y-3">
       {ticket.programId ? (
         <p className="text-sm">
-          {justCreated ? "Draft ready. " : ""}
           Linked programme: <span className="font-mono text-xs">{ticket.programId}</span>
           {open ? ". Edit it, publish it, and you will be offered to resolve this request." : "."}
         </p>
@@ -215,7 +215,8 @@ function DraftPanel({ ticket }: { ticket: ChangeRequestDetail }) {
             onClick={() => {
               setProblem(null);
               createDraft.mutate(undefined, {
-                onSuccess: () => setJustCreated(true),
+                // Straight to the programme editor, where the new draft is waiting.
+                onSuccess: () => router.push(programHref),
                 onError: (error) =>
                   setProblem(errorText(error, "Could not create the draft. Try again.")),
               });

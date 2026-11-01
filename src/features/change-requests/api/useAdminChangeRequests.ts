@@ -19,7 +19,11 @@ import {
 import {
   CHANGE_REQUEST_STATUSES,
   type ChangeRequestDetail,
+  type ChangeRequestPage,
   type ChangeRequestStatus,
+  type InboxStatus,
+  mergeNewestFirst,
+  statusesFor,
   type ChangeRequestType,
   unresolvedLinkedTo,
 } from "@/lib/admin-change-requests";
@@ -37,7 +41,7 @@ export const changeRequestKeys = {
 };
 
 export interface InboxFilters {
-  status: ChangeRequestStatus | "";
+  status: InboxStatus;
   type: ChangeRequestType | "";
   q: string;
 }
@@ -45,7 +49,7 @@ export interface InboxFilters {
 /** The inbox's data: all clinics, or one clinic when `clinicId` is given. */
 const fetchPage = (
   clinicId: string | undefined,
-  filters: InboxFilters,
+  filters: { status: ChangeRequestStatus | ""; type: ChangeRequestType | ""; q: string },
   limit: number,
   cursor: string | null,
 ) =>
@@ -53,30 +57,67 @@ const fetchPage = (
     ? listClinicChangeRequests(clinicId, { ...filters, limit, cursor })
     : listChangeRequests({ ...filters, limit, cursor });
 
+/**
+ * The inbox list. "Active" is two backend calls (open, in progress) merged newest first,
+ * because the backend filters by one status at a time; "Load more" asks each side that has more.
+ */
 export function useInboxList(clinicId: string | undefined, filters: InboxFilters) {
-  return useInfiniteQuery({
-    queryKey: changeRequestKeys.list(clinicId ?? "all", filters),
-    queryFn: ({ pageParam }) => fetchPage(clinicId, filters, 20, pageParam),
+  const statuses = statusesFor(filters.status);
+  const sides = [statuses[0] ?? "", statuses[1]] as const;
+
+  const queryFor = (status: ChangeRequestStatus | "", enabled: boolean) => ({
+    queryKey: changeRequestKeys.list(clinicId ?? "all", { ...filters, status }),
+    queryFn: ({ pageParam }: { pageParam: string | null }) =>
+      fetchPage(clinicId, { type: filters.type, q: filters.q, status }, 20, pageParam),
     initialPageParam: null as string | null,
-    getNextPageParam: (last) => last.nextCursor,
+    getNextPageParam: (last: { nextCursor: string | null }) => last.nextCursor,
+    enabled,
   });
+
+  const first = useInfiniteQuery(queryFor(sides[0], true));
+  const second = useInfiniteQuery(queryFor(sides[1] ?? "", sides[1] !== undefined));
+  const active = sides[1] !== undefined ? [first, second] : [first];
+
+  const rows = mergeNewestFirst(
+    active.map((query) => query.data?.pages.flatMap((page) => page.items) ?? []),
+  );
+
+  return {
+    rows,
+    isPending: active.some((query) => query.isPending),
+    isError: active.some((query) => query.isError),
+    error: active.find((query) => query.isError)?.error ?? null,
+    loaded: active.every((query) => query.data !== undefined),
+    hasNextPage: active.some((query) => query.hasNextPage),
+    isFetchingNextPage: active.some((query) => query.isFetchingNextPage),
+    isFetchNextPageError: active.some((query) => query.isFetchNextPageError),
+    fetchNextPage: () =>
+      Promise.all(
+        active
+          .filter((query) => query.hasNextPage && !query.isFetchingNextPage)
+          .map((query) => query.fetchNextPage()),
+      ),
+  };
 }
 
 /**
- * The count on each status chip. The list answers pages, not totals, so each count is the
- * size of a first page of 50 (shown as "50+" when there is more), with the type and text
- * filters applied but not the status one.
+ * The count on each status chip: one first page of 50 per status (shown as "50+" when there
+ * is more). Independent of the type and text filters, so it is fetched once per mount (and per
+ * clinic scope) and again after a ticket changes, not on every keystroke.
  */
-export function useStatusCounts(
-  clinicId: string | undefined,
-  filters: Pick<InboxFilters, "type" | "q">,
-) {
-  return useQueries({
+export function useStatusCounts(clinicId: string | undefined) {
+  const queries = useQueries({
     queries: CHANGE_REQUEST_STATUSES.map((status) => ({
-      queryKey: changeRequestKeys.counts(clinicId ?? "all", { ...filters, status }),
-      queryFn: () => fetchPage(clinicId, { ...filters, status }, 50, null),
+      queryKey: changeRequestKeys.counts(clinicId ?? "all", status),
+      queryFn: () => fetchPage(clinicId, { status, type: "", q: "" }, 50, null),
+      staleTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
     })),
   });
+
+  return Object.fromEntries(
+    CHANGE_REQUEST_STATUSES.map((status, index) => [status, queries[index].data]),
+  ) as Partial<Record<ChangeRequestStatus, ChangeRequestPage | undefined>>;
 }
 
 export const useChangeRequest = (id: string) =>
