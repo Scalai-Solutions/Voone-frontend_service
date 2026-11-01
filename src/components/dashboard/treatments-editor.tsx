@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 
 import { BonoPlansEditor } from "@/components/shared/bono-plans-editor";
 import { ChangeRequestPanel } from "@/components/dashboard/change-request-panel";
+import { useRestoreFocus } from "@/components/dashboard/use-restore-focus";
 import { useStaffBonoPlansStore } from "@/features/bonos/api/useBonos";
 import {
   useTreatmentCatalogue,
@@ -59,6 +60,11 @@ export function TreatmentsEditor({
   );
   const bonoStore = useStaffBonoPlansStore();
   const [active, setActive] = React.useState<ActivePanel | null>(null);
+  const focus = useRestoreFocus();
+  const openPanel = (next: ActivePanel, trigger: HTMLElement) => {
+    focus.remember(trigger);
+    setActive(next);
+  };
 
   const items = catalogue.data?.items ?? [];
 
@@ -68,7 +74,10 @@ export function TreatmentsEditor({
       context={active.context}
       categories={categories}
       categoriesFailed={categoriesQuery.isError}
-      onClose={() => setActive(null)}
+      onClose={() => {
+        setActive(null);
+        focus.restore();
+      }}
     />
   ) : null;
 
@@ -88,12 +97,15 @@ export function TreatmentsEditor({
         {canRequest && catalogue.data ? (
           <button
             type="button"
-            onClick={() =>
-              setActive({
-                id: "new",
-                area: "treatment",
-                context: { kind: "service-add", usesCatalogue },
-              })
+            onClick={(event) =>
+              openPanel(
+                {
+                  id: "new",
+                  area: "treatment",
+                  context: { kind: "service-add", usesCatalogue },
+                },
+                event.currentTarget,
+              )
             }
             className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"
           >
@@ -162,16 +174,19 @@ export function TreatmentsEditor({
                   <>
                     <button
                       type="button"
-                      onClick={() =>
-                        setActive({
-                          id: treatment.id,
-                          area: "treatment",
-                          context: {
-                            kind: "service-edit",
-                            treatment: ref,
-                            usesCatalogue,
+                      onClick={(event) =>
+                        openPanel(
+                          {
+                            id: treatment.id,
+                            area: "treatment",
+                            context: {
+                              kind: "service-edit",
+                              treatment: ref,
+                              usesCatalogue,
+                            },
                           },
-                        })
+                          event.currentTarget,
+                        )
                       }
                       className="text-xs font-semibold text-[#9b633e] underline-offset-2 hover:underline"
                       aria-label={`Solicitar cambio en ${treatment.name}`}
@@ -180,12 +195,15 @@ export function TreatmentsEditor({
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        setActive({
-                          id: treatment.id,
-                          area: "treatment",
-                          context: { kind: "service-remove", treatment: ref },
-                        })
+                      onClick={(event) =>
+                        openPanel(
+                          {
+                            id: treatment.id,
+                            area: "treatment",
+                            context: { kind: "service-remove", treatment: ref },
+                          },
+                          event.currentTarget,
+                        )
                       }
                       className="text-xs font-semibold text-[#b94135] underline-offset-2 hover:underline"
                       aria-label={`Solicitar baja de ${treatment.name}`}
@@ -209,24 +227,29 @@ export function TreatmentsEditor({
             store={bonoStore}
             requests={{
               enabled: canRequest,
-              onAdd: () =>
-                setActive({
-                  id: "new",
-                  area: "bono",
-                  context: { kind: "bono-add" },
-                }),
-              onEdit: (plan) =>
-                setActive({
-                  id: plan.id,
-                  area: "bono",
-                  context: { kind: "bono-edit", plan: bonoRef(plan) },
-                }),
-              onRemove: (plan) =>
-                setActive({
-                  id: plan.id,
-                  area: "bono",
-                  context: { kind: "bono-remove", plan: bonoRef(plan) },
-                }),
+              onAdd: (trigger) =>
+                openPanel(
+                  { id: "new", area: "bono", context: { kind: "bono-add" } },
+                  trigger,
+                ),
+              onEdit: (plan, trigger) =>
+                openPanel(
+                  {
+                    id: plan.id,
+                    area: "bono",
+                    context: { kind: "bono-edit", plan: bonoRef(plan) },
+                  },
+                  trigger,
+                ),
+              onRemove: (plan, trigger) =>
+                openPanel(
+                  {
+                    id: plan.id,
+                    area: "bono",
+                    context: { kind: "bono-remove", plan: bonoRef(plan) },
+                  },
+                  trigger,
+                ),
               activePlanId: active?.area === "bono" ? active.id : null,
               panel,
             }}

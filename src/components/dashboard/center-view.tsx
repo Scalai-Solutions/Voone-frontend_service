@@ -8,6 +8,7 @@ import { useOpenRequestCount } from "@/features/change-requests/api/useChangeReq
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { ChangeRequestPanel } from "@/components/dashboard/change-request-panel";
+import { useRestoreFocus } from "@/components/dashboard/use-restore-focus";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
 import type { RequestContext } from "@/lib/change-request-form";
 import type { MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
@@ -170,7 +171,7 @@ export function CenterView({ canEdit, canRequest }: CenterViewProps) {
       </div>
 
       {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} canRequest={canRequest} /> : null}
-      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, solicita un cambio." requestKind="reward" nameLabel="Premio o ventaja" valueLabel="Total gastado por la clienta" initialRows={rewardRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, solicita un cambio." requestKind="reward" nameLabel="Premio o ventaja" valueLabel="Total gastado por el cliente" initialRows={rewardRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
       {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, solicita un cambio." requestKind="level" nameLabel="Nivel" valueLabel={liveProgram ? "Puntos" : "Requisito (gasto · puntos)"} secondValueLabel={liveProgram ? "Total gastado" : undefined} initialRows={tierRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
 
       {tab === "tarjeta" && clinic?.template?.id ? (
@@ -196,6 +197,15 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
   const rows = initialRows;
   // "general" (the button at the top), a row id, or null. One request panel is open at a time.
   const [requesting, setRequesting] = React.useState<string | null>(null);
+  const focus = useRestoreFocus();
+  const open = (id: string, event: React.MouseEvent<HTMLElement>) => {
+    focus.remember(event.currentTarget);
+    setRequesting(id);
+  };
+  const close = () => {
+    setRequesting(null);
+    focus.restore();
+  };
   const rowContext = (row: SetupItem): RequestContext =>
     requestKind === "reward"
       ? { kind: "reward", milestone: row.milestone, label: row.name, detail: row.detail }
@@ -208,12 +218,12 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
           <h2 className="font-serif text-2xl font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-[#927e72]">{description}</p>
         </div>
-        {canRequest && requestKind === "reward" ? <button type="button" onClick={() => setRequesting("general")} className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />Solicitar un cambio</button> : null}
+        {canRequest ? <button type="button" onClick={(event) => open("general", event)} className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />Solicitar un cambio</button> : null}
       </div>
 
       {canRequest && requesting === "general" ? (
         <div className="border-b border-[#eadfd8]">
-          <ChangeRequestPanel key="general" context={requestKind === "reward" ? { kind: "reward" } : { kind: "level" }} onClose={() => setRequesting(null)} />
+          <ChangeRequestPanel key="general" context={requestKind === "reward" ? { kind: "reward" } : { kind: "level" }} onClose={close} />
         </div>
       ) : null}
 
@@ -248,7 +258,7 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
               <div className="min-w-0">
                 <p className="break-words font-semibold">{row.name}</p>
                 <p className="mt-1 break-words text-xs leading-5 text-[#927e72]">{row.detail}</p>
-                {requestable ? <button type="button" onClick={() => setRequesting(row.id)} className="mt-2 text-xs font-semibold text-[#9b633e] underline-offset-2 hover:underline" aria-label={`Solicitar cambio en ${row.name}`}>Solicitar cambio</button> : null}
+                {requestable ? <button type="button" onClick={(event) => open(row.id, event)} className="mt-2 text-xs font-semibold text-[#9b633e] underline-offset-2 hover:underline" aria-label={`Solicitar cambio en ${row.name}`}>Solicitar cambio</button> : null}
               </div>
               {secondValueLabel ? (
                 <>
@@ -267,7 +277,7 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
             </div>
             {requestable && requesting === row.id ? (
               <div className="border-t border-[#eadfd8]">
-                <ChangeRequestPanel key={row.id} context={rowContext(row)} onClose={() => setRequesting(null)} />
+                <ChangeRequestPanel key={row.id} context={rowContext(row)} onClose={close} />
               </div>
             ) : null}
           </div>

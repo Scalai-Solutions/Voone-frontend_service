@@ -52,9 +52,10 @@ const parsePrice = (raw: string): number | null => {
 export interface BonoRequestMode {
   /** False for someone who may look but not ask (no buttons, plans only). */
   enabled: boolean;
-  onAdd: () => void;
-  onEdit: (plan: BonoPlanRow) => void;
-  onRemove: (plan: BonoPlanRow) => void;
+  /** Each handler gets the clicked button, so the caller can return focus to it when the panel closes. */
+  onAdd: (trigger: HTMLElement) => void;
+  onEdit: (plan: BonoPlanRow, trigger: HTMLElement) => void;
+  onRemove: (plan: BonoPlanRow, trigger: HTMLElement) => void;
   /** The plan whose request panel is open, or "new" for a new plan; null for none. */
   activePlanId: string | null;
   /** The open request panel, rendered under the plan it belongs to (or at the top for "new"). */
@@ -130,7 +131,7 @@ export function BonoPlansEditor({
         <div className="mt-3">
           <button
             type="button"
-            onClick={requests.onAdd}
+            onClick={(event) => requests.onAdd(event.currentTarget)}
             className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"
           >
             <Plus size={15} className="mr-1 inline" />
@@ -170,14 +171,14 @@ export function BonoPlansEditor({
                   <div className="flex shrink-0 items-center gap-3 text-xs font-semibold">
                     <button
                       type="button"
-                      onClick={() => requests.onEdit(plan)}
+                      onClick={(event) => requests.onEdit(plan, event.currentTarget)}
                       className="text-[#9b633e] underline-offset-2 hover:underline"
                     >
                       Solicitar cambio
                     </button>
                     <button
                       type="button"
-                      onClick={() => requests.onRemove(plan)}
+                      onClick={(event) => requests.onRemove(plan, event.currentTarget)}
                       className="text-[#b94135] underline-offset-2 hover:underline"
                     >
                       Solicitar baja
