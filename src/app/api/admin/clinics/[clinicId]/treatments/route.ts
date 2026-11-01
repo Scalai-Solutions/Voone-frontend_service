@@ -1,4 +1,7 @@
-import { forwardClinicSlugRoute } from "@/lib/admin-api-proxy";
+import {
+  forwardClinicSlugRoute,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { parseTreatmentCreate } from "@/lib/admin-catalogue-parsers";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -21,6 +24,12 @@ export async function GET(_request: Request, context: Context) {
 
   const { clinicId } = await context.params;
 
+  const badId = rejectBadIds(clinicId);
+
+  if (badId) {
+    return badId;
+  }
+
   return forwardClinicSlugRoute(null, clinicId, "treatments", "GET");
 }
 
@@ -32,6 +41,12 @@ export async function POST(request: Request, context: Context) {
   }
 
   const { clinicId } = await context.params;
+
+  const badId = rejectBadIds(clinicId);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardClinicSlugRoute(
     request,

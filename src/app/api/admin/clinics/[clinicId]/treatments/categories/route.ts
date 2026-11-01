@@ -1,4 +1,7 @@
-import { forwardClinicSlugRoute } from "@/lib/admin-api-proxy";
+import {
+  forwardClinicSlugRoute,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { requireAdminSession } from "@/lib/staff-guard";
 
 /** The categories a treatment can belong to (the backend's own list, Spanish labels). */
@@ -13,6 +16,12 @@ export async function GET(
   }
 
   const { clinicId } = await context.params;
+
+  const badId = rejectBadIds(clinicId);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardClinicSlugRoute(null, clinicId, "treatment-categories", "GET");
 }

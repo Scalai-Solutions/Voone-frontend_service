@@ -1,4 +1,7 @@
-import { forwardClinicSlugRoute } from "@/lib/admin-api-proxy";
+import {
+  forwardClinicSlugRoute,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { parseTreatmentUpdate } from "@/lib/admin-catalogue-parsers";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -13,6 +16,12 @@ export async function PATCH(request: Request, context: Context) {
   }
 
   const { clinicId, id } = await context.params;
+
+  const badId = rejectBadIds(clinicId, id);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardClinicSlugRoute(
     request,
@@ -31,6 +40,12 @@ export async function DELETE(_request: Request, context: Context) {
   }
 
   const { clinicId, id } = await context.params;
+
+  const badId = rejectBadIds(clinicId, id);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardClinicSlugRoute(
     null,

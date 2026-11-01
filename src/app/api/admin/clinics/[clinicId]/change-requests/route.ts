@@ -1,5 +1,9 @@
 import { parseListQuery } from "@/lib/change-request-parsers";
-import { adminApiFetch, invalidRequest } from "@/lib/admin-api-proxy";
+import {
+  adminApiFetch,
+  invalidRequest,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { forwardResponse } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -15,6 +19,12 @@ export async function GET(
   }
 
   const { clinicId } = await context.params;
+
+  const badId = rejectBadIds(clinicId);
+
+  if (badId) {
+    return badId;
+  }
   const query = parseListQuery(new URL(request.url).searchParams);
 
   if (!query.ok) {

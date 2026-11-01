@@ -1,4 +1,7 @@
-import { forwardValidatedWrite } from "@/lib/admin-api-proxy";
+import {
+  forwardValidatedWrite,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { parseResolveTicketsBody } from "@/lib/change-request-parsers";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -21,6 +24,12 @@ export async function POST(
   }
 
   const { clinicId, programId } = await context.params;
+
+  const badId = rejectBadIds(clinicId, programId);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardValidatedWrite(
     request,

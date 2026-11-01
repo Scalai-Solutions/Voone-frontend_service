@@ -1,4 +1,7 @@
-import { forwardValidatedWrite } from "@/lib/admin-api-proxy";
+import {
+  forwardValidatedWrite,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { parseStatusBody } from "@/lib/change-request-parsers";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -14,6 +17,12 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
+
+  const badId = rejectBadIds(id);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardValidatedWrite(
     request,

@@ -1,6 +1,7 @@
 import {
   adminApiFetch,
   forwardValidatedWrite,
+  rejectBadIds,
 } from "@/lib/admin-api-proxy";
 import { parseBonoUpdate } from "@/lib/admin-catalogue-parsers";
 import { forwardResponse } from "@/lib/staff-api";
@@ -18,6 +19,12 @@ export async function PATCH(request: Request, context: Context) {
 
   const { clinicId, id } = await context.params;
 
+  const badId = rejectBadIds(clinicId, id);
+
+  if (badId) {
+    return badId;
+  }
+
   return forwardValidatedWrite(
     request,
     `/v1/admin/clinics/${encodeURIComponent(clinicId)}/onboarding/bonos/${encodeURIComponent(id)}`,
@@ -34,6 +41,12 @@ export async function DELETE(_request: Request, context: Context) {
   }
 
   const { clinicId, id } = await context.params;
+
+  const badId = rejectBadIds(clinicId, id);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardResponse(
     await adminApiFetch(

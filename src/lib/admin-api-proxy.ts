@@ -1,6 +1,11 @@
 import "server-only";
 
 import { forwardResponse, staffFetch } from "@/lib/staff-api";
+import {
+  MAX_BODY_BYTES,
+  declaredTooLarge,
+  isSafeId,
+} from "@/lib/admin-request-guards";
 import { parseJson, type Parsed } from "@/lib/change-request-parsers";
 
 /**
@@ -27,11 +32,63 @@ export const adminApiFetch = (
 export const invalidRequest = (message: string): Response =>
   Response.json({ code: "VALIDATION_ERROR", message }, { status: 422 });
 
-/** Reads and parses a JSON body, or the 422 to answer instead. */
+/** 404 when any path id is not backend-shaped, so `..` or `%2E%2E` can never reach a backend path. */
+export const rejectBadIds = (...ids: string[]): Response | null =>
+  ids.every(isSafeId)
+    ? null
+    : Response.json({ code: "NOT_FOUND", message: "Not found" }, { status: 404 });
+
+const tooLarge = (): Response =>
+  Response.json(
+    { code: "PAYLOAD_TOO_LARGE", message: "The request body is too large." },
+    { status: 413 },
+  );
+
+/**
+ * The body as text, capped at MAX_BODY_BYTES: refused up front when Content-Length says it is
+ * too big, and cut off while reading when there is no (or a wrong) Content-Length.
+ */
+const readCappedText = async (
+  request: Request,
+): Promise<{ text: string } | { response: Response }> => {
+  if (declaredTooLarge(request.headers.get("content-length")))
+    return { response: tooLarge() };
+
+  if (!request.body) return { text: "" };
+
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+
+    if (done) break;
+
+    received += value.byteLength;
+
+    if (received > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined);
+
+      return { response: tooLarge() };
+    }
+
+    text += decoder.decode(value, { stream: true });
+  }
+
+  return { text: text + decoder.decode() };
+};
+
+/** Reads and parses a JSON body, or the 4xx to answer instead. */
 export const readJsonBody = async (
   request: Request,
 ): Promise<{ body: unknown } | { response: Response }> => {
-  const parsed = parseJson(await request.text());
+  const read = await readCappedText(request);
+
+  if ("response" in read) return read;
+
+  const parsed = parseJson(read.text);
 
   return parsed.ok
     ? { body: parsed.value }
@@ -106,6 +163,9 @@ export const forwardClinicSlugRoute = async <T>(
   parse?: (raw: unknown) => Parsed<T>,
 ): Promise<Response> => {
   let body: string | undefined;
+  const badId = rejectBadIds(clinicId);
+
+  if (badId) return badId;
 
   if (parse) {
     const read = await readJsonBody(request as Request);

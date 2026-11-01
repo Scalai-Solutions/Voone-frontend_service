@@ -1,4 +1,7 @@
-import { adminApiFetch } from "@/lib/admin-api-proxy";
+import {
+  adminApiFetch,
+  rejectBadIds,
+} from "@/lib/admin-api-proxy";
 import { forwardResponse } from "@/lib/staff-api";
 import { requireAdminSession } from "@/lib/staff-guard";
 
@@ -13,6 +16,12 @@ export async function GET(
   }
 
   const { id } = await context.params;
+
+  const badId = rejectBadIds(id);
+
+  if (badId) {
+    return badId;
+  }
 
   return forwardResponse(
     await adminApiFetch(
