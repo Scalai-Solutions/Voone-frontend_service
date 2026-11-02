@@ -15,6 +15,7 @@ import {
   AmberNote,
   TypeActions,
 } from "@/components/admin/change-requests/ticket-actions";
+import { TicketFlag } from "@/components/admin/change-requests/ticket-flag";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useClinicBonoPlans,
@@ -24,6 +25,7 @@ import {
 import {
   useChangeRequest,
   useReply,
+  useTicketComparison,
 } from "@/features/change-requests/api/useAdminChangeRequests";
 import {
   describeRequest,
@@ -33,6 +35,7 @@ import {
   type DescribeLookup,
 } from "@/lib/change-request-describe";
 import {
+  hasTicketFlag,
   isUnresolved,
   type ChangeRequestDetail,
   type ChangeRequestMessage,
@@ -190,7 +193,12 @@ function ReplyBox({ id }: { id: string }) {
 export function TicketDetail({ id }: { id: string }) {
   const query = useChangeRequest(id);
   const ticket = query.data;
-  const { lookup, state: lookupState } = useLookup(ticket);
+  const { lookup: baseLookup, state: lookupState } = useLookup(ticket);
+  // A reward ticket's catalogue item name comes with the comparison (same query the flag uses),
+  // so "Proposed catalogue item" never shows a raw id, even once the ticket is resolved.
+  const comparison = useTicketComparison(id, ticket?.type === "REWARD");
+  const itemName = comparison.data?.itemName ?? null;
+  const lookup = React.useMemo(() => ({ ...baseLookup, itemName }), [baseLookup, itemName]);
   const categoryOptions = React.useMemo(
     () => Array.from(lookup.categories ?? [], ([id, label]) => ({ id, label })),
     [lookup.categories],
@@ -318,6 +326,10 @@ export function TicketDetail({ id }: { id: string }) {
           </div>
         ) : null}
       </section>
+
+      {unresolved && hasTicketFlag(ticket.type) ? (
+        <TicketFlag id={ticket.id} type={ticket.type} variant="card" />
+      ) : null}
 
       <TypeActions
         ticket={ticket}

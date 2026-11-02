@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUpRight, Check, Loader2 } from "lucide-react";
 
 import { cardClass, errorText } from "@/components/admin/change-requests/chips";
+import { TicketFlag } from "@/components/admin/change-requests/ticket-flag";
 import {
   SEARCH_PICKER_LABELS_EN,
   SearchPicker,
@@ -166,6 +167,7 @@ function ApplyPanel({
           {ticket.catalogueImpact && ticket.catalogueImpact.length > 0 ? (
             <AmberNote title="Effect on the live programme" items={ticket.catalogueImpact} />
           ) : null}
+          <TicketFlag id={ticket.id} type={ticket.type} variant="inline" />
           {needsCategory ? (
             <div>
               <label htmlFor={`apply-category-${ticket.id}`} className="text-sm font-semibold">
@@ -243,6 +245,7 @@ function DraftPanel({ ticket }: { ticket: ChangeRequestDetail }) {
 
       {open && !ticket.programId ? (
         <>
+          <TicketFlag id={ticket.id} type={ticket.type} variant="inline" />
           <p className="text-sm text-[#806d63]">
             Starts a draft of the clinic&apos;s programme (a copy of the live one) and links it to
             this request. The owner&apos;s proposal is not applied automatically: you edit the draft.
