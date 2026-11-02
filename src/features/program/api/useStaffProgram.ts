@@ -20,10 +20,11 @@ export function useStaffProgram() {
   });
 }
 
-export function useStaffCatalog() {
+export function useStaffCatalog(enabled = true) {
   return useQuery({
     queryKey: queryKeys.staffCatalog(),
     queryFn: getStaffCatalog,
+    enabled,
     staleTime: 60_000,
   });
 }

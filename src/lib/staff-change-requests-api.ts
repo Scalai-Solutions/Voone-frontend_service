@@ -1,4 +1,6 @@
 import { ApiError } from "@/lib/api-client";
+import { parseOwnerFlag, type OwnerFlag } from "@/lib/change-flag";
+import type { FlagRequest } from "@/lib/change-request-form";
 import type {
   ChangeRequestStatus,
   ChangeRequestType,
@@ -108,3 +110,28 @@ export const reopenChangeRequest = (id: string, message?: string) =>
     method: "POST",
     body: JSON.stringify(message ? { message } : {}),
   });
+
+/**
+ * What the request would do to the plan. The flag is a courtesy: a 429, a 5xx, a network
+ * failure, a bad body, an abort and an answer that is not the owner's shape are all
+ * `{ status: "none" }` (nothing to show), never an error the form has to handle.
+ */
+export const previewChangeFlag = async (
+  body: FlagRequest,
+  signal?: AbortSignal,
+): Promise<OwnerFlag> => {
+  try {
+    const response = await fetch("/api/staff/change-requests/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) return { status: "none" };
+
+    return parseOwnerFlag(await response.json());
+  } catch {
+    return { status: "none" };
+  }
+};
