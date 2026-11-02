@@ -4,13 +4,20 @@ import * as React from "react";
 import Link from "next/link";
 import { CheckCircle2, Send, X } from "lucide-react";
 
+import { catalogPickerItems } from "@/components/admin/program/picker-items";
+import { ChangeFlag } from "@/components/dashboard/change-flag";
 import { Field } from "@/components/ui/field";
 import { SearchPicker } from "@/components/ui/search-picker";
+import { useChangeFlag } from "@/features/change-requests/api/useChangeFlag";
 import { useCreateChangeRequest } from "@/features/change-requests/api/useChangeRequests";
+import { useStaffCatalog } from "@/features/program/api/useStaffProgram";
 import { ApiError, type TreatmentCategory } from "@/lib/api-client";
 import {
   buildChangeRequest,
+  buildFlagRequest,
   initialValues,
+  isUnpricedReward,
+  withRewardMode,
   type FormErrors,
   type FormValues,
   type RequestContext,
@@ -140,12 +147,31 @@ export function ChangeRequestPanel({
   className?: string;
 }) {
   const create = useCreateChangeRequest();
-  const [values, setValues] = React.useState<FormValues>(() => initialValues(context));
+  const [typed, setValues] = React.useState<FormValues>(() => initialValues(context));
   const [errors, setErrors] = React.useState<FormErrors>({});
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [sent, setSent] = React.useState(false);
   const headingRef = React.useRef<HTMLHeadingElement>(null);
   const pending = create.isPending;
+  const isReward = context.kind === "reward";
+  const catalog = useStaffCatalog(isReward);
+  const giftableItems = React.useMemo(
+    () => catalogPickerItems((catalog.data ?? []).filter((item) => item.giftable)),
+    [catalog.data],
+  );
+  // Without a catalogue to choose from (it failed, or nothing in it can be a reward) the
+  // reward is described in words, so the form never depends on the picker.
+  const catalogUnavailable =
+    isReward && (catalog.isError || (catalog.isSuccess && giftableItems.length === 0));
+  const values = React.useMemo(
+    () =>
+      catalogUnavailable && typed.rewardMode === "item" && !typed.itemId
+        ? withRewardMode(typed, "text")
+        : typed,
+    [catalogUnavailable, typed],
+  );
+  const flag = useChangeFlag(buildFlagRequest(context, values));
+  const shownFlag = isUnpricedReward(context, values) ? ({ status: "unpriced" } as const) : flag;
   const categoryItems = React.useMemo(
     () => categories.map((category) => ({ value: category.id, label: category.label })),
     [categories],
@@ -334,24 +360,62 @@ export function ChangeRequestPanel({
             </Field>
           ) : null}
 
-          {showText ? (
+          {isReward && values.rewardMode === "item" ? (
             <Field
               label="Qué quieres que sea (opcional)"
-              error={errors.text}
-              hint={`Hasta ${SHORT_TEXT_MAX} caracteres. Puedes explicarlo con más detalle abajo.`}
+              hint="Elige un artículo de tu catálogo y verás qué supondría para tu plan."
               className="md:col-span-2"
             >
-              <input
-                value={values.text}
-                onChange={(event) => set("text", event.target.value)}
-                placeholder={
-                  context.kind === "reward"
-                    ? "Por ejemplo: un masaje relajante"
-                    : "Por ejemplo: un 10 % de descuento fijo"
-                }
-                className={inputClass}
+              <SearchPicker
+                value={values.itemId}
+                onChange={(value) => set("itemId", value)}
+                items={giftableItems}
+                placeholder={catalog.isPending ? "Cargando el catálogo…" : "Elige un artículo"}
+                disabled={catalog.isPending}
+                allowFreeText={{
+                  label: "¿No lo encuentras? Descríbelo con tus palabras",
+                  onChoose: () => setValues((current) => withRewardMode(current, "text")),
+                }}
+                className="[&>button]:h-11 [&>button]:rounded-xl [&>button]:border-[#ded1c8] [&>button]:bg-white"
               />
             </Field>
+          ) : null}
+
+          {showText && !(isReward && values.rewardMode === "item") ? (
+            <div className="md:col-span-2">
+              <Field
+                label="Qué quieres que sea (opcional)"
+                error={errors.text}
+                hint={`Hasta ${SHORT_TEXT_MAX} caracteres. Puedes explicarlo con más detalle abajo.`}
+              >
+                <input
+                  value={values.text}
+                  maxLength={SHORT_TEXT_MAX}
+                  onChange={(event) => set("text", event.target.value)}
+                  placeholder={
+                    context.kind === "reward"
+                      ? "Por ejemplo: un masaje relajante"
+                      : "Por ejemplo: un 10 % de descuento fijo"
+                  }
+                  className={inputClass}
+                />
+              </Field>
+              {isReward && !catalogUnavailable ? (
+                <button
+                  type="button"
+                  onClick={() => setValues((current) => withRewardMode(current, "item"))}
+                  className="mt-1 text-xs text-[#754b36] underline underline-offset-2"
+                >
+                  Elegir un artículo del catálogo
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {isReward || context.kind === "service-edit" ? (
+            <div aria-live="polite" className="md:col-span-2 empty:hidden">
+              <ChangeFlag flag={shownFlag} />
+            </div>
           ) : null}
 
           {isRemoval ? (
