@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CheckCircle2, Send, X } from "lucide-react";
 
 import { catalogPickerItems } from "@/components/admin/program/picker-items";
-import { ChangeFlag } from "@/components/dashboard/change-flag";
+import { ChangeFlagMarks, ChangeFlagSignal } from "@/components/dashboard/change-flag";
 import { Field } from "@/components/ui/field";
 import { SearchPicker } from "@/components/ui/search-picker";
 import { useChangeFlag } from "@/features/change-requests/api/useChangeFlag";
@@ -15,11 +15,13 @@ import { ApiError, type TreatmentCategory } from "@/lib/api-client";
 import {
   buildChangeRequest,
   buildFlagRequest,
+  categoryChoices,
   initialValues,
   isUnpricedReward,
   withRewardMode,
   type FormErrors,
   type FormValues,
+  type RewardMode,
   type RequestContext,
 } from "@/lib/change-request-form";
 import {
@@ -173,13 +175,33 @@ export function ChangeRequestPanel({
   const flag = useChangeFlag(buildFlagRequest(context, values));
   const shownFlag = isUnpricedReward(context, values) ? ({ status: "unpriced" } as const) : flag;
   const categoryItems = React.useMemo(
-    () => categories.map((category) => ({ value: category.id, label: category.label })),
-    [categories],
+    () => categoryChoices(context, categories),
+    [context, categories],
   );
+  const textRef = React.useRef<HTMLInputElement>(null);
+  const pickerBoxRef = React.useRef<HTMLDivElement>(null);
+  // The control that had focus unmounts when the mode switches: remember which one to focus.
+  const focusAfterSwitch = React.useRef<RewardMode | null>(null);
 
   React.useEffect(() => {
     headingRef.current?.focus();
   }, []);
+
+  React.useEffect(() => {
+    const mode = focusAfterSwitch.current;
+
+    if (mode === null) return;
+
+    focusAfterSwitch.current = null;
+
+    if (mode === "text") textRef.current?.focus();
+    else pickerBoxRef.current?.querySelector<HTMLElement>("button[aria-haspopup]")?.focus();
+  }, [typed.rewardMode]);
+
+  const switchMode = (mode: RewardMode) => {
+    focusAfterSwitch.current = mode;
+    setValues((current) => withRewardMode(current, mode));
+  };
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -361,28 +383,29 @@ export function ChangeRequestPanel({
           ) : null}
 
           {isReward && values.rewardMode === "item" ? (
-            <Field
-              label={context.milestone !== undefined ? "Sustituir por" : "Qué quieres que sea (opcional)"}
-              hint={
-                context.milestone !== undefined
-                  ? "Elige un artículo de tu catálogo y verás qué supondría para tu plan."
-                  : "Elige un artículo de tu catálogo."
-              }
-              className="md:col-span-2"
-            >
-              <SearchPicker
-                value={values.itemId}
-                onChange={(value) => set("itemId", value)}
-                items={giftableItems}
-                placeholder={catalog.isPending ? "Cargando el catálogo…" : "Elige un artículo"}
-                disabled={catalog.isPending}
-                allowFreeText={{
-                  label: "¿No lo encuentras? Descríbelo con tus palabras",
-                  onChoose: () => setValues((current) => withRewardMode(current, "text")),
-                }}
-                className="[&>button]:h-11 [&>button]:rounded-xl [&>button]:border-[#ded1c8] [&>button]:bg-white"
-              />
-            </Field>
+            <div ref={pickerBoxRef} className="md:col-span-2">
+              <Field
+                label={context.milestone !== undefined ? "Sustituir por" : "Qué quieres que sea (opcional)"}
+                hint={
+                  context.milestone !== undefined
+                    ? "Elige un artículo de tu catálogo y verás qué supondría para tu plan."
+                    : "Elige un artículo de tu catálogo."
+                }
+              >
+                <SearchPicker
+                  value={values.itemId}
+                  onChange={(value) => set("itemId", value)}
+                  items={giftableItems}
+                  placeholder={catalog.isPending ? "Cargando el catálogo…" : "Elige un artículo"}
+                  disabled={catalog.isPending}
+                  allowFreeText={{
+                    label: "¿No lo encuentras? Descríbelo con tus palabras",
+                    onChoose: () => switchMode("text"),
+                  }}
+                  className="[&>button]:h-11 [&>button]:rounded-xl [&>button]:border-[#ded1c8] [&>button]:bg-white"
+                />
+              </Field>
+            </div>
           ) : null}
 
           {showText && !(isReward && values.rewardMode === "item") ? (
@@ -393,6 +416,7 @@ export function ChangeRequestPanel({
                 hint={`Hasta ${SHORT_TEXT_MAX} caracteres. Puedes explicarlo con más detalle abajo.`}
               >
                 <input
+                  ref={textRef}
                   value={values.text}
                   maxLength={SHORT_TEXT_MAX}
                   onChange={(event) => set("text", event.target.value)}
@@ -407,7 +431,7 @@ export function ChangeRequestPanel({
               {isReward && !catalogUnavailable ? (
                 <button
                   type="button"
-                  onClick={() => setValues((current) => withRewardMode(current, "item"))}
+                  onClick={() => switchMode("item")}
                   className="mt-1 text-xs text-[#754b36] underline underline-offset-2"
                 >
                   Elegir un artículo del catálogo
@@ -417,8 +441,21 @@ export function ChangeRequestPanel({
           ) : null}
 
           {isReward || context.kind === "service-edit" ? (
-            <div className="md:col-span-2 empty:hidden">
-              <ChangeFlag flag={shownFlag} />
+            // The live region is always mounted (empty without a flag) so a new answer is
+            // announced; only the signal line is inside it, the marks table is static. Without
+            // a flag the whole block is out of the layout (sr-only is absolutely positioned).
+            <div
+              className={cn(
+                "md:col-span-2",
+                shownFlag.status === "none"
+                  ? "sr-only"
+                  : "rounded-2xl bg-white/70 px-4 py-3 text-sm",
+              )}
+            >
+              <div aria-live="polite">
+                <ChangeFlagSignal flag={shownFlag} />
+              </div>
+              <ChangeFlagMarks flag={shownFlag} />
             </div>
           ) : null}
 

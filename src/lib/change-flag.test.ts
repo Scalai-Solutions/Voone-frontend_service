@@ -299,6 +299,60 @@ describe("parseOwnerFlag", () => {
     });
   });
 
+  it("re-rounds numbers the way the backend does: euros to 100, percent to 5", () => {
+    const parsed = parseOwnerFlag(
+      okFlag({
+        vsCurrent: [cell({ euros: 1234, percent: 7 }), cell({ year: 2, mark: "down", euros: -1250, percent: -12 })],
+        vsRecommended: [cell({ euros: 449, percent: 3 })],
+        fiveYearEuros: 2449,
+      }),
+    );
+
+    assert.equal(parsed.status, "ok");
+
+    if (parsed.status === "ok") {
+      assert.equal(parsed.vsCurrent[0].euros, 1200);
+      assert.equal(parsed.vsCurrent[0].percent, 5);
+      // Half away from zero, like the backend.
+      assert.equal(parsed.vsCurrent[1].euros, -1300);
+      assert.equal(parsed.vsCurrent[1].percent, -10);
+      assert.equal(parsed.vsRecommended?.[0].euros, 400);
+      assert.equal(parsed.vsRecommended?.[0].percent, 5);
+      assert.equal(parsed.fiveYearEuros, 2400);
+    }
+  });
+
+  it("an up or down cell whose euros round to 0 becomes same, with no numbers", () => {
+    const parsed = parseOwnerFlag(
+      okFlag({
+        vsCurrent: [cell({ euros: 30, percent: 5, over20: true }), cell({ mark: "down", euros: -49, percent: -5 })],
+        fiveYearEuros: 30,
+      }),
+    );
+
+    assert.equal(parsed.status, "ok");
+
+    if (parsed.status === "ok") {
+      for (const c of parsed.vsCurrent) {
+        assert.equal(c.mark, "same");
+        assert.equal(c.euros, null);
+        assert.equal(c.percent, null);
+        assert.equal(c.over20, false);
+      }
+
+      assert.equal(parsed.fiveYearEuros, null);
+    }
+  });
+
+  it("keeps null numbers null and leaves already-rounded data unchanged", () => {
+    const input = okFlag({
+      vsCurrent: [cell({ euros: null, percent: null }), cell({ euros: 300, percent: null }), cell({ euros: 4000, percent: 25, over20: true })],
+      fiveYearEuros: -1500,
+    });
+
+    assert.deepEqual(parseOwnerFlag(input), input);
+  });
+
   it("a same cell never carries a number, whatever was sent", () => {
     const parsed = parseOwnerFlag(
       okFlag({ vsCurrent: [cell({ mark: "same", euros: 800, percent: 10 })] }),

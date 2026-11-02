@@ -464,3 +464,25 @@ export const isUnpricedReward = (context: RequestContext, values: FormValues): b
   context.milestone !== undefined &&
   values.rewardMode === "text" &&
   values.text.trim().length > 0;
+
+/**
+ * The categories a request may pick. A service edit starts from the treatment's own category
+ * (or none), so it also gets an empty first item to undo a mistaken pick: it asks for no
+ * category change. A new service has no such choice, it must pick one.
+ */
+export const categoryChoices = (
+  context: RequestContext,
+  categories: Array<{ id: string; label: string }>,
+): Array<{ value: string; label: string }> => {
+  const items = categories.map((category) => ({ value: category.id, label: category.label }));
+
+  if (context.kind !== "service-edit") return items;
+
+  return [
+    {
+      value: "",
+      label: context.treatment.categoryId ? "Dejar sin cambios" : "Sin categoría",
+    },
+    ...items,
+  ];
+};
