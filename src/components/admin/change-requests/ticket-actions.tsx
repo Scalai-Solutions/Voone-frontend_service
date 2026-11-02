@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUpRight, Check, Loader2 } from "lucide-react";
 
 import { cardClass, errorText } from "@/components/admin/change-requests/chips";
+import {
+  SEARCH_PICKER_LABELS_EN,
+  SearchPicker,
+} from "@/components/ui/search-picker";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useApply,
@@ -75,6 +79,10 @@ function ApplyPanel({
   const [confirming, setConfirming] = React.useState(false);
   const [note, setNote] = React.useState("");
   const [categoryId, setCategoryId] = React.useState("");
+  const categoryItems = React.useMemo(
+    () => categories.map((category) => ({ value: category.id, label: category.label })),
+    [categories],
+  );
   // Only a SERVICE_ADD at a catalogue centre with no category proposed (the backend says so).
   const needsCategory = ticket.needsCategory === true;
 
@@ -163,21 +171,20 @@ function ApplyPanel({
               <label htmlFor={`apply-category-${ticket.id}`} className="text-sm font-semibold">
                 Category (required: the owner did not choose one)
               </label>
-              <select
+              <SearchPicker
                 id={`apply-category-${ticket.id}`}
                 value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
-                className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm"
-              >
-                <option value="">
-                  {categories.length === 0 ? "Loading categories..." : "Choose a category"}
-                </option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryId}
+                items={categoryItems}
+                placeholder={
+                  categories.length === 0 ? "Loading categories..." : "Choose a category"
+                }
+                searchPlaceholder="Search categories…"
+                emptyMessage="No category matches that search."
+                labels={SEARCH_PICKER_LABELS_EN}
+                disabled={categories.length === 0}
+                className="mt-2 [&>button]:h-10 [&>button]:rounded-xl [&>button]:border-[#ded1c8] [&>button]:bg-white"
+              />
             </div>
           ) : null}
           <div>

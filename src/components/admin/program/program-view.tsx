@@ -17,6 +17,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SearchPicker } from "@/components/ui/search-picker";
 import { ApiError } from "@/lib/api-client";
 import type {
   BenefitLine,
@@ -45,6 +46,7 @@ import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuros, formatProgress } from "@/lib/euros";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
+import { catalogPickerItems } from "./picker-items";
 import { infoNotes, rewardValueLabel } from "./reward-value";
 import { swapRefusalMessage } from "./swap-refusal";
 import {
@@ -81,6 +83,8 @@ type CatalogItemOption = {
   name: string;
   priceEuro: number;
   giftable?: boolean;
+  category?: string | null;
+  isProduct?: boolean;
 };
 
 export function ProgramView({
@@ -879,6 +883,7 @@ function MilestoneRow({
 
   // Only what the backend would accept; the rest is counted, not listed.
   const giftable = giftableItems(catalogItems);
+  const giftableOptions = catalogPickerItems(giftable);
   const hiddenNote = hiddenItemsNote(catalogItems);
 
   const choose = async (choice: SwapChoice) => {
@@ -993,22 +998,17 @@ function MilestoneRow({
             giftable.length > 0 ? (
               <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
                 O cualquier artículo del catálogo
-                <select
+                <SearchPicker
+                  // Always empty: choosing swaps the reward at once and the list stays as it was.
                   value=""
                   disabled={busy}
-                  onChange={(event) => {
-                    if (event.target.value)
-                      void choose({ itemId: event.target.value });
+                  onChange={(value) => {
+                    if (value) void choose({ itemId: value });
                   }}
-                  className="h-9 rounded-md border border-input bg-card px-2 text-sm font-normal text-foreground"
-                >
-                  <option value="">Elegir…</option>
-                  {giftable.map((item) => (
-                    <option key={item.externalId} value={item.externalId}>
-                      {item.name} · {formatEuros(item.priceEuro)}
-                    </option>
-                  ))}
-                </select>
+                  items={giftableOptions}
+                  placeholder="Elegir…"
+                  className="font-normal text-foreground"
+                />
               </label>
             ) : (
               <p className="text-xs text-muted-foreground">

@@ -51,6 +51,16 @@ const DEFAULT_LABELS: SearchPickerLabels = {
   groups: "Filtrar por grupo",
 };
 
+/** The same words in English, for the admin portal. */
+export const SEARCH_PICKER_LABELS_EN: SearchPickerLabels = {
+  all: "All",
+  chosen: "Selected",
+  use: "Use this",
+  clearSearch: "Clear search",
+  close: "Close",
+  groups: "Filter by group",
+};
+
 const MOBILE_QUERY = "(max-width: 639px)";
 const PANEL_MAX_HEIGHT = 448;
 const PANEL_GAP = 4;
@@ -73,6 +83,7 @@ export function SearchPicker({
   className,
   ariaLabel,
   labels: labelOverrides,
+  "aria-describedby": ariaDescribedBy,
 }: {
   items: PickerItem[];
   value: string;
@@ -87,6 +98,8 @@ export function SearchPicker({
   ariaLabel?: string;
   /** Overrides for the fixed words ("Todo", "Elegido", "Usar este"...), e.g. English in the admin. */
   labels?: Partial<SearchPickerLabels>;
+  /** Passed on to the trigger, so `Field` can tie its hint and error to it as it does for inputs. */
+  "aria-describedby"?: string;
 }) {
   const labels = { ...DEFAULT_LABELS, ...labelOverrides };
   const uid = React.useId();
@@ -309,6 +322,7 @@ export function SearchPicker({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
+        aria-describedby={ariaDescribedBy}
         aria-label={
           ariaLabel ? `${ariaLabel}: ${selected ? selected.label : placeholder}` : undefined
         }

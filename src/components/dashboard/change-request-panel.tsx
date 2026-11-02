@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2, Send, X } from "lucide-react";
 
 import { Field } from "@/components/ui/field";
+import { SearchPicker } from "@/components/ui/search-picker";
 import { useCreateChangeRequest } from "@/features/change-requests/api/useChangeRequests";
 import { ApiError, type TreatmentCategory } from "@/lib/api-client";
 import {
@@ -145,6 +146,10 @@ export function ChangeRequestPanel({
   const [sent, setSent] = React.useState(false);
   const headingRef = React.useRef<HTMLHeadingElement>(null);
   const pending = create.isPending;
+  const categoryItems = React.useMemo(
+    () => categories.map((category) => ({ value: category.id, label: category.label })),
+    [categories],
+  );
 
   React.useEffect(() => {
     headingRef.current?.focus();
@@ -319,18 +324,13 @@ export function ChangeRequestPanel({
                   : undefined)
               }
             >
-              <select
+              <SearchPicker
                 value={values.categoryId}
-                onChange={(event) => set("categoryId", event.target.value)}
-                className={inputClass}
-              >
-                <option value="">Elige una categoría</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => set("categoryId", value)}
+                items={categoryItems}
+                placeholder="Elige una categoría"
+                className="[&>button]:h-11 [&>button]:rounded-xl [&>button]:border-[#ded1c8] [&>button]:bg-white"
+              />
             </Field>
           ) : null}
 
