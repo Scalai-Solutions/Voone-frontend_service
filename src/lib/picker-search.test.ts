@@ -9,6 +9,7 @@ import {
   initialActiveValue,
   moveActive,
   settleActive,
+  shouldLeavePanel,
   type PickerItem,
 } from "./picker-search.ts";
 
@@ -220,5 +221,32 @@ describe("settleActive", () => {
   it("falls to nothing when the list changed without a query", () => {
     assert.equal(settleActive(list, "gone", ""), null);
     assert.equal(settleActive([], "gone", "zz"), null);
+  });
+});
+
+describe("shouldLeavePanel", () => {
+  it("Tab on the last control and Shift+Tab on the first leave the panel", () => {
+    assert.equal(shouldLeavePanel("Tab", false, 4, 5), true);
+    assert.equal(shouldLeavePanel("Tab", true, 0, 5), true);
+  });
+
+  it("anything else stays inside", () => {
+    assert.equal(shouldLeavePanel("Tab", false, 0, 5), false);
+    assert.equal(shouldLeavePanel("Tab", false, 3, 5), false);
+    assert.equal(shouldLeavePanel("Tab", true, 4, 5), false);
+    assert.equal(shouldLeavePanel("Tab", true, 2, 5), false);
+    assert.equal(shouldLeavePanel("Enter", false, 4, 5), false);
+    assert.equal(shouldLeavePanel("ArrowDown", true, 0, 5), false);
+  });
+
+  it("a single control is both first and last", () => {
+    assert.equal(shouldLeavePanel("Tab", false, 0, 1), true);
+    assert.equal(shouldLeavePanel("Tab", true, 0, 1), true);
+  });
+
+  it("focus outside the list of controls, or an empty list, never leaves", () => {
+    assert.equal(shouldLeavePanel("Tab", false, -1, 5), false);
+    assert.equal(shouldLeavePanel("Tab", true, -1, 5), false);
+    assert.equal(shouldLeavePanel("Tab", false, 0, 0), false);
   });
 });
