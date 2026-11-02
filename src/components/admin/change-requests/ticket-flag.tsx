@@ -97,7 +97,8 @@ function FlagBody({ query }: { query: ReturnType<typeof useTicketComparison> }) 
     );
   }
 
-  if (query.isError || !query.data) {
+  // A failed background refetch keeps showing the last good data: the error is only for no data.
+  if (!query.data) {
     return <p className="text-sm text-[#806d63]">Comparison unavailable</p>;
   }
 

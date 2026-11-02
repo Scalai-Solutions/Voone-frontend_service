@@ -245,7 +245,6 @@ function DraftPanel({ ticket }: { ticket: ChangeRequestDetail }) {
 
       {open && !ticket.programId ? (
         <>
-          <TicketFlag id={ticket.id} type={ticket.type} variant="inline" />
           <p className="text-sm text-[#806d63]">
             Starts a draft of the clinic&apos;s programme (a copy of the live one) and links it to
             this request. The owner&apos;s proposal is not applied automatically: you edit the draft.
