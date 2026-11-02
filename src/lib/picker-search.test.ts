@@ -6,6 +6,9 @@ import {
   fold,
   groupsOf,
   highlight,
+  initialActiveValue,
+  moveActive,
+  settleActive,
   type PickerItem,
 } from "./picker-search.ts";
 
@@ -115,5 +118,107 @@ describe("highlight", () => {
   it("returns one plain segment for an empty or missing query", () => {
     assert.deepEqual(highlight("Masaje", ""), [{ text: "Masaje", match: false }]);
     assert.deepEqual(highlight("Masaje", "zzz"), [{ text: "Masaje", match: false }]);
+  });
+});
+
+describe("highlight with unusual text", () => {
+  const joined = (label: string, query: string) =>
+    highlight(label, query)
+      .map((segment) => segment.text)
+      .join("");
+
+  it("keeps a combining mark attached to the highlighted letter (NFD label)", () => {
+    const nfd = "Depilacio\u0301n laser";
+
+    assert.deepEqual(highlight(nfd, "depilacio"), [
+      { text: "Depilacio\u0301", match: true },
+      { text: "n laser", match: false },
+    ]);
+    assert.deepEqual(highlight(nfd, "depilacion"), [
+      { text: "Depilacio\u0301n", match: true },
+      { text: " laser", match: false },
+    ]);
+  });
+
+  it("does not throw on ß or a ligature and keeps the original text intact", () => {
+    for (const [label, query] of [
+      ["Straße", "stra"],
+      ["Straße", "ße"],
+      ["Oﬁcina ﬁna", "fi"],
+      ["Oﬁcina ﬁna", "ﬁn"],
+      ["İstanbul", "ist"],
+    ]) {
+      assert.equal(joined(label, query), label);
+    }
+  });
+});
+
+describe("initialActiveValue", () => {
+  const list: PickerItem[] = [
+    { value: "a", label: "A" },
+    { value: "b", label: "B" },
+  ];
+
+  it("highlights nothing when the value is empty and no item has an empty value", () => {
+    assert.equal(initialActiveValue(list, ""), null);
+  });
+
+  it("highlights the chosen item", () => {
+    assert.equal(initialActiveValue(list, "b"), "b");
+  });
+
+  it("highlights an item whose own value is empty when that is the current choice", () => {
+    assert.equal(
+      initialActiveValue([{ value: "", label: "Sin categoría" }, ...list], ""),
+      "",
+    );
+  });
+
+  it("highlights nothing for a value that is not in the list", () => {
+    assert.equal(initialActiveValue(list, "zzz"), null);
+  });
+});
+
+describe("moveActive", () => {
+  const list: PickerItem[] = [
+    { value: "a", label: "A" },
+    { value: "b", label: "B" },
+    { value: "c", label: "C" },
+  ];
+
+  it("goes to the first row on ArrowDown from nothing, the last on ArrowUp", () => {
+    assert.equal(moveActive(list, null, 1), "a");
+    assert.equal(moveActive(list, null, -1), "c");
+  });
+
+  it("wraps at both ends", () => {
+    assert.equal(moveActive(list, "c", 1), "a");
+    assert.equal(moveActive(list, "a", -1), "c");
+    assert.equal(moveActive(list, "a", 1), "b");
+  });
+
+  it("treats a highlight that left the list as nothing, and an empty list as nothing", () => {
+    assert.equal(moveActive(list, "gone", 1), "a");
+    assert.equal(moveActive([], null, 1), null);
+  });
+});
+
+describe("settleActive", () => {
+  const list: PickerItem[] = [
+    { value: "a", label: "A" },
+    { value: "b", label: "B" },
+  ];
+
+  it("keeps a highlight that is still listed", () => {
+    assert.equal(settleActive(list, "b", ""), "b");
+  });
+
+  it("falls to the first match when the user is typing", () => {
+    assert.equal(settleActive(list, "gone", "a"), "a");
+  });
+
+  it("falls to nothing when the list changed without a query", () => {
+    assert.equal(settleActive(list, "gone", ""), null);
+    assert.equal(settleActive([], "gone", "zz"), null);
   });
 });

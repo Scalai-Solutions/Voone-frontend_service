@@ -18,7 +18,8 @@ export interface Segment {
   match: boolean;
 }
 
-const COMBINING_MARKS = /[̀-ͯ]/g;
+const COMBINING_MARKS = /[\u0300-\u036f]/g;
+const COMBINING_MARK = /[\u0300-\u036f]/;
 
 /** Lowercase and strip diacritics: "Depilación" -> "depilacion". */
 export const fold = (s: string): string =>
@@ -105,7 +106,11 @@ export const highlight = (label: string, query: string): Segment[] => {
   const start = owner[at];
   const lastOwner = owner[at + needle.length - 1];
   // The match ends after the whole original character that holds its last folded character.
-  const end = lastOwner + (String.fromCodePoint(label.codePointAt(lastOwner) ?? 0).length || 1);
+  let end = lastOwner + (String.fromCodePoint(label.codePointAt(lastOwner) ?? 0).length || 1);
+
+  // Combining marks of an NFD-stored label belong to the letter before them.
+  while (end < label.length && COMBINING_MARK.test(label[end])) end += 1;
+
   const segments: Segment[] = [];
 
   if (start > 0) segments.push({ text: label.slice(0, start), match: false });
@@ -113,4 +118,44 @@ export const highlight = (label: string, query: string): Segment[] => {
   if (end < label.length) segments.push({ text: label.slice(end), match: false });
 
   return segments;
+};
+
+/**
+ * What is highlighted when the panel opens: the current choice if it is one of the items,
+ * otherwise nothing. An empty `value` that matches no item must not pre-select the first row,
+ * or an immediate Enter would pick something the user never chose.
+ */
+export const initialActiveValue = (items: PickerItem[], value: string): string | null =>
+  items.some((item) => item.value === value) ? value : null;
+
+/**
+ * ArrowDown (+1) / ArrowUp (-1) over the visible list, wrapping. From no highlight (or one that
+ * left the list), ArrowDown lands on the first row and ArrowUp on the last.
+ */
+export const moveActive = (
+  list: PickerItem[],
+  activeValue: string | null,
+  delta: 1 | -1,
+): string | null => {
+  if (list.length === 0) return null;
+
+  const index = list.findIndex((item) => item.value === activeValue);
+
+  if (index === -1) return list[delta === 1 ? 0 : list.length - 1].value;
+
+  return list[(index + delta + list.length) % list.length].value;
+};
+
+/**
+ * The highlight after the filter changed: kept while still listed; otherwise, if the user is
+ * typing, the first match (so Enter takes it); otherwise none.
+ */
+export const settleActive = (
+  list: PickerItem[],
+  activeValue: string | null,
+  query: string,
+): string | null => {
+  if (list.some((item) => item.value === activeValue)) return activeValue;
+
+  return query.trim() && list.length > 0 ? list[0].value : null;
 };

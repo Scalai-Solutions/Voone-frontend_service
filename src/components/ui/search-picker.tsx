@@ -10,6 +10,9 @@ import {
   filterItems,
   groupsOf,
   highlight,
+  initialActiveValue,
+  moveActive,
+  settleActive,
   type PickerItem,
 } from "@/lib/picker-search";
 import { cn } from "@/lib/utils";
@@ -84,6 +87,7 @@ export function SearchPicker({
   ariaLabel,
   labels: labelOverrides,
   "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
 }: {
   items: PickerItem[];
   value: string;
@@ -100,6 +104,7 @@ export function SearchPicker({
   labels?: Partial<SearchPickerLabels>;
   /** Passed on to the trigger, so `Field` can tie its hint and error to it as it does for inputs. */
   "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
 }) {
   const labels = { ...DEFAULT_LABELS, ...labelOverrides };
   const uid = React.useId();
@@ -114,8 +119,11 @@ export function SearchPicker({
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [group, setGroup] = React.useState<string | null>(null);
-  // The highlighted item: what the bar offers and what Enter picks.
+  // The highlighted item (arrow keys or hover): what the bar offers and what Enter picks.
+  // A click on a row does not highlight, it picks.
   const [activeValue, setActiveValue] = React.useState<string | null>(null);
+  // Whether the panel opened as a full-height sheet (below `sm`).
+  const [mobile, setMobile] = React.useState(false);
 
   const rootRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
@@ -129,7 +137,6 @@ export function SearchPicker({
   );
   const selected = items.find((item) => item.value === value) ?? null;
   const active = list.find((item) => item.value === activeValue) ?? null;
-  const activeIndex = active ? list.indexOf(active) : -1;
 
   const close = React.useCallback((returnFocus: boolean) => {
     setOpen(false);
@@ -141,7 +148,8 @@ export function SearchPicker({
   const openPanel = () => {
     setQuery("");
     setGroup(null);
-    setActiveValue(selected ? selected.value : (items[0]?.value ?? null));
+    setActiveValue(initialActiveValue(items, value));
+    setMobile(window.matchMedia(MOBILE_QUERY).matches);
     setOpen(true);
   };
 
@@ -156,9 +164,7 @@ export function SearchPicker({
 
     setQuery(nextQuery);
     setGroup(nextGroup);
-    if (!next.some((item) => item.value === activeValue)) {
-      setActiveValue(next[0]?.value ?? null);
-    }
+    setActiveValue(settleActive(next, activeValue, nextQuery));
   };
 
   // Focus the search box once the panel is there.
@@ -200,8 +206,11 @@ export function SearchPicker({
       const room = placeAbove ? above : below;
 
       panel.dataset.placement = placeAbove ? "above" : "below";
-      panel.style.setProperty("--picker-left", `${Math.max(8, rect.left)}px`);
-      panel.style.setProperty("--picker-width", `${Math.max(rect.width, 320)}px`);
+      const width = Math.min(Math.max(rect.width, 320), window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+
+      panel.style.setProperty("--picker-left", `${left}px`);
+      panel.style.setProperty("--picker-width", `${width}px`);
       panel.style.setProperty("--picker-top", `${rect.bottom + PANEL_GAP}px`);
       panel.style.setProperty(
         "--picker-bottom",
@@ -225,7 +234,7 @@ export function SearchPicker({
 
   // The sheet covers the page on a phone: keep the page from scrolling behind it.
   React.useEffect(() => {
-    if (!open || !window.matchMedia(MOBILE_QUERY).matches) return;
+    if (!open || !mobile) return;
 
     const previous = document.body.style.overflow;
 
@@ -234,7 +243,7 @@ export function SearchPicker({
     return () => {
       document.body.style.overflow = previous;
     };
-  }, [open]);
+  }, [open, mobile]);
 
   // Keep the highlighted row visible while arrowing through a long list.
   React.useEffect(() => {
@@ -247,13 +256,7 @@ export function SearchPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeValue, uid, indexByValue]);
 
-  const move = (delta: 1 | -1) => {
-    if (list.length === 0) return;
-
-    const from = activeIndex === -1 ? (delta === 1 ? -1 : 0) : activeIndex;
-
-    setActiveValue(list[(from + delta + list.length) % list.length].value);
-  };
+  const move = (delta: 1 | -1) => setActiveValue(moveActive(list, activeValue, delta));
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -314,6 +317,9 @@ export function SearchPicker({
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
+      {/* aria-invalid: Field passes it on a failed validation and the native selects took it,
+          so the trigger does too, though the lint rule does not list it for a button. */}
+      {/* eslint-disable-next-line jsx-a11y/role-supports-aria-props */}
       <button
         ref={triggerRef}
         type="button"
@@ -323,6 +329,7 @@ export function SearchPicker({
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
         aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
         aria-label={
           ariaLabel ? `${ariaLabel}: ${selected ? selected.label : placeholder}` : undefined
         }
@@ -345,6 +352,7 @@ export function SearchPicker({
             <div
               ref={panelRef}
               role="dialog"
+              aria-modal={mobile ? true : undefined}
               aria-label={ariaLabel ?? placeholder}
               onKeyDown={onPanelKeyDown}
               onBlur={onPanelBlur}
@@ -445,8 +453,11 @@ export function SearchPicker({
                         role="option"
                         aria-selected={item.value === value}
                         onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => setActiveValue(item.value)}
-                        onDoubleClick={() => commit(item)}
+                        // Move, not enter: a list scrolling under a still cursor must not steal the highlight.
+                        onMouseMove={() => {
+                          if (item.value !== activeValue) setActiveValue(item.value);
+                        }}
+                        onClick={() => commit(item)}
                         className={cn(
                           "flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm",
                           item.value === activeValue ? "bg-secondary" : "hover:bg-secondary/50",
@@ -491,7 +502,9 @@ export function SearchPicker({
                 <p className="min-w-0 truncate" aria-live="polite">
                   {active ? (
                     <>
-                      <span className="text-muted-foreground">{labels.chosen}: </span>
+                      {active.value === value ? (
+                        <span className="text-muted-foreground">{labels.chosen}: </span>
+                      ) : null}
                       <strong className="font-semibold">{active.label}</strong>
                       {activePrice ? ` · ${activePrice}` : ""}
                     </>
