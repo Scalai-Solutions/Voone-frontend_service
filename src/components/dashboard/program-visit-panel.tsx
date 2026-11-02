@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 
 import {
-  CATEGORY_LABELS,
-  SELECTABLE_CATEGORIES,
-} from "@/components/admin/program/categories";
+  catalogPickerItems,
+  selectableCategoryItems,
+} from "@/components/admin/program/picker-items";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
+import { SearchPicker } from "@/components/ui/search-picker";
 import {
   useBonoPlans,
   useCancelMemberBono,
@@ -141,6 +141,14 @@ export function ProgramVisitPanel({
   const visitKeyRef = React.useRef<string | null>(null);
 
   const catalog = useStaffCatalog();
+  const catalogItems = React.useMemo(
+    () => catalogPickerItems(catalog.data ?? []),
+    [catalog.data],
+  );
+  const categoryItems = React.useMemo(
+    () => selectableCategoryItems("Sin categoría"),
+    [],
+  );
   const record = useRecordVisit(memberId);
   const rewards = useMemberRewards(memberId, true);
   const bonoPlans = useBonoPlans();
@@ -475,7 +483,9 @@ export function ProgramVisitPanel({
                 <label className="text-xs font-medium text-muted-foreground">
                   Qué se ha pagado
                   {(catalog.data ?? []).length > 0 ? (
-                    <Combobox
+                    <SearchPicker
+                      className="mt-1"
+                      ariaLabel="Qué se ha pagado"
                       value={line.picked}
                       onChange={(value) => {
                         const item = (catalog.data ?? []).find(
@@ -492,31 +502,23 @@ export function ProgramVisitPanel({
                           });
                         }
                       }}
-                      options={(catalog.data ?? []).map((item) => ({
-                        value: item.externalId,
-                        label: item.name,
-                        hint: formatEuros(item.priceEuro),
-                      }))}
+                      items={catalogItems}
                       placeholder="Elegir del catálogo…"
                       emptyMessage="Nada coincide con esa búsqueda."
                     />
                   ) : null}
-                  <select
+                  <SearchPicker
+                    className="mt-1"
+                    ariaLabel="Categoría de la línea"
                     value={line.category}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       updateLine(line.key, {
-                        category: event.target.value as CategoryCode | "",
+                        category: value as CategoryCode | "",
                       })
                     }
-                    className={inputClass}
-                  >
-                    <option value="">Sin categoría</option>
-                    {SELECTABLE_CATEGORIES.map((code) => (
-                      <option key={code} value={code}>
-                        {CATEGORY_LABELS[code]}
-                      </option>
-                    ))}
-                  </select>
+                    items={categoryItems}
+                    placeholder="Sin categoría"
+                  />
                 </label>
                 <label className="text-xs font-medium text-muted-foreground">
                   Importe (€)
@@ -588,13 +590,15 @@ export function ProgramVisitPanel({
           <div className="mt-3 grid gap-3">
             <label className="text-xs font-medium text-muted-foreground">
               Bono del cliente
-              <Combobox
+              <SearchPicker
+                className="mt-1"
+                ariaLabel="Bono del cliente"
                 value={bonoChoice}
                 onChange={(value) => {
                   setBonoChoice(value);
                   setNotice(null);
                 }}
-                options={[
+                items={[
                   ...activeBonos.map((bono) => ({
                     value: `bono:${bono.id}`,
                     label: bono.name,

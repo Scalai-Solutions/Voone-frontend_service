@@ -11,6 +11,10 @@ import {
 } from "@/components/admin/services/services-shared";
 import { Field } from "@/components/ui/field";
 import {
+  SEARCH_PICKER_LABELS_EN,
+  SearchPicker,
+} from "@/components/ui/search-picker";
+import {
   useClinicTreatmentCategories,
   useClinicTreatments,
   useCreateClinicTreatment,
@@ -55,6 +59,10 @@ function TreatmentForm({
   onCancel,
 }: FormProps) {
   const [values, setValues] = React.useState(initial);
+  const categoryItems = React.useMemo(
+    () => categories.map((category) => ({ value: category.id, label: category.label })),
+    [categories],
+  );
   const [errors, setErrors] = React.useState<{
     name?: string;
     price?: string;
@@ -124,24 +132,18 @@ function TreatmentForm({
             (categoriesFailed ? "Could not load the categories." : undefined)
           }
         >
-          <select
+          <SearchPicker
             id={`${idPrefix}-category`}
             value={values.categoryId}
-            onChange={(event) =>
-              setValues((current) => ({
-                ...current,
-                categoryId: event.target.value,
-              }))
+            onChange={(value) =>
+              setValues((current) => ({ ...current, categoryId: value }))
             }
-            className={inputClass}
-          >
-            <option value="">Choose a category</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.label}
-              </option>
-            ))}
-          </select>
+            items={categoryItems}
+            placeholder="Choose a category"
+            searchPlaceholder="Search categories…"
+            emptyMessage="No category matches that search."
+            labels={SEARCH_PICKER_LABELS_EN}
+          />
         </Field>
       ) : null}
       <div className="flex gap-2 self-end">

@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchPicker } from "@/components/ui/search-picker";
 import {
   useAdminBonoPlansStore,
   useImportCatalog,
@@ -29,13 +30,15 @@ import {
   CATEGORY_LABELS,
   CLASSIFIED_BY_LABEL,
   EARNS_NOTHING,
-  SELECTABLE_CATEGORIES,
 } from "./categories";
+import { selectableCategoryItems } from "./picker-items";
 import {
   isSendable,
   useCatalogEditor,
   type EditorRow,
 } from "./use-catalog-editor";
+
+const automaticCategoryItems = selectableCategoryItems("Automática");
 
 const selectClass =
   "h-10 w-full rounded-md border border-input bg-card px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -232,21 +235,16 @@ function CatalogRowEditor({
         </select>
       </td>
       <td className="px-3 py-2">
-        <select
-          aria-label={`Categoría de ${label}`}
-          className={cn(selectClass, row.needsReview && "border-destructive")}
+        <SearchPicker
+          ariaLabel={`Categoría de ${label}`}
+          className={cn(row.needsReview && "[&>button]:border-destructive")}
           value={row.categoryId}
-          onChange={(event) =>
-            onEdit({ categoryId: event.target.value as CategoryCode | "" })
+          onChange={(value) =>
+            onEdit({ categoryId: value as CategoryCode | "" })
           }
-        >
-          <option value="">Automática</option>
-          {SELECTABLE_CATEGORIES.map((code) => (
-            <option key={code} value={code}>
-              {CATEGORY_LABELS[code]}
-            </option>
-          ))}
-        </select>
+          items={automaticCategoryItems}
+          placeholder="Automática"
+        />
         {row.needsReview ? (
           <p className="mt-1 text-xs font-medium text-destructive">
             Sin categoría: elige una.
