@@ -63,15 +63,23 @@ export function IconTip({
   }, [open, side, label]);
 
   // A fixed bubble would drift away from its anchor, so scrolling or resizing just hides it.
+  // Escape hides it too, whether it is open from hover or from focus (a hover-only bubble has
+  // no focus inside, so the anchor's own keydown never sees the key).
   React.useEffect(() => {
     if (!open) return;
 
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") hide();
+    };
+
     window.addEventListener("scroll", hide, true);
     window.addEventListener("resize", hide);
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
       window.removeEventListener("scroll", hide, true);
       window.removeEventListener("resize", hide);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [open, hide]);
 

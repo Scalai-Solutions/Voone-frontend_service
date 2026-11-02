@@ -1,7 +1,7 @@
 /**
  * Where a tooltip bubble goes. The bubble is drawn with `position: fixed` outside the rows'
  * `overflow-hidden` cards, so this works in viewport coordinates: centred on the anchor on the
- * wanted side, flipped when that side has no room, and kept inside the viewport horizontally.
+ * wanted side, flipped when that side has no room, and kept inside the viewport.
  */
 
 export interface Box {
@@ -38,5 +38,10 @@ export function placeTooltip(
   // Min last: a bubble wider than the viewport pins to the left margin.
   const left = Math.max(TIP_MARGIN, Math.min(centred, maxLeft));
 
-  return { left, top: chosen === "top" ? above : below, side: chosen };
+  // Neither side may have room (a short viewport): keep the bubble on screen. Max last, so a
+  // bubble taller than the viewport pins to the top margin.
+  const maxTop = viewport.height - TIP_MARGIN - tip.height;
+  const top = Math.max(TIP_MARGIN, Math.min(chosen === "top" ? above : below, maxTop));
+
+  return { left, top, side: chosen };
 }

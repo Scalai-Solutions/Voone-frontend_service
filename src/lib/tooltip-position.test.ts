@@ -43,4 +43,29 @@ describe("placeTooltip", () => {
 
     assert.equal(at.left, 8);
   });
+
+  it("clamps top into the viewport when the bubble fits neither above nor below", () => {
+    const small = { width: 300, height: 100 };
+    // Above would be -18, below would end at 110: neither fits in 100.
+    const at = placeTooltip({ left: 100, top: 30, width: 32, height: 32 }, tip, small, "top");
+
+    assert.ok(at.top >= 8, `top ${at.top}`);
+    assert.ok(at.top + tip.height <= 100 - 8, `bottom ${at.top + tip.height}`);
+
+    const low = placeTooltip({ left: 100, top: 70, width: 32, height: 32 }, tip, small, "bottom");
+
+    assert.ok(low.top >= 8 && low.top + tip.height <= 100 - 8, `top ${low.top}`);
+  });
+
+  it("pins to the top margin when the bubble is taller than the viewport", () => {
+    const at = placeTooltip({ left: 100, top: 30, width: 32, height: 32 }, { width: 200, height: 200 }, { width: 300, height: 100 }, "top");
+
+    assert.equal(at.top, 8);
+  });
+
+  it("does not move a bubble that fits", () => {
+    const at = placeTooltip({ left: 400, top: 300, width: 32, height: 32 }, tip, viewport, "top");
+
+    assert.equal(at.top, 252);
+  });
 });
