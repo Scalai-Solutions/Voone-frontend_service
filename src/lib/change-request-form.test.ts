@@ -3,8 +3,11 @@ import { describe, it } from "node:test";
 
 import {
   buildChangeRequest,
+  buildFlagRequest,
   clip,
   initialValues,
+  isUnpricedReward,
+  withRewardMode,
   type FormValues,
   type RequestContext,
 } from "./change-request-form.ts";
@@ -170,7 +173,7 @@ describe("reward, level and other", () => {
   it("a reward row is prefilled with its milestone", () => {
     const body = okBody(
       { kind: "reward", milestone: 4, label: "Masaje" },
-      { text: "Un facial" },
+      { rewardMode: "text", text: "Un facial" },
     );
 
     assert.equal(body.type, "REWARD");
@@ -187,7 +190,7 @@ describe("reward, level and other", () => {
   });
 
   it("the short text is capped at 120", () => {
-    assert.ok(errorsOf({ kind: "reward", milestone: 1 }, { text: "a".repeat(121) }).text);
+    assert.ok(errorsOf({ kind: "reward", milestone: 1 }, { rewardMode: "text", text: "a".repeat(121) }).text);
     assert.ok(errorsOf({ kind: "level", tier: "oro" }, { text: "a".repeat(121) }).text);
   });
 
@@ -206,6 +209,146 @@ describe("reward, level and other", () => {
 
     assert.equal(body.type, "OTHER");
     assert.equal(body.title, "Una duda");
+  });
+});
+
+describe("reward: catalogue item or free text", () => {
+  const row: RequestContext = { kind: "reward", milestone: 4, label: "Masaje" };
+
+  it("starts in item mode with no item", () => {
+    const values = initialValues(row);
+
+    assert.equal(values.rewardMode, "item");
+    assert.equal(values.itemId, "");
+  });
+
+  it("item mode sends itemId and the milestone, and no text", () => {
+    const body = okBody(row, { rewardMode: "item", itemId: "ext-12", text: "ignorado" });
+
+    assert.deepEqual(body.proposed, { itemId: "ext-12", milestone: 4 });
+    assert.deepEqual(body.targetRef, { milestone: 4 });
+    assert.ok(!("text" in (body.proposed ?? {})));
+  });
+
+  it("item mode on a general request sends the itemId alone", () => {
+    const body = okBody({ kind: "reward" }, { rewardMode: "item", itemId: "ext-12" });
+
+    assert.deepEqual(body.proposed, { itemId: "ext-12" });
+    assert.equal(body.targetRef, undefined);
+  });
+
+  it("text mode sends the text and no itemId", () => {
+    const body = okBody(row, { rewardMode: "text", text: "Un facial", itemId: "ext-12" });
+
+    assert.deepEqual(body.proposed, { text: "Un facial" });
+    assert.ok(!("itemId" in (body.proposed ?? {})));
+  });
+
+  it("neither an item nor a text sends no proposal", () => {
+    assert.equal(okBody(row, { rewardMode: "item" }).proposed, undefined);
+    assert.equal(okBody(row, { rewardMode: "text", text: "  " }).proposed, undefined);
+  });
+
+  it("text mode keeps the 120-character cap, item mode does not read the text", () => {
+    assert.ok(errorsOf(row, { rewardMode: "text", text: "a".repeat(121) }).text);
+    assert.ok(!errorsOf(row, { rewardMode: "item", itemId: "x", reason: "" }).text);
+  });
+
+  it("switching mode clears the other field and keeps the rest", () => {
+    const picked = { ...fill(row, {}), itemId: "ext-12", text: "x", reason: "Porque sí" };
+    const toText = withRewardMode(picked, "text");
+
+    assert.equal(toText.rewardMode, "text");
+    assert.equal(toText.itemId, "");
+    assert.equal(toText.reason, "Porque sí");
+
+    const typed = withRewardMode({ ...toText, text: "Un facial" }, "item");
+
+    assert.equal(typed.rewardMode, "item");
+    assert.equal(typed.text, "");
+    assert.equal(typed.reason, "Porque sí");
+    assert.equal(withRewardMode(picked, "item"), picked);
+  });
+});
+
+describe("the what-if request", () => {
+  const row: RequestContext = { kind: "reward", milestone: 4, label: "Masaje" };
+  const edit: RequestContext = { kind: "service-edit", treatment, usesCatalogue: true };
+
+  it("reward: item mode with a milestone asks for the same shape as the ticket", () => {
+    assert.deepEqual(
+      buildFlagRequest(row, fill(row, { rewardMode: "item", itemId: "ext-12" })),
+      {
+        type: "REWARD",
+        targetRef: { milestone: 4 },
+        proposed: { itemId: "ext-12", milestone: 4 },
+      },
+    );
+  });
+
+  it("reward: no item, text mode or no milestone means no request", () => {
+    assert.equal(buildFlagRequest(row, fill(row, { rewardMode: "item" })), null);
+    assert.equal(
+      buildFlagRequest(row, fill(row, { rewardMode: "text", text: "Un facial", itemId: "x" })),
+      null,
+    );
+    assert.equal(
+      buildFlagRequest({ kind: "reward" }, fill({ kind: "reward" }, { itemId: "ext-12" })),
+      null,
+    );
+  });
+
+  it("service edit: a valid price that differs from the current one", () => {
+    assert.deepEqual(buildFlagRequest(edit, fill(edit, { price: "75" })), {
+      type: "SERVICE_EDIT",
+      targetRef: { treatmentId: "t1" },
+      proposed: { priceEuro: 75 },
+    });
+    assert.deepEqual(buildFlagRequest(edit, fill(edit, { price: "75,5" })), {
+      type: "SERVICE_EDIT",
+      targetRef: { treatmentId: "t1" },
+      proposed: { priceEuro: 75.5 },
+    });
+  });
+
+  it("service edit: unchanged, empty or invalid price means no request", () => {
+    assert.equal(buildFlagRequest(edit, fill(edit, {})), null);
+    assert.equal(buildFlagRequest(edit, fill(edit, { price: "60" })), null);
+    assert.equal(buildFlagRequest(edit, fill(edit, { price: "" })), null);
+    assert.equal(buildFlagRequest(edit, fill(edit, { price: "abc" })), null);
+    assert.equal(buildFlagRequest(edit, fill(edit, { price: "0" })), null);
+    assert.equal(buildFlagRequest(edit, fill(edit, { price: "100001" })), null);
+  });
+
+  it("removals, additions, bonos, levels and other never ask", () => {
+    const contexts: RequestContext[] = [
+      { kind: "service-remove", treatment },
+      { kind: "service-add", usesCatalogue: true },
+      { kind: "bono-add" },
+      { kind: "bono-edit", plan },
+      { kind: "bono-remove", plan },
+      { kind: "level", tier: "oro" },
+      { kind: "other" },
+    ];
+
+    for (const context of contexts) {
+      assert.equal(
+        buildFlagRequest(context, fill(context, { price: "75", itemId: "ext-12", text: "x" })),
+        null,
+        context.kind,
+      );
+    }
+  });
+
+  it("unpriced: text mode, a milestone and a non-empty text", () => {
+    assert.equal(isUnpricedReward(row, fill(row, { rewardMode: "text", text: "Un facial" })), true);
+    assert.equal(isUnpricedReward(row, fill(row, { rewardMode: "text", text: "   " })), false);
+    assert.equal(isUnpricedReward(row, fill(row, { rewardMode: "item", itemId: "x" })), false);
+    assert.equal(
+      isUnpricedReward({ kind: "reward" }, fill({ kind: "reward" }, { rewardMode: "text", text: "x" })),
+      false,
+    );
+    assert.equal(isUnpricedReward(edit, fill(edit, { rewardMode: "text", text: "x" })), false);
   });
 });
 

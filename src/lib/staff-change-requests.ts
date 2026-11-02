@@ -376,6 +376,44 @@ const readPart = (
 };
 
 /**
+ * The `targetRef` and `proposed` of a request of `type`, cleaned and checked against the shape
+ * of that type, with the cross-checks between them. Shared by the ticket and the what-if.
+ */
+const readParts = (
+  type: ChangeRequestType,
+  source: Record<string, unknown>,
+): { targetRef?: Record<string, unknown>; proposed?: Record<string, unknown> } => {
+  const rule = RULES[type];
+  const targetRef = readPart(rule.target, source.targetRef);
+  const proposed = readPart(rule.proposed, source.proposed);
+
+  if (rule.proposedRequired && source.proposed == null) {
+    refuse("Indica los datos del cambio que propones.");
+  }
+
+  if (rule.targetRequired?.(proposed) && targetRef === undefined) {
+    refuse("Indica sobre qué elemento quieres el cambio.");
+  }
+
+  if (targetRef && proposed) {
+    for (const key of Object.keys(targetRef)) {
+      if (key in proposed && proposed[key] !== targetRef[key]) {
+        refuse("Los datos propuestos no coinciden con el elemento indicado.");
+      }
+    }
+  }
+
+  if (proposed?.action === "add" && targetRef) {
+    refuse("Un bono nuevo no tiene un bono de referencia.");
+  }
+
+  return {
+    ...(targetRef ? { targetRef } : {}),
+    ...(proposed ? { proposed } : {}),
+  };
+};
+
+/**
  * A new ticket, cleaned and checked. `targetRef` says what the request is about and `proposed`
  * what the centre would like instead; both follow the shape of the type. Returns the body to
  * forward, with only the keys the backend accepts, or the first problem in Spanish.
@@ -407,37 +445,36 @@ export const parseCreateRequest = (
       REASON_MAX,
       `Explica el motivo de la solicitud (entre ${REASON_MIN} y ${REASON_MAX} caracteres).`,
     );
-    const rule = RULES[type];
-    const targetRef = readPart(rule.target, source.targetRef);
-    const proposed = readPart(rule.proposed, source.proposed);
 
-    if (rule.proposedRequired && source.proposed == null) {
-      refuse("Indica los datos del cambio que propones.");
+    return { type, title, reason, ...readParts(type, source) };
+  });
+
+/** The two ticket types the what-if can simulate. */
+export const PREVIEW_TYPES = ["REWARD", "SERVICE_EDIT"] as const;
+export type PreviewType = (typeof PREVIEW_TYPES)[number];
+
+export interface PreviewRequestBody {
+  type: PreviewType;
+  targetRef?: Record<string, unknown>;
+  proposed?: Record<string, unknown>;
+}
+
+/**
+ * The owner's what-if: a reward or a price edit, with the very same `targetRef` / `proposed`
+ * shapes as a ticket, no title or reason, and never a clinic (it comes from the session).
+ */
+export const parsePreviewRequest = (
+  input: unknown,
+): ParseResult<PreviewRequestBody> =>
+  guarded(() => {
+    const source = strictObject(input, ["type", "targetRef", "proposed"]);
+    const type = PREVIEW_TYPES.find((t) => t === source.type);
+
+    if (!type) {
+      return refuse("Solo se puede simular un premio o el precio de un servicio.");
     }
 
-    if (rule.targetRequired?.(proposed) && targetRef === undefined) {
-      refuse("Indica sobre qué elemento quieres el cambio.");
-    }
-
-    if (targetRef && proposed) {
-      for (const key of Object.keys(targetRef)) {
-        if (key in proposed && proposed[key] !== targetRef[key]) {
-          refuse("Los datos propuestos no coinciden con el elemento indicado.");
-        }
-      }
-    }
-
-    if (proposed?.action === "add" && targetRef) {
-      refuse("Un bono nuevo no tiene un bono de referencia.");
-    }
-
-    return {
-      type,
-      title,
-      reason,
-      ...(targetRef ? { targetRef } : {}),
-      ...(proposed ? { proposed } : {}),
-    };
+    return { type, ...readParts(type, source) };
   });
 
 const MESSAGE_ERROR = `Escribe un mensaje de hasta ${MESSAGE_MAX} caracteres.`;

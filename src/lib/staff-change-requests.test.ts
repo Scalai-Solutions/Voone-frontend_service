@@ -7,6 +7,7 @@ import {
   parseCreateRequest,
   parseListQuery,
   parseMessageBody,
+  parsePreviewRequest,
   parseReopenBody,
   type CreateChangeRequestBody,
 } from "./staff-change-requests.ts";
@@ -278,5 +279,65 @@ describe("request ids and list queries", () => {
     for (const q of ["status=DONE", "limit=0", "limit=51", "limit=abc", "limit=1e1", "cursor=a/b", `cursor=${"a".repeat(201)}`]) {
       assert.equal(parseListQuery(new URLSearchParams(q)).ok, false, q);
     }
+  });
+});
+
+describe("parsePreviewRequest", () => {
+  const preview = (input: unknown) => {
+    const result = parsePreviewRequest(input);
+
+    assert.ok(result.ok, result.ok ? "" : result.message);
+
+    return result.value;
+  };
+  const refusedPreview = (input: unknown): string => {
+    const result = parsePreviewRequest(input);
+
+    assert.equal(result.ok, false, "expected a refusal");
+
+    return result.ok ? "" : result.message;
+  };
+
+  it("accepts a reward item with its milestone", () => {
+    assert.deepEqual(
+      preview({
+        type: "REWARD",
+        targetRef: { milestone: 4 },
+        proposed: { itemId: "ext-1", milestone: 4 },
+      }),
+      { type: "REWARD", targetRef: { milestone: 4 }, proposed: { itemId: "ext-1", milestone: 4 } },
+    );
+  });
+
+  it("accepts a service price edit", () => {
+    assert.deepEqual(
+      preview({ type: "SERVICE_EDIT", targetRef: { treatmentId: "t1" }, proposed: { priceEuro: 75 } }),
+      { type: "SERVICE_EDIT", targetRef: { treatmentId: "t1" }, proposed: { priceEuro: 75 } },
+    );
+  });
+
+  it("refuses every other type", () => {
+    for (const type of ["LEVEL", "SERVICE_ADD", "SERVICE_REMOVE", "BONO", "OTHER", "nope"]) {
+      assert.ok(refusedPreview({ type }), type);
+    }
+  });
+
+  it("refuses unknown keys, a title, a reason and a clinic", () => {
+    for (const extra of [{ title: "x" }, { reason: "porque sí" }, { clinicId: "c1" }, { clinicSlug: "s" }]) {
+      assert.ok(refusedPreview({ type: "REWARD", ...extra }));
+    }
+
+    assert.ok(refusedPreview({ type: "REWARD", proposed: { itemId: "x", clinicId: "c1" } }));
+    assert.ok(refusedPreview({ type: "REWARD", targetRef: { milestone: 1, tier: "oro" } }));
+  });
+
+  it("refuses a service edit without target or price, and a bad price", () => {
+    assert.ok(refusedPreview({ type: "SERVICE_EDIT", proposed: { priceEuro: 75 } }));
+    assert.ok(refusedPreview({ type: "SERVICE_EDIT", targetRef: { treatmentId: "t1" } }));
+    assert.ok(
+      refusedPreview({ type: "SERVICE_EDIT", targetRef: { treatmentId: "t1" }, proposed: { priceEuro: -1 } }),
+    );
+    assert.ok(refusedPreview(null));
+    assert.ok(refusedPreview("REWARD"));
   });
 });
