@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildChangeRequest,
   buildFlagRequest,
+  categoryChoices,
   clip,
   initialValues,
   isUnpricedReward,
@@ -349,6 +350,47 @@ describe("the what-if request", () => {
       false,
     );
     assert.equal(isUnpricedReward(edit, fill(edit, { rewardMode: "text", text: "x" })), false);
+  });
+});
+
+describe("category choices", () => {
+  const categories = [
+    { id: "FAC", label: "Facial" },
+    { id: "MAS", label: "Masaje" },
+  ];
+
+  it("a service edit may go back to no change: an empty first item", () => {
+    const none = categoryChoices(
+      { kind: "service-edit", treatment: { ...treatment, categoryId: null }, usesCatalogue: true },
+      categories,
+    );
+
+    assert.deepEqual(none[0], { value: "", label: "Sin categoría" });
+    assert.deepEqual(none.slice(1), [
+      { value: "FAC", label: "Facial" },
+      { value: "MAS", label: "Masaje" },
+    ]);
+
+    const had = categoryChoices({ kind: "service-edit", treatment, usesCatalogue: true }, categories);
+
+    assert.deepEqual(had[0], { value: "", label: "Dejar sin cambios" });
+  });
+
+  it("a new service still has to pick one: no empty item", () => {
+    const items = categoryChoices({ kind: "service-add", usesCatalogue: true }, categories);
+
+    assert.deepEqual(items.map((item) => item.value), ["FAC", "MAS"]);
+  });
+
+  it("choosing the empty item on an edit asks for no category change", () => {
+    const context: RequestContext = {
+      kind: "service-edit",
+      treatment: { ...treatment, categoryId: null },
+      usesCatalogue: true,
+    };
+    const body = okBody(context, { categoryId: "", price: "75" });
+
+    assert.equal(body.proposed?.categoryId, undefined);
   });
 });
 

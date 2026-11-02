@@ -54,6 +54,13 @@ const isSignal = (value: unknown): value is Signal =>
 const finiteOrNull = (value: unknown): number | null | undefined =>
   value === null ? null : typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
+/** Round half away from zero (the backend's rule), never returning negative zero. */
+const roundTo = (value: number, step: number): number => {
+  const rounded = Math.sign(value) * Math.round(Math.abs(value) / step) * step;
+
+  return rounded === 0 ? 0 : rounded;
+};
+
 /** One cell with exactly the five keys it has, or null when the input is not a cell. */
 const readCell = (raw: unknown): OwnerCell | null => {
   if (!isRecord(raw)) return null;
@@ -74,10 +81,24 @@ const readCell = (raw: unknown): OwnerCell | null => {
     return null;
   }
 
-  // A `same` cell has nothing to say in numbers, whatever was sent.
-  if (mark === "same") return { year, mark, euros: null, percent: null, over20: false };
+  const same: OwnerCell = { year, mark: "same", euros: null, percent: null, over20: false };
 
-  return { year, mark, euros, percent, over20 };
+  // A `same` cell has nothing to say in numbers, whatever was sent.
+  if (mark === "same") return same;
+
+  // The screen promises rounded figures only: round again (idempotent on what the backend sends).
+  // A cell whose euros round to 0 is `same`, exactly the backend's rule.
+  const roundedEuros = euros === null ? null : roundTo(euros, 100);
+
+  if (roundedEuros === 0) return same;
+
+  return {
+    year,
+    mark,
+    euros: roundedEuros,
+    percent: percent === null ? null : roundTo(percent, 5),
+    over20,
+  };
 };
 
 const readCells = (raw: unknown): OwnerCell[] | null => {
@@ -119,7 +140,15 @@ export const parseOwnerFlag = (json: unknown): OwnerFlag => {
     return NONE;
   }
 
-  return { status: "ok", signal: json.signal, vsCurrent, vsRecommended, fiveYearEuros };
+  const headline = fiveYearEuros === null ? null : roundTo(fiveYearEuros, 100);
+
+  return {
+    status: "ok",
+    signal: json.signal,
+    vsCurrent,
+    vsRecommended,
+    fiveYearEuros: headline === 0 ? null : headline,
+  };
 };
 
 export const signalCopy = (

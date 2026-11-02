@@ -159,3 +159,18 @@ export const settleActive = (
 
   return query.trim() && list.length > 0 ? list[0].value : null;
 };
+
+/**
+ * Whether a Tab key press leaves the desktop panel: Tab on the last control, or Shift+Tab on the
+ * first. `index` is the position of the focused control among the panel's visible controls
+ * (-1 when focus is not on one). The panel sits at the end of <body>, so the browser alone would
+ * leave focus off the document or at the end of the page; leaving means focusing the trigger
+ * and letting the default Tab continue from there.
+ */
+export const shouldLeavePanel = (
+  key: string,
+  shift: boolean,
+  index: number,
+  count: number,
+): boolean =>
+  key === "Tab" && count > 0 && index >= 0 && (shift ? index === 0 : index === count - 1);

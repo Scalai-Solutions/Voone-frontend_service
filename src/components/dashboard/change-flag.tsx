@@ -73,18 +73,23 @@ function MarksRow({
   );
 }
 
-export function ChangeFlag({ flag, className }: { flag: OwnerFlag; className?: string }) {
+/**
+ * The signal line (or, for a free-text reward, "Sin valorar" and its explanation). The panel puts
+ * this inside its always-mounted live region, so a new answer is announced; it renders nothing
+ * for `none`. Never wrap the marks table in that region.
+ */
+export function ChangeFlagSignal({ flag }: { flag: OwnerFlag }) {
   if (flag.status === "none") return null;
 
   if (flag.status === "unpriced") {
     return (
-      <div className={cn("rounded-2xl bg-white/70 px-4 py-3 text-sm", className)} aria-live="polite">
+      <>
         <p className="flex items-center gap-2 font-bold text-muted-foreground">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-muted-foreground" aria-hidden="true" />
           {UNPRICED_LABEL}
         </p>
         <p className="mt-1 text-muted-foreground">{UNPRICED_BODY}</p>
-      </div>
+      </>
     );
   }
 
@@ -93,14 +98,20 @@ export function ChangeFlag({ flag, className }: { flag: OwnerFlag; className?: s
   const sentence = fiveYearSentence(flag);
 
   return (
-    <div className={cn("rounded-2xl bg-white/70 px-4 py-3 text-sm", className)}>
-      {/* Only the signal line is announced; the marks table is static content. */}
-      <p aria-live="polite" className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className={cn("inline-block h-2.5 w-2.5 rounded-full", tone.dot)} aria-hidden="true" />
-        <strong className={tone.text}>{copy.label}</strong>
-        {sentence ? <span className="text-muted-foreground">· {sentence}</span> : null}
-      </p>
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className={cn("inline-block h-2.5 w-2.5 rounded-full", tone.dot)} aria-hidden="true" />
+      <strong className={tone.text}>{copy.label}</strong>
+      {sentence ? <span className="text-muted-foreground">· {sentence}</span> : null}
+    </p>
+  );
+}
 
+/** The two rows of year marks and the footnote: static content, only for an `ok` flag. */
+export function ChangeFlagMarks({ flag }: { flag: OwnerFlag }) {
+  if (flag.status !== "ok") return null;
+
+  return (
+    <>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full max-w-md border-collapse text-[13px]">
           <caption className="sr-only">Comparación año a año</caption>
@@ -126,6 +137,6 @@ export function ChangeFlag({ flag, className }: { flag: OwnerFlag; className?: s
       <p className="mt-2 text-xs text-muted-foreground">
         ▲ mejor &nbsp; ＝ igual &nbsp; ▼ peor &nbsp;·&nbsp; {FLAG_FOOTNOTE}
       </p>
-    </div>
+    </>
   );
 }
