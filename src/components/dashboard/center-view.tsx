@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { useOpenRequestCount } from "@/features/change-requests/api/useChangeRequests";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
+import { RequestIconButton } from "@/components/ui/request-icon-button";
 import { ChangeRequestPanel } from "@/components/dashboard/change-request-panel";
 import { useRestoreFocus } from "@/components/dashboard/use-restore-focus";
 import { TreatmentsEditor } from "@/components/dashboard/treatments-editor";
@@ -258,20 +259,21 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
               <div className="min-w-0">
                 <p className="break-words font-semibold">{row.name}</p>
                 <p className="mt-1 break-words text-xs leading-5 text-[#927e72]">{row.detail}</p>
-                {requestable ? <button type="button" onClick={(event) => open(row.id, event)} className="mt-2 text-xs font-semibold text-[#9b633e] underline-offset-2 hover:underline" aria-label={`Solicitar cambio en ${row.name}`}>Solicitar cambio</button> : null}
               </div>
               {secondValueLabel ? (
                 <>
                   {/* The card's points, at the right edge of their own column. */}
                   <p className="justify-self-end break-words text-right text-sm font-semibold">{row.value}</p>
                   {/* The euros as the pill, at the right edge of theirs. */}
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
                     <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.secondValue ?? "—"}</span>
+                    {requestable ? <RequestIconButton kind="edit" subject={row.name} onClick={(event) => open(row.id, event)} /> : null}
                   </div>
                 </>
               ) : (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
                   <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
+                  {requestable ? <RequestIconButton kind="edit" subject={row.name} onClick={(event) => open(row.id, event)} /> : null}
                 </div>
               )}
             </div>

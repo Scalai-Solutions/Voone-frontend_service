@@ -4,6 +4,7 @@ import * as React from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RequestIconButton } from "@/components/ui/request-icon-button";
 import type {
   BonoPlanRow,
   CreateBonoPlanInput,
@@ -168,21 +169,17 @@ export function BonoPlansEditor({
               </div>
               {requests ? (
                 plan.active && requests.enabled ? (
-                  <div className="flex shrink-0 items-center gap-3 text-xs font-semibold">
-                    <button
-                      type="button"
+                  <div className="flex shrink-0 items-center gap-1">
+                    <RequestIconButton
+                      kind="edit"
+                      subject={plan.name}
                       onClick={(event) => requests.onEdit(plan, event.currentTarget)}
-                      className="text-[#9b633e] underline-offset-2 hover:underline"
-                    >
-                      Solicitar cambio
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <RequestIconButton
+                      kind="remove"
+                      subject={plan.name}
                       onClick={(event) => requests.onRemove(plan, event.currentTarget)}
-                      className="text-[#b94135] underline-offset-2 hover:underline"
-                    >
-                      Solicitar baja
-                    </button>
+                    />
                   </div>
                 ) : null
               ) : (
