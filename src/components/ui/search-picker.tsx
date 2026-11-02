@@ -13,6 +13,7 @@ import {
   initialActiveValue,
   moveActive,
   settleActive,
+  shouldLeavePanel,
   type PickerItem,
 } from "@/lib/picker-search";
 import { cn } from "@/lib/utils";
@@ -109,6 +110,7 @@ export function SearchPicker({
   const labels = { ...DEFAULT_LABELS, ...labelOverrides };
   const uid = React.useId();
   const listboxId = `${uid}-listbox`;
+  const dialogId = `${uid}-dialog`;
   // Ids by position: item values ("bono:12") are not safe to use in an id.
   const indexByValue = React.useMemo(
     () => new Map(items.map((item, index) => [item.value, index])),
@@ -277,14 +279,18 @@ export function SearchPicker({
       return;
     }
 
+    if (event.key !== "Tab") return;
+
+    const mobileSheet = window.matchMedia(MOBILE_QUERY).matches;
+    // Only the controls that are on screen (the sheet's close button is hidden from `sm` up).
+    const focusable = Array.from(
+      panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
+    ).filter((element) => element.getClientRects().length > 0);
+
+    if (focusable.length === 0) return;
+
     // On a phone the sheet is modal: Tab wraps inside it instead of reaching the page behind.
-    if (event.key === "Tab" && window.matchMedia(MOBILE_QUERY).matches) {
-      const focusable = Array.from(
-        panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
-      );
-
-      if (focusable.length === 0) return;
-
+    if (mobileSheet) {
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
 
@@ -295,7 +301,15 @@ export function SearchPicker({
         event.preventDefault();
         first.focus();
       }
+
+      return;
     }
+
+    // On desktop the panel is at the end of <body>: leaving it by Tab would lose focus. Close,
+    // focus the trigger and do NOT prevent the default, so the browser moves on from the trigger.
+    const index = focusable.indexOf(document.activeElement as HTMLElement);
+
+    if (shouldLeavePanel(event.key, event.shiftKey, index, focusable.length)) close(true);
   };
 
   // Tabbing away on a desktop closes the popup. A null relatedTarget is a click on plain
@@ -325,9 +339,9 @@ export function SearchPicker({
         type="button"
         id={id}
         disabled={disabled}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls={open ? listboxId : undefined}
+        aria-controls={open ? dialogId : undefined}
         aria-describedby={ariaDescribedBy}
         aria-invalid={ariaInvalid}
         aria-label={
@@ -351,6 +365,7 @@ export function SearchPicker({
         ? createPortal(
             <div
               ref={panelRef}
+              id={dialogId}
               role="dialog"
               aria-modal={mobile ? true : undefined}
               aria-label={ariaLabel ?? placeholder}
