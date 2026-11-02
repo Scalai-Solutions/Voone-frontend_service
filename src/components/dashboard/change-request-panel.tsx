@@ -362,8 +362,12 @@ export function ChangeRequestPanel({
 
           {isReward && values.rewardMode === "item" ? (
             <Field
-              label="Qué quieres que sea (opcional)"
-              hint="Elige un artículo de tu catálogo y verás qué supondría para tu plan."
+              label={context.milestone !== undefined ? "Sustituir por" : "Qué quieres que sea (opcional)"}
+              hint={
+                context.milestone !== undefined
+                  ? "Elige un artículo de tu catálogo y verás qué supondría para tu plan."
+                  : "Elige un artículo de tu catálogo."
+              }
               className="md:col-span-2"
             >
               <SearchPicker
