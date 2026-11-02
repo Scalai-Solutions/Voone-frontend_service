@@ -379,7 +379,7 @@ export function SearchPicker({
                 "sm:rounded-xl sm:border sm:border-border sm:shadow-lg",
               )}
             >
-              <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+              <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 <input
                   ref={inputRef}
@@ -424,7 +424,7 @@ export function SearchPicker({
                 <div
                   role="group"
                   aria-label={labels.groups}
-                  className="flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2 text-xs"
+                  className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-border px-3 py-2 text-xs"
                 >
                   {[null, ...groups].map((chip) => {
                     const on = group === chip;
@@ -479,7 +479,14 @@ export function SearchPicker({
                         )}
                       >
                         <span className="min-w-0">
-                          <span className="block truncate">
+                          {/*
+                            translate="no": these are the clinic's own item names, not interface copy.
+                            Every segment is an element, never a bare text node: Chrome's page
+                            translation swaps text nodes for <font> wrappers, and React then fails with
+                            "removeChild: not a child" as soon as the typed text changes how the label
+                            is split, taking the whole page down.
+                          */}
+                          <span translate="no" className="block truncate">
                             {highlight(item.label, query).map((segment, index) =>
                               segment.match ? (
                                 <mark
@@ -489,7 +496,7 @@ export function SearchPicker({
                                   {segment.text}
                                 </mark>
                               ) : (
-                                <React.Fragment key={index}>{segment.text}</React.Fragment>
+                                <span key={index}>{segment.text}</span>
                               ),
                             )}
                           </span>
@@ -513,15 +520,17 @@ export function SearchPicker({
                 )}
               </ul>
 
-              <div className="flex items-center justify-between gap-3 border-t border-border bg-secondary/40 px-3 py-2 text-sm">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-secondary/40 px-3 py-2 text-sm">
                 <p className="min-w-0 truncate" aria-live="polite">
                   {active ? (
                     <>
                       {active.value === value ? (
                         <span className="text-muted-foreground">{labels.chosen}: </span>
                       ) : null}
-                      <strong className="font-semibold">{active.label}</strong>
-                      {activePrice ? ` · ${activePrice}` : ""}
+                      <strong translate="no" className="font-semibold">
+                        {active.label}
+                      </strong>
+                      {activePrice ? <span>{` · ${activePrice}`}</span> : null}
                     </>
                   ) : null}
                 </p>
@@ -536,7 +545,7 @@ export function SearchPicker({
               </div>
 
               {allowFreeText ? (
-                <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                <div className="shrink-0 border-t border-border px-3 py-2 text-xs text-muted-foreground">
                   <button
                     type="button"
                     onClick={() => {
