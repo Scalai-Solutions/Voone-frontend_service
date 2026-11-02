@@ -4,6 +4,7 @@ import * as React from "react";
 import { Plus } from "lucide-react";
 
 import { BonoPlansEditor } from "@/components/shared/bono-plans-editor";
+import { RequestIconButton } from "@/components/ui/request-icon-button";
 import { ChangeRequestPanel } from "@/components/dashboard/change-request-panel";
 import { useRestoreFocus } from "@/components/dashboard/use-restore-focus";
 import { useStaffBonoPlansStore } from "@/features/bonos/api/useBonos";
@@ -172,8 +173,9 @@ export function TreatmentsEditor({
                 </span>
                 {canRequest ? (
                   <>
-                    <button
-                      type="button"
+                    <RequestIconButton
+                      kind="edit"
+                      subject={treatment.name}
                       onClick={(event) =>
                         openPanel(
                           {
@@ -188,13 +190,10 @@ export function TreatmentsEditor({
                           event.currentTarget,
                         )
                       }
-                      className="text-xs font-semibold text-[#9b633e] underline-offset-2 hover:underline"
-                      aria-label={`Solicitar cambio en ${treatment.name}`}
-                    >
-                      Solicitar cambio
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <RequestIconButton
+                      kind="remove"
+                      subject={treatment.name}
                       onClick={(event) =>
                         openPanel(
                           {
@@ -205,11 +204,7 @@ export function TreatmentsEditor({
                           event.currentTarget,
                         )
                       }
-                      className="text-xs font-semibold text-[#b94135] underline-offset-2 hover:underline"
-                      aria-label={`Solicitar baja de ${treatment.name}`}
-                    >
-                      Solicitar baja
-                    </button>
+                    />
                   </>
                 ) : null}
               </div>
