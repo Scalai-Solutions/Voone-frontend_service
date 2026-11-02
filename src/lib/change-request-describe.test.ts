@@ -80,6 +80,24 @@ describe("describeRequest", () => {
     assert.deepEqual(removal.missing, ["zz"]);
   });
 
+  it("a reward ticket names the catalogue item when the name is known, else shows the id", () => {
+    const target = { milestone: 5 };
+    const proposed = { itemId: "ext-77" };
+
+    assert.deepEqual(describeRequest("REWARD", target, proposed, { itemName: "Peeling" }).lines, [
+      "Reward at milestone 5",
+      "Proposed catalogue item: Peeling",
+    ]);
+    assert.deepEqual(describeRequest("REWARD", target, proposed, { itemName: null }).lines, [
+      "Reward at milestone 5",
+      "Proposed catalogue item: ext-77",
+    ]);
+    assert.deepEqual(describeRequest("REWARD", target, proposed).lines, [
+      "Reward at milestone 5",
+      "Proposed catalogue item: ext-77",
+    ]);
+  });
+
   it("without a lookup nothing is called missing", () => {
     const d = describeRequest("SERVICE_EDIT", { treatmentId: "zz" }, { priceEuro: 50 });
 

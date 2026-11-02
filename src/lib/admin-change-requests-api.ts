@@ -1,5 +1,9 @@
 import { adminRequest, jsonBody } from "@/lib/admin-request";
 import {
+  parseTicketComparison,
+  type TicketComparison,
+} from "@/lib/admin-ticket-flag";
+import {
   listSearch,
   type ApplyResult,
   type ChangeRequestDetail,
@@ -26,6 +30,10 @@ const one = (id: string) => `/api/admin/change-requests/${encodeURIComponent(id)
 
 export const getChangeRequest = (id: string) =>
   adminRequest<ChangeRequestDetail>(one(id));
+
+/** What the ticket would do to the plan: exact figures, parsed so a half-formed answer is `none`. */
+export const getChangeRequestComparison = async (id: string): Promise<TicketComparison> =>
+  parseTicketComparison(await adminRequest<unknown>(`${one(id)}/comparison`));
 
 export const setChangeRequestStatus = (
   id: string,

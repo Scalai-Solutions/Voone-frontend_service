@@ -32,6 +32,8 @@ export interface DescribeLookup {
   bonos?: ReadonlyMap<string, BonoRef>;
   /** Category id to its label. */
   categories?: ReadonlyMap<string, string>;
+  /** A REWARD ticket's catalogue item name (from the comparison), shown instead of its raw id. */
+  itemName?: string | null;
 }
 
 export interface RequestDescription {
@@ -225,6 +227,7 @@ const describeBono = (
 const describeReward = (
   target: Record<string, unknown>,
   proposed: Record<string, unknown>,
+  lookup: DescribeLookup,
 ): RequestDescription => {
   const milestone = num(target.milestone) ?? num(proposed.milestone);
   const text = str(proposed.text);
@@ -233,7 +236,7 @@ const describeReward = (
 
   if (milestone !== undefined) lines.push(`Reward at milestone ${milestone}`);
   if (text !== undefined) lines.push(`Proposed reward: ${quoted(text)}`);
-  if (item !== undefined) lines.push(`Proposed catalogue item: ${item}`);
+  if (item !== undefined) lines.push(`Proposed catalogue item: ${lookup.itemName?.trim() || item}`);
 
   if (num(proposed.milestone) !== undefined && num(target.milestone) !== undefined && proposed.milestone !== target.milestone) {
     lines.push(`Move it to milestone ${String(proposed.milestone)}`);
@@ -283,7 +286,7 @@ export const describeRequest = (
     case "BONO":
       return describeBono(target, wanted, lookup);
     case "REWARD":
-      return describeReward(target, wanted);
+      return describeReward(target, wanted, lookup);
     case "LEVEL":
       return describeLevel(target, wanted);
     default:

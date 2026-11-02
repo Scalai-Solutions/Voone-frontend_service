@@ -22,6 +22,7 @@ describe("staff catch-all allowlist", () => {
       "clinics/some-clinic/bonos",
       "clinics/some-clinic/bonos/abc",
       "admin/change-requests",
+      "admin/change-requests/x/comparison",
     ];
 
     for (const path of paths) {

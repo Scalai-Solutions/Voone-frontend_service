@@ -83,6 +83,12 @@ export interface ChangeRequestDetail extends ChangeRequest {
   catalogueImpact: string[] | null;
 }
 
+/** The admin's exact 5-year comparison for a reward or price ticket (see admin-ticket-flag.ts). */
+export type {
+  AdminTicketFlag,
+  TicketComparison,
+} from "./admin-ticket-flag.ts";
+
 export interface ChangeRequestPage {
   items: ChangeRequestListItem[];
   nextCursor: string | null;
@@ -153,6 +159,10 @@ export const canApplyType = (type: ChangeRequestType): boolean =>
 /** The tickets "Create programme draft" is for. */
 export const canDraftType = (type: ChangeRequestType): boolean =>
   type === "REWARD" || type === "LEVEL";
+
+/** The tickets that get the 5-year flag (a reward or a price change). Every other type has none. */
+export const hasTicketFlag = (type: ChangeRequestType): boolean =>
+  type === "REWARD" || type === "SERVICE_EDIT";
 
 /**
  * The clinic's unresolved tickets linked to a programme: what a publish should offer to

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   canApplyType,
+  hasTicketFlag,
   canDraftType,
   countLabel,
   isUnresolved,
@@ -34,6 +35,10 @@ describe("change request helpers", () => {
     assert.deepEqual(draftable, ["REWARD", "LEVEL"]);
     assert.equal(canApplyType("OTHER"), false);
     assert.equal(canDraftType("OTHER"), false);
+  });
+
+  it("only REWARD and SERVICE_EDIT tickets get the 5-year flag", () => {
+    assert.deepEqual(CHANGE_REQUEST_TYPES.filter(hasTicketFlag), ["REWARD", "SERVICE_EDIT"]);
   });
 
   it("unresolved means open or in progress", () => {

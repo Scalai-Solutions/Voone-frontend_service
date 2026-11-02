@@ -10,6 +10,7 @@ import {
   applyChangeRequest,
   createChangeRequestDraft,
   getChangeRequest,
+  getChangeRequestComparison,
   listChangeRequests,
   listClinicChangeRequests,
   replyToChangeRequest,
@@ -36,6 +37,7 @@ export const changeRequestKeys = {
   counts: (scope: string, filters: unknown) =>
     ["admin-change-requests", "counts", scope, filters] as const,
   detail: (id: string) => ["admin-change-requests", "detail", id] as const,
+  comparison: (id: string) => ["admin-change-requests", "comparison", id] as const,
   clinic: (clinicId: string) =>
     ["admin-change-requests", "clinic", clinicId] as const,
 };
@@ -124,6 +126,20 @@ export const useChangeRequest = (id: string) =>
   useQuery({
     queryKey: changeRequestKeys.detail(id),
     queryFn: () => getChangeRequest(id),
+  });
+
+/**
+ * What a reward or price ticket would do to the plan. Shared by every place that shows it (the
+ * detail and the apply and draft panels) through one query key, so it is fetched once. The flag
+ * can change when the catalogue does, so it goes stale quickly and refreshes on window focus.
+ */
+export const useTicketComparison = (id: string, enabled: boolean) =>
+  useQuery({
+    queryKey: changeRequestKeys.comparison(id),
+    queryFn: () => getChangeRequestComparison(id),
+    enabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 
 /** Everything about a ticket may have changed (lists, counts, the detail), so drop it all. */
