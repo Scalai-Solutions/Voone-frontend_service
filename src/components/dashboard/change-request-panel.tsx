@@ -417,7 +417,7 @@ export function ChangeRequestPanel({
           ) : null}
 
           {isReward || context.kind === "service-edit" ? (
-            <div aria-live="polite" className="md:col-span-2 empty:hidden">
+            <div className="md:col-span-2 empty:hidden">
               <ChangeFlag flag={shownFlag} />
             </div>
           ) : null}

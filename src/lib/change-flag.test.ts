@@ -61,20 +61,20 @@ describe("markGlyph", () => {
 
 describe("cellTip", () => {
   it("up against the current plan: euros and percent", () => {
-    assert.equal(cellTip(cell(), "current"), "Hasta el año 3: unos 1.200 € más (aprox. 10 %)");
+    assert.equal(cellTip(cell(), "current"), "Hasta el año 3: unos 1.200\u00a0€ más (aprox. 10 %)");
   });
 
   it("down against the recommendation", () => {
     assert.equal(
       cellTip(cell({ year: 5, mark: "down", euros: -300, percent: -5 }), "recommended"),
-      "Hasta el año 5: unos 300 € menos que la recomendación de Voone (aprox. 5 %)",
+      "Hasta el año 5: unos 300\u00a0€ menos que la recomendación de Voone (aprox. 5 %)",
     );
   });
 
   it("negative euros read as menos, never with a minus sign", () => {
     const tip = cellTip(cell({ mark: "down", euros: -1500, percent: -15 }), "current");
 
-    assert.equal(tip, "Hasta el año 3: unos 1.500 € menos (aprox. 15 %)");
+    assert.equal(tip, "Hasta el año 3: unos 1.500\u00a0€ menos (aprox. 15 %)");
     assert.ok(!tip.includes("-"));
   });
 
@@ -92,34 +92,62 @@ describe("cellTip", () => {
     const zero = cellTip(cell({ euros: 300, percent: 0 }), "current");
     const none = cellTip(cell({ euros: 300, percent: null }), "current");
 
-    assert.equal(zero, "Hasta el año 3: unos 300 € más");
-    assert.equal(none, "Hasta el año 3: unos 300 € más");
+    assert.equal(zero, "Hasta el año 3: unos 300\u00a0€ más");
+    assert.equal(none, "Hasta el año 3: unos 300\u00a0€ más");
     assert.ok(!zero.includes("0 %"));
     assert.equal(
       cellTip(cell({ mark: "down", euros: -300, percent: 0 }), "recommended"),
-      "Hasta el año 3: unos 300 € menos que la recomendación de Voone",
+      "Hasta el año 3: unos 300\u00a0€ menos que la recomendación de Voone",
     );
   });
 
-  it("over20 says más del 20 % in both directions and ignores the percent", () => {
+  it("over20 with euros keeps the sentence shape and ends with más del 20 %", () => {
     assert.equal(
       cellTip(cell({ year: 5, euros: 4000, percent: 25, over20: true }), "current"),
-      "Hasta el año 5: más del 20 % mejor que tu plan actual",
+      "Hasta el año 5: unos 4.000\u00a0€ más (más del 20 %)",
     );
     assert.equal(
       cellTip(cell({ year: 5, mark: "down", euros: -4000, percent: -25, over20: true }), "current"),
-      "Hasta el año 5: más del 20 % peor que tu plan actual",
+      "Hasta el año 5: unos 4.000\u00a0€ menos (más del 20 %)",
     );
     assert.equal(
-      cellTip(cell({ year: 4, mark: "down", euros: -4000, percent: -25, over20: true }), "recommended"),
-      "Hasta el año 4: más del 20 % peor que la recomendación de Voone",
+      cellTip(cell({ year: 5, mark: "down", euros: -4000, percent: -25, over20: true }), "recommended"),
+      "Hasta el año 5: unos 4.000\u00a0€ menos que la recomendación de Voone (más del 20 %)",
+    );
+    assert.equal(
+      cellTip(cell({ year: 4, euros: 3000, percent: 30, over20: true }), "recommended"),
+      "Hasta el año 4: unos 3.000\u00a0€ más que la recomendación de Voone (más del 20 %)",
     );
   });
 
+  it("over20 without euros keeps the más del 20 % mejor / peor wording", () => {
+    assert.equal(
+      cellTip(cell({ year: 5, euros: null, percent: null, over20: true }), "current"),
+      "Hasta el año 5: más del 20 % mejor que tu plan actual",
+    );
+    assert.equal(
+      cellTip(cell({ year: 5, mark: "down", euros: null, percent: null, over20: true }), "current"),
+      "Hasta el año 5: más del 20 % peor que tu plan actual",
+    );
+    assert.equal(
+      cellTip(cell({ year: 4, mark: "down", euros: null, percent: null, over20: true }), "recommended"),
+      "Hasta el año 4: más del 20 % peor que la recomendación de Voone",
+    );
+    assert.equal(
+      cellTip(cell({ year: 4, euros: 0, percent: null, over20: true }), "recommended"),
+      "Hasta el año 4: más del 20 % mejor que la recomendación de Voone",
+    );
+  });
+
+  it("separates the amount from € with a no-break space, never a plain one", () => {
+    assert.ok(cellTip(cell({ euros: 1200 }), "current").includes("1.200\u00a0€"));
+    assert.ok(!cellTip(cell({ euros: 1200 }), "current").includes("1.200 €"));
+  });
+
   it("formats euros in es-ES with a thousands separator, from four digits", () => {
-    assert.match(cellTip(cell({ euros: 1200 }), "current"), /unos 1\.200 € más/);
-    assert.match(cellTip(cell({ euros: 15000 }), "current"), /unos 15\.000 € más/);
-    assert.match(cellTip(cell({ euros: 300 }), "current"), /unos 300 € más/);
+    assert.match(cellTip(cell({ euros: 1200 }), "current"), /unos 1\.200\u00a0€ más/);
+    assert.match(cellTip(cell({ euros: 15000 }), "current"), /unos 15\.000\u00a0€ más/);
+    assert.match(cellTip(cell({ euros: 300 }), "current"), /unos 300\u00a0€ más/);
   });
 
   it("never invents a number: an up cell without euros says only mejor / peor", () => {
@@ -144,8 +172,8 @@ describe("fiveYearSentence", () => {
   });
 
   it("says más for a gain and menos for a loss", () => {
-    assert.equal(fiveYearSentence(flag(2400)), "unos 2.400 € más en 5 años que tu plan actual");
-    assert.equal(fiveYearSentence(flag(-1500)), "unos 1.500 € menos en 5 años que tu plan actual");
+    assert.equal(fiveYearSentence(flag(2400)), "unos 2.400\u00a0€ más en 5 años que tu plan actual");
+    assert.equal(fiveYearSentence(flag(-1500)), "unos 1.500\u00a0€ menos en 5 años que tu plan actual");
   });
 
   it("is null without a figure, at zero, or when there is no flag", () => {

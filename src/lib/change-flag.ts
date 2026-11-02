@@ -138,11 +138,15 @@ export const signalCopy = (
 export const markGlyph = (mark: Mark): "▲" | "＝" | "▼" =>
   mark === "up" ? "▲" : mark === "down" ? "▼" : "＝";
 
-/** 1200 -> "1.200 €". Always groups thousands (the app's formatEuros leaves four digits alone). */
+/**
+ * 1200 -> "1.200 €" with a no-break space, so a tooltip never wraps the symbol onto its own line.
+ * Deliberately differs from `formatEuros` (src/lib/euros.ts), which leaves four-digit amounts
+ * ungrouped ("1200 €"): the flag always groups thousands.
+ */
 const euroText = (euros: number): string =>
   `${Math.round(Math.abs(euros))
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")} €`;
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}\u00a0€`;
 
 const AGAINST: Record<Baseline, string> = {
   current: "tu plan actual",
@@ -156,22 +160,24 @@ export const cellTip = (cell: OwnerCell, baseline: Baseline): string => {
 
   if (cell.mark === "same") return `${prefix}prácticamente igual que ${against}`;
 
-  if (cell.over20) {
-    return `${prefix}más del 20 % ${cell.mark === "up" ? "mejor" : "peor"} que ${against}`;
+  const hasEuros = cell.euros !== null && cell.euros !== 0;
+
+  if (!hasEuros) {
+    const word = cell.mark === "up" ? "mejor" : "peor";
+
+    return `${prefix}${cell.over20 ? "más del 20 % " : ""}${word} que ${against}`;
   }
 
-  if (cell.euros === null || cell.euros === 0) {
-    return `${prefix}${cell.mark === "up" ? "mejor" : "peor"} que ${against}`;
-  }
-
-  const percent =
-    cell.percent === null || cell.percent === 0
+  // Over 20 % the rounded percent is not shown: the tail says only that it is more than that.
+  const tail = cell.over20
+    ? " (más del 20 %)"
+    : cell.percent === null || cell.percent === 0
       ? ""
       : ` (aprox. ${Math.abs(cell.percent)} %)`;
   // The current plan is what the row says; Voone's recommendation has to be named.
   const suffix = baseline === "recommended" ? ` que ${against}` : "";
 
-  return `${prefix}unos ${euroText(cell.euros)} ${cell.mark === "up" ? "más" : "menos"}${suffix}${percent}`;
+  return `${prefix}unos ${euroText(cell.euros as number)} ${cell.mark === "up" ? "más" : "menos"}${suffix}${tail}`;
 };
 
 /** The headline: "unos 2.400 € más en 5 años que tu plan actual", or null when there is no figure. */

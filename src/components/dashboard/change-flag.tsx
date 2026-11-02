@@ -78,7 +78,7 @@ export function ChangeFlag({ flag, className }: { flag: OwnerFlag; className?: s
 
   if (flag.status === "unpriced") {
     return (
-      <div className={cn("rounded-2xl bg-white/70 px-4 py-3 text-sm", className)}>
+      <div className={cn("rounded-2xl bg-white/70 px-4 py-3 text-sm", className)} aria-live="polite">
         <p className="flex items-center gap-2 font-bold text-muted-foreground">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-muted-foreground" aria-hidden="true" />
           {UNPRICED_LABEL}
@@ -94,7 +94,8 @@ export function ChangeFlag({ flag, className }: { flag: OwnerFlag; className?: s
 
   return (
     <div className={cn("rounded-2xl bg-white/70 px-4 py-3 text-sm", className)}>
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      {/* Only the signal line is announced; the marks table is static content. */}
+      <p aria-live="polite" className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className={cn("inline-block h-2.5 w-2.5 rounded-full", tone.dot)} aria-hidden="true" />
         <strong className={tone.text}>{copy.label}</strong>
         {sentence ? <span className="text-muted-foreground">· {sentence}</span> : null}
