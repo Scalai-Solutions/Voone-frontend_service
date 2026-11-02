@@ -45,12 +45,18 @@ export type RequestContext =
   | { kind: "level"; tier?: string; label?: string; detail?: string }
   | { kind: "other" };
 
+/** A reward request names a catalogue item, or describes the wish in words. */
+export type RewardMode = "item" | "text";
+
 export interface FormValues {
   name: string;
   price: string;
   categoryId: string;
   sessions: string;
   text: string;
+  /** The catalogue item a reward request proposes (its externalId); used in `item` mode. */
+  itemId: string;
+  rewardMode: RewardMode;
   title: string;
   reason: string;
   confirm: boolean;
@@ -71,6 +77,8 @@ export const initialValues = (context: RequestContext): FormValues => {
     categoryId: "",
     sessions: "",
     text: "",
+    itemId: "",
+    rewardMode: "item",
     title: "",
     reason: "",
     confirm: false,
@@ -95,6 +103,15 @@ export const initialValues = (context: RequestContext): FormValues => {
   }
 
   return empty;
+};
+
+/** Switches how a reward is described, clearing the field of the mode being left. */
+export const withRewardMode = (values: FormValues, mode: RewardMode): FormValues => {
+  if (values.rewardMode === mode) return values;
+
+  return mode === "item"
+    ? { ...values, rewardMode: mode, text: "" }
+    : { ...values, rewardMode: mode, itemId: "" };
 };
 
 /** A title that fits the backend's limit: long names are cut with an ellipsis. */
@@ -330,7 +347,10 @@ export const buildChangeRequest = (
     }
 
     case "reward": {
-      const text = checkShortText(values.text, errors);
+      const itemMode = values.rewardMode === "item";
+      const itemId = itemMode ? values.itemId.trim() : "";
+      // Only text mode reads (and validates) the text: the other field is never sent.
+      const text = itemMode ? undefined : checkShortText(values.text, errors);
 
       raw = {
         type: "REWARD",
@@ -342,7 +362,16 @@ export const buildChangeRequest = (
         ...(context.milestone !== undefined
           ? { targetRef: { milestone: context.milestone } }
           : {}),
-        ...(text ? { proposed: { text } } : {}),
+        ...(itemId
+          ? {
+              proposed: {
+                itemId,
+                ...(context.milestone !== undefined ? { milestone: context.milestone } : {}),
+              },
+            }
+          : text
+            ? { proposed: { text } }
+            : {}),
       };
       break;
     }
@@ -382,4 +411,78 @@ export const buildChangeRequest = (
   return parsed.ok
     ? { ok: true, body: parsed.value }
     : { ok: false, errors: { form: parsed.message } };
+};
+
+/** The body of `POST /api/staff/change-requests/preview`: a ticket without title or reason. */
+export interface FlagRequest {
+  type: "REWARD" | "SERVICE_EDIT";
+  targetRef: Record<string, unknown>;
+  proposed: Record<string, unknown>;
+}
+
+/**
+ * What to ask the what-if for, or null when there is nothing to ask. Only a reward row (it has a
+ * milestone) with a catalogue item picked, and a service edit with a valid new price that
+ * differs from the current one. Removals, additions, bonos, levels and the rest never ask.
+ */
+export const buildFlagRequest = (
+  context: RequestContext,
+  values: FormValues,
+): FlagRequest | null => {
+  if (context.kind === "reward") {
+    const itemId = values.itemId.trim();
+
+    if (context.milestone === undefined || values.rewardMode !== "item" || !itemId) return null;
+
+    return {
+      type: "REWARD",
+      targetRef: { milestone: context.milestone },
+      proposed: { itemId, milestone: context.milestone },
+    };
+  }
+
+  if (context.kind === "service-edit") {
+    if (!values.price.trim()) return null;
+
+    const price = readPrice(values.price, context.usesCatalogue);
+
+    if ("error" in price || price.value === context.treatment.priceEuro) return null;
+
+    return {
+      type: "SERVICE_EDIT",
+      targetRef: { treatmentId: context.treatment.id },
+      proposed: { priceEuro: price.value },
+    };
+  }
+
+  return null;
+};
+
+/** A reward described in words has no catalogue price: the flag says "Sin valorar". */
+export const isUnpricedReward = (context: RequestContext, values: FormValues): boolean =>
+  context.kind === "reward" &&
+  context.milestone !== undefined &&
+  values.rewardMode === "text" &&
+  values.text.trim().length > 0;
+
+/**
+ * The categories a request may pick. A service edit starts from the treatment's own category
+ * (or none), so it also gets an empty first item to undo a mistaken pick: it asks for no
+ * category change. A new service has no such choice, it must pick one.
+ */
+export const categoryChoices = (
+  context: RequestContext,
+  categories: Array<{ id: string; label: string }>,
+): Array<{ value: string; label: string }> => {
+  const items = categories.map((category) => ({ value: category.id, label: category.label }));
+
+  if (context.kind !== "service-edit") return items;
+
+  return [
+    {
+      value: "",
+      label: context.treatment.categoryId ? "Dejar sin cambios" : "Sin categoría",
+    },
+    ...items,
+  ];
 };

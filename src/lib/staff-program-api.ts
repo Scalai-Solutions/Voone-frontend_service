@@ -144,6 +144,8 @@ export interface StaffCatalogItem {
   priceEuro: number;
   category: CategoryCode | null;
   isProduct: boolean;
+  /** Whether it can be offered as a reward (the same rule the admin's swap uses). */
+  giftable: boolean;
 }
 
 /** The centre's own catalogue, for choosing what was paid instead of typing it. */

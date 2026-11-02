@@ -16,6 +16,7 @@ describe("staff catch-all allowlist", () => {
       "clinics/some-clinic/change-requests/abc",
       "clinics/some-clinic/change-requests/abc/messages",
       "clinics/some-clinic/change-requests/abc/reopen",
+      "clinics/some-clinic/change-requests/preview",
       "clinics/some-clinic/treatments",
       "clinics/some-clinic/treatments/abc",
       "clinics/some-clinic/bonos",
