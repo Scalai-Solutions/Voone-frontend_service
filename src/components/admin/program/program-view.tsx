@@ -4,6 +4,8 @@ import * as React from "react";
 import {
   ArrowRightLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   Gift,
   Info,
@@ -211,14 +213,11 @@ export function ProgramView({
       </dl>
 
       <section aria-labelledby="tiers-heading" className="grid gap-4">
-        <h3 id="tiers-heading" className="font-serif text-2xl font-semibold">
-          Los cinco niveles
-        </h3>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <TierScroller title="Los cinco niveles">
           {program.tiers.map((tier) => (
             <article
               key={tier.key}
-              className="grid content-start gap-3 rounded-lg border border-border bg-card p-4"
+              className="grid h-full content-start gap-3 rounded-lg border border-border bg-card p-4"
             >
               <div>
                 <p className="flex items-center gap-2 font-serif text-xl font-semibold">
@@ -243,7 +242,7 @@ export function ProgramView({
               />
             </article>
           ))}
-        </div>
+        </TierScroller>
       </section>
 
       <section aria-labelledby="ladder-heading" className="grid gap-4">
@@ -394,6 +393,115 @@ export function ProgramView({
  * An older backend sends no `benefitLines`: the card then renders as it always did, with only the
  * centre's own lines changeable.
  */
+/**
+ * The tiers side by side in a snapping row, Bronce first and centred. Five columns at once left
+ * each card too narrow for its edit and remove buttons, so the card nearest the centre is shown
+ * full size and its neighbours smaller.
+ */
+function TierScroller({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [centred, setCentred] = React.useState(0);
+  const cards = React.Children.toArray(children);
+
+  const cardAt = (index: number) =>
+    ref.current?.children[index] as HTMLElement | undefined;
+
+  const updateCentred = () => {
+    const row = ref.current;
+    if (!row) return;
+
+    const middle = row.scrollLeft + row.clientWidth / 2;
+    let nearest = 0;
+    let nearestDistance = Infinity;
+
+    Array.from(row.children).forEach((child, index) => {
+      const card = child as HTMLElement;
+      const distance = Math.abs(
+        card.offsetLeft + card.offsetWidth / 2 - middle,
+      );
+
+      if (distance < nearestDistance) {
+        nearest = index;
+        nearestDistance = distance;
+      }
+    });
+
+    setCentred(nearest);
+  };
+
+  const centre = (index: number) => {
+    const row = ref.current;
+    const card = cardAt(index);
+    if (!row || !card) return;
+
+    // No behavior given: the row's own scroll-behavior applies, so reduced motion jumps.
+    row.scrollTo({
+      left: card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2,
+    });
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="tiers-heading" className="font-serif text-2xl font-semibold">
+          {title}
+        </h3>
+        <div className="flex gap-1.5">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
+            disabled={centred === 0}
+            onClick={() => centre(centred - 1)}
+            aria-label="Nivel anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
+            disabled={centred === cards.length - 1}
+            onClick={() => centre(centred + 1)}
+            aria-label="Nivel siguiente"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div
+        ref={ref}
+        role="region"
+        aria-label={title}
+        tabIndex={0}
+        onScroll={updateCentred}
+        // The side padding lets Bronce and Diamante both reach the centre.
+        className="relative flex snap-x snap-mandatory gap-3 overflow-x-auto px-[max(0px,calc(50%-9rem))] pb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:scroll-smooth"
+      >
+        {cards.map((card, index) => (
+          <div
+            key={index}
+            className={cn(
+              "w-72 shrink-0 snap-center motion-safe:transition-[transform,opacity] motion-safe:duration-300",
+              index === centred ? "scale-100" : "scale-[0.92] opacity-75",
+            )}
+          >
+            {card}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function TierBenefits({
   tier,
   onSetBenefits,
@@ -641,16 +749,19 @@ function TierBenefits({
           }
 
           return (
-            <li key={line.key} className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <li
+              key={line.key}
+              className="flex flex-wrap items-start gap-x-2 gap-y-0.5"
+            >
               <Check
                 className={cn(
-                  "mt-0.5 h-3 w-3 shrink-0",
+                  "mt-1 h-3 w-3 shrink-0",
                   line.hidden ? "text-muted-foreground" : "text-success",
                 )}
               />
               <span
                 className={cn(
-                  "min-w-0 flex-1",
+                  "min-w-0 flex-1 break-words pt-0.5",
                   line.hidden && "text-muted-foreground line-through",
                 )}
               >
@@ -663,33 +774,34 @@ function TierBenefits({
                 ) : null}
               </span>
               {editable && !line.hidden ? (
-                <>
+                <span className="-mr-1 flex shrink-0 gap-0.5">
                   <button
                     type="button"
                     aria-label={`Editar ${line.text}`}
+                    title="Editar"
                     disabled={busy}
-                    className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                     onClick={() => startEditing(line)}
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     aria-label={`Quitar ${line.text}`}
                     disabled={busy || isLastVisible(lines, line)}
                     title={
-                      isLastVisible(lines, line) ? LAST_LINE_NOTE : undefined
+                      isLastVisible(lines, line) ? LAST_LINE_NOTE : "Quitar"
                     }
-                    className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                     onClick={() =>
                       line.kind === "custom"
                         ? removeCustom(line)
                         : startHiding(line)
                     }
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
-                </>
+                </span>
               ) : null}
               {line.edited ? (
                 <span className="basis-full pl-5 text-[11px] leading-4 text-muted-foreground">
