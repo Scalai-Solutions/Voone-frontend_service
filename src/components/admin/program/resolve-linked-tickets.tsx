@@ -51,7 +51,7 @@ export function ResolveLinkedTickets({
         className="flex items-center gap-2 text-sm text-muted-foreground"
       >
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>Programme published. One moment…</span>
+        <span>Programa publicado. Un momento…</span>
       </p>
     );
   }
@@ -61,8 +61,9 @@ export function ResolveLinkedTickets({
       <div role="status" className="grid gap-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-5">
         <p className="flex items-center gap-2 text-sm font-semibold text-[#2f6b3c]">
           <Check className="h-4 w-4" />
-          {resolvedCount} request{resolvedCount === 1 ? "" : "s"} resolved. The
-          owners have been notified.
+          {resolvedCount}{" "}
+          {resolvedCount === 1 ? "solicitud resuelta" : "solicitudes resueltas"}.
+          Se ha avisado a los propietarios.
         </p>
         <div>
           <button
@@ -70,7 +71,7 @@ export function ResolveLinkedTickets({
             onClick={onDone}
             className="rounded-full bg-[#2d211e] px-5 py-2.5 text-sm font-semibold text-white"
           >
-            Continue
+            Continuar
           </button>
         </div>
       </div>
@@ -81,7 +82,7 @@ export function ResolveLinkedTickets({
     event.preventDefault();
 
     if (!note.trim()) {
-      setProblem("Write a note first: the owners are emailed it.");
+      setProblem("Escribe primero una nota: se envía por correo a los propietarios.");
 
       return;
     }
@@ -90,7 +91,7 @@ export function ResolveLinkedTickets({
     resolve.mutate(note.trim(), {
       onSuccess: (result) => setResolvedCount(result.resolved.length),
       onError: (error) =>
-        setProblem(errorText(error, "Could not resolve the requests. Try again.")),
+        setProblem(errorText(error, "No se han podido resolver las solicitudes. Inténtalo de nuevo.")),
     });
   }
 
@@ -101,14 +102,14 @@ export function ResolveLinkedTickets({
     >
       <div>
         <h3 className="font-serif text-2xl font-semibold">
-          The programme is live
+          El programa ya está activo
         </h3>
         <p className="mt-1 text-sm text-[#806d63]">
           {linked.data.length === 1
-            ? "This request was linked to the programme you just published."
-            : "These requests were linked to the programme you just published."}{" "}
-          Resolve {linked.data.length === 1 ? "it" : "them"} now and the
-          clinic owners are told the change is live.
+            ? "Esta solicitud estaba vinculada al programa que acabas de publicar."
+            : "Estas solicitudes estaban vinculadas al programa que acabas de publicar."}{" "}
+          {linked.data.length === 1 ? "Resuélvela" : "Resuélvelas"} ahora y se
+          avisará a los propietarios del centro de que el cambio ya está activo.
         </p>
       </div>
 
@@ -129,7 +130,7 @@ export function ResolveLinkedTickets({
 
       <div>
         <label htmlFor="resolve-linked-note" className="text-sm font-semibold">
-          Resolution note (required; the owners receive it)
+          Nota de resolución (obligatoria; la reciben los propietarios)
         </label>
         <Textarea
           id="resolve-linked-note"
@@ -139,7 +140,7 @@ export function ResolveLinkedTickets({
             setNote(event.target.value);
             setProblem(null);
           }}
-          placeholder="For example: the new reward is now live in your programme."
+          placeholder="Por ejemplo: el nuevo premio ya está activo en tu programa."
           className="mt-2 min-h-20"
         />
       </div>
@@ -157,7 +158,7 @@ export function ResolveLinkedTickets({
           className="inline-flex items-center rounded-full bg-[#2d211e] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
         >
           {resolve.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {resolve.isPending ? "Resolving..." : "Resolve and notify"}
+          {resolve.isPending ? "Resolviendo…" : "Resolver y avisar"}
         </button>
         <button
           type="button"
@@ -165,7 +166,7 @@ export function ResolveLinkedTickets({
           disabled={resolve.isPending}
           className="rounded-full border border-[#cdb9aa] px-5 py-2.5 text-sm font-semibold text-[#754b36] disabled:opacity-60"
         >
-          Not now
+          Ahora no
         </button>
       </div>
     </form>

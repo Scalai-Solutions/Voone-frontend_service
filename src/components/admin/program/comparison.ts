@@ -36,13 +36,13 @@ export const comparisonTone = (
   return kind === "more" ? "positive" : kind === "less" ? "negative" : "neutral";
 };
 
-/** "this plan earns 1.200 € less net over 5 years": the money consequence, as a phrase. */
+/** "this plan leaves 1.200 € less net profit over 5 years": the money consequence, as a phrase. */
 const consequence = (delta: number): string => {
   const kind = deltaKind(delta);
 
-  if (kind === "same") return "the same";
+  if (kind === "same") return "el mismo beneficio neto";
 
-  return `${formatEuros(Math.abs(Math.round(delta)))} ${kind}`;
+  return `${formatEuros(Math.abs(Math.round(delta)))} ${kind === "more" ? "más" : "menos"} de beneficio neto`;
 };
 
 /**
@@ -59,9 +59,9 @@ export const comparisonHeadline = (
   const { clients, ticket } = comparison.inputs;
 
   return (
-    `Compared with our recommended plan, this plan earns ` +
-    `${consequence(comparison.delta)} net over 5 years ` +
-    `(standard values: ${clients.toLocaleString("es-ES")} clients, ${formatEuros(ticket)} ticket)`
+    `Comparado con nuestro plan recomendado, este plan deja ` +
+    `${consequence(comparison.delta)} en 5 años ` +
+    `(valores estándar: ${clients.toLocaleString("es-ES")} clientes, ticket de ${formatEuros(ticket)})`
   );
 };
 

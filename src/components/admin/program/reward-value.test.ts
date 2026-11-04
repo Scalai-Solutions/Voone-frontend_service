@@ -8,9 +8,9 @@ describe("rewardValueLabel", () => {
   it("shows the retail value as es-ES euros, labelled", () => {
     assert.equal(
       rewardValueLabel({ rewardValueEuro: 45 }),
-      `Reward value ${formatEuros(45)}`,
+      `Valor del premio ${formatEuros(45)}`,
     );
-    assert.match(rewardValueLabel({ rewardValueEuro: 45 }) ?? "", /^Reward value 45\s€$/);
+    assert.match(rewardValueLabel({ rewardValueEuro: 45 }) ?? "", /^Valor del premio 45\s€$/);
   });
 
   it("shows nothing for an older backend or an empty value", () => {

@@ -20,9 +20,8 @@ export interface ImageUploadLabels {
   /** Field-specific accessible name for the button, e.g. "Subir imagen del logo". */
   ariaLabel?: string;
   /**
-   * Replaces the backend's message for an `IMAGE_*` error code. The backend only speaks
-   * Spanish, so the English admin wizard maps each code here; when null the backend's own
-   * Spanish message is shown.
+   * Replaces the backend's message for an `IMAGE_*` error code. The backend speaks Spanish,
+   * so by default (null) its own message is shown.
    */
   serverMessages: Partial<Record<string, string>> | null;
 }
@@ -30,7 +29,7 @@ export interface ImageUploadLabels {
 /** The backend's code when uploads are not configured; its Spanish message has no "paste a URL" hint. */
 const STORAGE_UNCONFIGURED = "IMAGE_STORAGE_UNCONFIGURED";
 
-/** Spanish by default: everything a clinic user sees is Spanish. The admin wizard passes English. */
+/** Spanish by default: the clinic dashboard and the admin activation flow are Spanish. */
 export const SPANISH_UPLOAD_LABELS: ImageUploadLabels = {
   button: "Subir imagen",
   uploading: "Subiendo...",
@@ -40,26 +39,6 @@ export const SPANISH_UPLOAD_LABELS: ImageUploadLabels = {
   failed: "No se ha podido subir la imagen. Inténtalo de nuevo.",
   pasteUrl: "Pega una URL en su lugar.",
   serverMessages: null,
-};
-
-export const ENGLISH_UPLOAD_LABELS: ImageUploadLabels = {
-  button: "Upload image",
-  uploading: "Uploading...",
-  hint: "PNG, JPG or WebP only, up to 5 MB.",
-  invalidType: "Upload a PNG, JPG or WebP image.",
-  tooLarge: "The image is larger than 5 MB.",
-  failed: "The image could not be uploaded. Try again.",
-  pasteUrl: "Paste a URL instead.",
-  serverMessages: {
-    IMAGE_TOO_LARGE: "The image is over 5 MB.",
-    IMAGE_MEDIA_TYPE: "Upload a PNG, JPG or WebP image.",
-    IMAGE_UNSUPPORTED: "Upload a PNG, JPG or WebP image.",
-    IMAGE_DIMENSIONS: "The image size is not valid.",
-    IMAGE_KIND_INVALID: "Invalid image type.",
-    IMAGE_UNREADABLE: "The image could not be read. Try again.",
-    IMAGE_STORAGE_FAILED: "The image could not be saved. Try again.",
-    IMAGE_STORAGE_UNCONFIGURED: "Image upload is not configured. Paste a URL instead.",
-  },
 };
 
 /**

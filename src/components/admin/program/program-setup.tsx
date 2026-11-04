@@ -35,6 +35,7 @@ import { ComparisonSummary } from "./comparison-summary";
 import { ProgramView } from "./program-view";
 import { QuestionsStep } from "./questions-step";
 import { ResolveLinkedTickets } from "./resolve-linked-tickets";
+import { scrollToTop } from "./scroll-to-top";
 
 /**
  * A centre going from a price list to an approved loyalty programme.
@@ -140,6 +141,7 @@ function ProgramSetupLoaded({
   const shown = useProgram(clinicId, shownId);
 
   const [step, setStep] = React.useState<number>(initialStep);
+  const topRef = React.useRef<HTMLDivElement | null>(null);
   const [answersOverride, setAnswers] =
     React.useState<OnboardingAnswers | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
@@ -151,6 +153,18 @@ function ProgramSetupLoaded({
   const [publishedId, setPublishedId] = React.useState<string | null>(null);
 
   const answers = answersOverride ?? shown.data?.answers ?? DEFAULT_ANSWERS;
+
+  // A step is a new screen, but the scroll position of the one before it carries over: leaving the
+  // questions from their last button landed in the middle of the programme, at the milestones. Not
+  // on arrival: the page then opens where the browser puts it.
+  const previousStep = React.useRef(step);
+
+  React.useEffect(() => {
+    if (previousStep.current === step) return;
+
+    previousStep.current = step;
+    scrollToTop(topRef.current);
+  }, [step]);
 
   const createDraft = useCreateDraft(clinicId);
   const publish = usePublishProgram(clinicId);
@@ -244,7 +258,7 @@ function ProgramSetupLoaded({
           onDone={finishPublish}
         />
       ) : null}
-    <div className={publishedId ? "hidden" : "grid gap-8"}>
+    <div ref={topRef} className={publishedId ? "hidden" : "grid gap-8"}>
       <nav aria-label="Pasos" className="flex flex-wrap items-center gap-2">
         {STEPS.map((label, index) => {
           const reachable = index <= step;
@@ -466,11 +480,11 @@ function ProgramSetupLoaded({
                       id="publish-confirm-heading"
                       className="font-serif text-xl font-semibold"
                     >
-                      Publish this programme?
+                      ¿Publicar este programa?
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      This is where the plan stands against our recommendation.
-                      You can publish it as it is.
+                      Así queda tu plan frente a nuestra recomendación. Puedes
+                      publicarlo tal como está.
                     </p>
                   </div>
                   <ComparisonSummary
@@ -488,7 +502,7 @@ function ProgramSetupLoaded({
                       {publish.isPending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : null}
-                      <span>Publish</span>
+                      <span>Publicar</span>
                     </Button>
                     <Button
                       type="button"
@@ -499,7 +513,7 @@ function ProgramSetupLoaded({
                       }}
                       disabled={publish.isPending}
                     >
-                      Keep editing
+                      Seguir editando
                     </Button>
                   </div>
                 </section>

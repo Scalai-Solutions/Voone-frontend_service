@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowUpRight, BadgeCheck, Bell, Building2, CreditCard, Gift, Mail, MapPin, MessageSquare, Phone, Sparkles, Target, Users, WalletCards } from "lucide-react";
+import { ArrowUpRight, Building2, Gift, Mail, MapPin, MessageSquare, Sparkles, Target, Users, WalletCards } from "lucide-react";
 
 import { ClinicAccountActions, ClinicCredentialsActions } from "@/components/admin/clinic-account-actions";
+import { CopyLinkRow } from "@/components/admin/copy-link-row";
 import { TreatmentsPreview } from "@/components/admin/treatments-preview";
 import { PageHeader } from "@/components/shared/page-kit";
 import { WalletStatusBadges } from "@/components/shared/status-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAdminClinic, getAdminClinicOpenRequests, getAdminClinicPrograms } from "@/lib/admin-api";
+import { getClinicSignupUrl } from "@/lib/app-url";
 import { ApiError, type MilestoneRewardsInput } from "@/lib/api-client";
 
 const ownerLabel = (clinic: Awaited<ReturnType<typeof getAdminClinic>>) =>
@@ -26,8 +28,9 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
   const [programs, openRequests] = await Promise.all([getAdminClinicPrograms(clinic.id), getAdminClinicOpenRequests(clinic.id)]);
   const activeProgram = programs.find((program) => program.status === "ACTIVO");
   const draftProgram = programs.find((program) => program.status === "BORRADOR");
-  const programActionLabel = activeProgram ? "View live program" : draftProgram ? "Continue program" : "Set up program";
+  const programActionLabel = activeProgram ? "Ver programa activo" : draftProgram ? "Continuar programa" : "Configurar programa";
   const template = clinic.template;
+  const shortSignupUrl = await getClinicSignupUrl(clinic.slug);
   // Real progress, not a guess: each item is a fact about the centre (founders' E2E item 17).
   const credentials = clinic.onboardingCredentials;
   const progressItems = [
@@ -44,7 +47,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Clinic profile" title={clinic.name} description={`${clinic.addressLine} · ${clinic.pincode}`} action={template ? { href: `/admin/clinics/${clinic.id}/card`, label: "Open builder" } : { href: "/admin/onboarding/new", label: "Create template" }} />
+      <PageHeader eyebrow="Perfil del centro" title={clinic.name} description={`${clinic.addressLine} · ${clinic.pincode}`} action={template ? { href: `/admin/clinics/${clinic.id}/card`, label: "Abrir diseñador" } : { href: "/admin/onboarding/new", label: "Crear plantilla" }} />
 
       <section className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="relative overflow-hidden rounded-[30px] bg-[#211918] p-6 text-[#fff8f2] shadow-[0_20px_60px_rgba(67,42,30,0.14)]">
@@ -53,10 +56,9 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f1d6bd] text-[#402d26]"><Building2 className="h-6 w-6" /></span>
             <h2 className="mt-6 max-w-md font-serif text-5xl font-semibold leading-[0.98] tracking-[-0.03em]">{clinic.name}</h2>
             <p className="mt-5 flex items-center gap-2 text-sm text-[#c9bbb3]"><MapPin className="h-4 w-4" /> {clinic.addressLine} · {clinic.pincode}</p>
-            {clinic.usesDefaultLogo ? <Badge variant="secondary" className="mt-4 w-fit">Default logo</Badge> : null}
-            <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              <DarkMetric icon={Users} label="Members" value={clinic.members.toLocaleString()} />
-              <DarkMetric icon={CreditCard} label="Voone plan" value={clinic.voonePlan} />
+            {clinic.usesDefaultLogo ? <Badge variant="secondary" className="mt-4 w-fit">Logo por defecto</Badge> : null}
+            <div className="mt-7 grid gap-3">
+              <DarkMetric icon={Users} label="Miembros" value={clinic.members.toLocaleString()} />
             </div>
           </div>
         </div>
@@ -64,29 +66,26 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
         <div className="rounded-[26px] border border-[#ded2cb] bg-white/78 p-5 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Operating status</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Clinic readiness</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Estado operativo</p>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Estado del centro</h2>
             </div>
-            <span className="rounded-full bg-[#f1e2d6] px-3 py-1 text-xs font-semibold text-[#6f4d3f]">{clinic.status === "active" ? "Active" : clinic.isActive ? "Setup" : "Draft, not live"}</span>
+            <span className="rounded-full bg-[#f1e2d6] px-3 py-1 text-xs font-semibold text-[#6f4d3f]">{clinic.status === "active" ? "Activo" : clinic.isActive ? "En configuración" : "Borrador, no publicado"}</span>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <InfoRow icon={Mail} label="Owner email" value={ownerLabel(clinic)} />
-            <InfoRow icon={Phone} label="Clinic slug" value={clinic.slug} />
-            <InfoRow icon={Sparkles} label="Wallet template" value={clinic.template?.programName ?? "No pass created"} />
-            <InfoRow icon={BadgeCheck} label="Privacy notice" value={clinic.privacyPolicyVersion} />
-            <InfoRow icon={CreditCard} label="Current Voone plan" value={clinic.voonePlan} />
-            <InfoRow icon={Bell} label="Notifications left" value={`${clinic.notificationsRemainingThisMonth} of ${clinic.notificationsMonthlyQuota}`} />
+            <InfoRow icon={Mail} label="Correo del titular" value={ownerLabel(clinic)} />
+            <InfoRow icon={Sparkles} label="Plantilla de wallet" value={clinic.template?.programName ?? "Sin tarjeta creada"} />
+            <CopyLinkRow label="Enlace corto de alta" value={shortSignupUrl} />
           </div>
           <div className="mt-5 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="font-semibold">Onboarding progress</p>
-                <p className="mt-1 text-xs text-[#8c7870]">Center, card, treatments, program, account and activation</p>
+                <p className="font-semibold">Progreso de activación</p>
+                <p className="mt-1 text-xs text-[#8c7870]">Centro, tarjeta, tratamientos, programa, cuenta y activación</p>
               </div>
               <span className="text-sm font-semibold">{progressPercent}%</span>
             </div>
             <span className="mt-3 block h-2 rounded-full bg-[#eadfd8]"><span className="block h-full rounded-full bg-[#b98a4f]" style={{ width: `${progressPercent}%` }} /></span>
-            {!clinic.isActive ? <Button asChild className="mt-4 w-full rounded-xl"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/setup`}>Continue setup <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
+            {!clinic.isActive ? <Button asChild className="mt-4 w-full rounded-xl"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/setup`}>Continuar configuración <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
           </div>
         </div>
       </section>
@@ -95,10 +94,10 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
         <div className="rounded-[26px] border border-[#ded2cb] bg-white/78 p-5 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Template designs</p>
-              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Selected clinic template</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Diseños de plantilla</p>
+              <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Plantilla seleccionada</h2>
             </div>
-            {template ? <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${clinic.id}/card`}>Open builder <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
+            {template ? <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${clinic.id}/card`}>Abrir diseñador <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button> : null}
           </div>
           {template ? (
             <div className="mt-5 grid gap-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4 md:grid-cols-[180px_1fr]">
@@ -112,14 +111,14 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
                 <p className="mt-2 text-sm leading-6 text-[#806d63]">{template.benefitsText}</p>
                 <div className="mt-4"><WalletStatusBadges statuses={template.walletStatus} /></div>
                 <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                  <SmallFact label="Status" value={template.status} />
-                  <SmallFact label="Website" value={template.websiteUrl ?? "Not set"} />
-                  <SmallFact label="Appointment" value={template.appointmentUrl ?? "Not set"} />
-                  <SmallFact label="Pass info" value={template.infoText} />
+                  <SmallFact label="Estado" value={template.status} />
+                  <SmallFact label="Sitio web" value={template.websiteUrl ?? "Sin definir"} />
+                  <SmallFact label="Reservas" value={template.appointmentUrl ?? "Sin definir"} />
+                  <SmallFact label="Información de la tarjeta" value={template.infoText} />
                 </div>
               </div>
             </div>
-          ) : <p className="mt-5 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4 text-sm text-[#806d63]">No selected template for this clinic yet.</p>}
+          ) : <p className="mt-5 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4 text-sm text-[#806d63]">Este centro aún no tiene plantilla seleccionada.</p>}
         </div>
 
         <ClinicCredentialsActions clinicId={clinic.id} email={clinic.onboardingCredentials?.email} setupUrl={clinic.onboardingCredentials?.setupUrl} setupTokenExpiresAt={clinic.onboardingCredentials?.setupTokenExpiresAt} generatedAt={clinic.onboardingCredentials?.generatedAt} sentAt={clinic.onboardingCredentials?.sentAt} hasPassword={clinic.onboardingCredentials?.hasPassword} />
@@ -130,8 +129,8 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f1e2d6] text-[#704f40]"><Gift className="h-4 w-4" /></span>
             <div>
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Loyalty program</h2>
-              <p className="mt-1 max-w-xl text-sm text-[#806d63]">{activeProgram ? `Live version ${activeProgram.version} is active for visits, treatments and rewards.` : "Upload the price list, answer six questions and review the tiers and rewards the engine proposes."}</p>
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Programa de fidelización</h2>
+              <p className="mt-1 max-w-xl text-sm text-[#806d63]">{activeProgram ? `La versión ${activeProgram.version} está activa para visitas, tratamientos y premios.` : "Sube la lista de precios, responde seis preguntas y revisa los niveles y premios que propone el motor."}</p>
             </div>
           </div>
           <Button asChild className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/program`}>{programActionLabel} <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
@@ -140,36 +139,35 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f1e2d6] text-[#704f40]"><WalletCards className="h-4 w-4" /></span>
             <div>
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Services</h2>
-              <p className="mt-1 max-w-xl text-sm text-[#806d63]">Add, edit or remove the clinic&apos;s treatments and session vouchers. Owners can only request changes.</p>
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Servicios</h2>
+              <p className="mt-1 max-w-xl text-sm text-[#806d63]">Añade, edita o elimina los tratamientos y bonos del centro. Los titulares solo pueden solicitar cambios.</p>
             </div>
           </div>
-          <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/services`}>Edit services <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
+          <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/services`}>Editar servicios <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f1e2d6] text-[#704f40]"><MessageSquare className="h-4 w-4" /></span>
             <div>
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Requests</h2>
-              <p className="mt-1 max-w-xl text-sm text-[#806d63]">{openRequests === null ? "Change requests the clinic has sent to Voone." : openRequests.count === 0 ? "No open change requests." : `${openRequests.count}${openRequests.more ? "+" : ""} open or in progress.`}</p>
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Solicitudes</h2>
+              <p className="mt-1 max-w-xl text-sm text-[#806d63]">{openRequests === null ? "Solicitudes de cambio que el centro ha enviado a Voone." : openRequests.count === 0 ? "No hay solicitudes de cambio abiertas." : `${openRequests.count}${openRequests.more ? "+" : ""} abiertas o en curso.`}</p>
             </div>
           </div>
-          <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/requests`}>View requests <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
+          <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/requests`}>Ver solicitudes <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
-        <SetupPanel icon={WalletCards} title="Treatments" description="Clinic dashboard treatment catalog and points setup.">
+        <SetupPanel icon={WalletCards} title="Tratamientos" description="Catálogo de tratamientos del panel del centro y configuración de puntos.">
           <TreatmentsPreview treatments={clinic.treatments ?? []} />
         </SetupPanel>
-        <SetupPanel icon={Gift} title="Tier rewards" description="Reward tiers created during onboarding.">
-          {tierRewards.length > 0 ? tierRewards.map((tier, index) => <SetupRow key={`${tier.name}-${index}`} name={tier.name} detail={tier.rewardText || "No reward text set"} value="Tier" />) : <EmptySetupRow label="No tier rewards saved" />}
+        <SetupPanel icon={Gift} title="Premios por nivel" description="Niveles de premio creados durante la configuración.">
+          {tierRewards.length > 0 ? tierRewards.map((tier, index) => <SetupRow key={`${tier.name}-${index}`} name={tier.name} detail={tier.rewardText || "Sin texto de premio"} value="Nivel" />) : <EmptySetupRow label="No hay premios por nivel guardados" />}
         </SetupPanel>
-        <SetupPanel icon={Target} title="Milestone rewards" description="Conversion and next milestone rules.">
-          {milestoneRewards ? <MilestoneSummary milestone={milestoneRewards} /> : <EmptySetupRow label="No milestone rules saved" />}
+        <SetupPanel icon={Target} title="Premios por hito" description="Reglas de conversión y del próximo hito.">
+          {milestoneRewards ? <MilestoneSummary milestone={milestoneRewards} /> : <EmptySetupRow label="No hay reglas de hitos guardadas" />}
         </SetupPanel>
-        <SetupPanel icon={Building2} title="Clinic information" description="Business details shown in the clinic dashboard.">
-          <SetupRow name="Commercial name" detail={clinic.name} value="Clinic" />
-          <SetupRow name="Address" detail={`${clinic.addressLine} · ${clinic.pincode}`} value="Location" />
-          <SetupRow name="Owner" detail={ownerLabel(clinic)} value="Contact" />
-          <SetupRow name="Plan" detail={`${clinic.voonePlan} · ${clinic.notificationsRemainingThisMonth} notifications left`} value="Billing" />
+        <SetupPanel icon={Building2} title="Información del centro" description="Datos del negocio que se muestran en el panel del centro.">
+          <SetupRow name="Nombre comercial" detail={clinic.name} value="Centro" />
+          <SetupRow name="Dirección" detail={`${clinic.addressLine} · ${clinic.pincode}`} value="Ubicación" />
+          <SetupRow name="Titular" detail={ownerLabel(clinic)} value="Contacto" />
         </SetupPanel>
       </section>
 
@@ -195,7 +193,7 @@ function EmptySetupRow({ label }: { label: string }) {
 }
 
 function MilestoneSummary({ milestone }: { milestone: MilestoneRewardsInput }) {
-  return <div className="grid gap-3 sm:grid-cols-2"><SetupRow name="Milestones" detail="Total milestone count" value={milestone.milestoneCount.toLocaleString()} /><SetupRow name="Next milestone" detail="Points needed for next milestone" value={`${milestone.pointsToNextMilestone.toLocaleString()} points`} /><SetupRow name="Price conversion" detail={`${milestone.priceAmount} euro spend`} value={`${milestone.pointsAwarded} points`} /><SetupRow name="Monthly notifications" detail="Remaining allowance for this clinic" value="Tracked above" /></div>;
+  return <div className="grid gap-3 sm:grid-cols-2"><SetupRow name="Hitos" detail="Número total de hitos" value={milestone.milestoneCount.toLocaleString()} /><SetupRow name="Próximo hito" detail="Puntos necesarios para el próximo hito" value={`${milestone.pointsToNextMilestone.toLocaleString()} puntos`} /><SetupRow name="Conversión de precio" detail={`${milestone.priceAmount} € de gasto`} value={`${milestone.pointsAwarded} puntos`} /></div>;
 }
 
 function DarkMetric({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {

@@ -14,7 +14,7 @@ export const rewardValueLabel = (milestone: {
     return null;
   }
 
-  return `Reward value ${formatEuros(value)}`;
+  return `Valor del premio ${formatEuros(value)}`;
 };
 
 /** Informational notes to show, trimmed, without blanks or repeats. Never part of the blocking review. */

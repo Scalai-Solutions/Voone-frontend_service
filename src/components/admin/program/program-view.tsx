@@ -218,10 +218,11 @@ export function ProgramView({
           {program.tiers.map((tier) => (
             <article
               key={tier.key}
-              className="grid h-full content-start gap-3 rounded-lg border border-border bg-card p-4"
+              className="flex h-full flex-col gap-3 rounded-lg border border-border bg-card p-4"
             >
-              <div>
-                <p className="flex items-center gap-2 font-serif text-xl font-semibold">
+              {/* Room for two lines of threshold, so every card's list starts at the same height. */}
+              <div className="min-h-[4.5rem]">
+                <p className="flex min-h-7 items-center gap-2 font-serif text-xl font-semibold leading-7">
                   {tier.key === "diamante" ? (
                     <Crown className="h-4 w-4 text-gold" />
                   ) : null}
@@ -485,14 +486,16 @@ function TierScroller({
         tabIndex={0}
         onScroll={updateCentred}
         // The side padding lets Bronce and Diamante both reach the centre.
-        className="relative flex snap-x snap-mandatory gap-3 overflow-x-auto px-[max(0px,calc(50%-9rem))] pb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:scroll-smooth"
+        className="relative flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-[max(0px,calc(50%-9rem))] pb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:scroll-smooth"
       >
         {cards.map((card, index) => (
           <div
             key={index}
             className={cn(
-              "w-72 shrink-0 snap-center motion-safe:transition-[transform,opacity] motion-safe:duration-300",
-              index === centred ? "scale-100" : "scale-[0.92] opacity-75",
+              // Same size for every card: a scaled neighbour would sit inset from the others' top and
+              // bottom edges. Only its opacity tells the centred one apart.
+              "w-72 shrink-0 snap-center motion-safe:transition-opacity motion-safe:duration-300",
+              index === centred ? "opacity-100" : "opacity-75",
             )}
           >
             {card}
@@ -648,7 +651,7 @@ function TierBenefits({
   };
 
   return (
-    <>
+    <div className="flex flex-1 flex-col gap-3">
       <ul className="grid gap-1.5 text-xs leading-5">
         {listed.map((line) => {
           const editable =
@@ -856,9 +859,16 @@ function TierBenefits({
         </p>
       ) : null}
       {onSetBenefits ? (
-        <AddBenefit tier={tier} onSetBenefits={onSetBenefits} disabled={busy} />
+        // Pinned to the foot of the card, so the input sits on the same line in every tier.
+        <div className="mt-auto">
+          <AddBenefit
+            tier={tier}
+            onSetBenefits={onSetBenefits}
+            disabled={busy}
+          />
+        </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -1050,7 +1060,7 @@ function MilestoneRow({
             </p>
             {reward ? (
               <p className="text-xs text-muted-foreground">
-                Reward · month {milestone.month}
+                Premio · mes {milestone.month}
                 {valueLabel ? ` · ${valueLabel}` : ""}
               </p>
             ) : milestone.perk ? (

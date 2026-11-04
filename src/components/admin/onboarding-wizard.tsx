@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Plus, X } from "lucide-react";
 
-import { ENGLISH_UPLOAD_LABELS, ImageUploadButton } from "@/components/shared/image-upload-button";
+import { ImageUploadButton } from "@/components/shared/image-upload-button";
 import { GoogleWalletCardPreview } from "@/components/shared/google-wallet-card-preview";
 import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,10 @@ import {
   DEFAULT_WALLET_TIER_LABEL,
 } from "@/lib/default-wallet-template";
 
-const steps = ["Owner", "Center", "Pass"];
+const steps = ["Propietario", "Centro", "Pase"];
+
+/** Prefix of the status shown once the draft clinic is saved; the status is styled as success by it. */
+const SAVED_STATUS_PREFIX = "Clínica guardada";
 
 /** Mirrors the backend limit on further wallet buttons. */
 const EXTRA_BUTTONS_MAX = 5;
@@ -46,37 +49,37 @@ const isSingleUrl = (value: string): boolean => {
 /** Why the current step cannot be left yet, or null. Drives the disabled button and its hint. */
 const blockedReason = (step: number, values: OnboardingValues): string | null => {
   if (step === 0 && (!values.ownerName || !values.ownerMobile || !values.ownerEmail)) {
-    return "Add the owner name, mobile, and email to continue.";
+    return "Añade el nombre, el móvil y el email del propietario para continuar.";
   }
   if (step === 1 && (!values.centerName || !values.addressLine || !values.pincode)) {
-    return "Add the center name, address, and postal code.";
+    return "Añade el nombre, la dirección y el código postal del centro.";
   }
   if (step === 1 && !values.dataConsent) {
-    return "Confirm the data processing consent to continue.";
+    return "Confirma el consentimiento de tratamiento de datos para continuar.";
   }
   if (step === 2 && !values.vooneTemplateId) {
-    return "Choose a template design before creating the clinic.";
+    return "Elige un diseño de plantilla antes de crear la clínica.";
   }
   if (step === 2 && !values.programName.trim()) {
-    return "Add the program or club name before creating the clinic.";
+    return "Añade el nombre del programa o club antes de crear la clínica.";
   }
   if (step === 2 && !values.logo.trim()) {
-    return "Add the clinic's own logo URL (a single web address).";
+    return "Añade la URL del logo de la clínica (una sola dirección web).";
   }
   if (step === 2) {
     const fields: Array<[string, string]> = [
-      ["Clinic logo URL", values.logo],
-      ["Logo for dark background", values.logoOnDark],
-      ["Hero image URL", values.heroImageUrl],
-      ["Button URL", values.appointmentUrl],
-      ...values.extraButtons.map((button, index): [string, string] => [`Extra button ${index + 1} URL`, button.url]),
+      ["La URL del logo de la clínica", values.logo],
+      ["La URL del logo para fondo oscuro", values.logoOnDark],
+      ["La URL de la imagen principal", values.heroImageUrl],
+      ["La URL del botón", values.appointmentUrl],
+      ...values.extraButtons.map((button, index): [string, string] => [`La URL del botón adicional ${index + 1}`, button.url]),
     ];
     const bad = fields.find(([, value]) => !isSingleUrl(value));
 
-    if (bad) return `${bad[0]} must be a single web address, with no extra text or spaces.`;
+    if (bad) return `${bad[0]} debe ser una única dirección web, sin texto adicional ni espacios.`;
   }
   if (step === 2 && values.extraButtons.some((button) => !button.label.trim() || !button.url.trim())) {
-    return "Give every extra button a text and a web address, or remove it.";
+    return "Da a cada botón adicional un texto y una dirección web, o elimínalo.";
   }
 
   return null;
@@ -165,7 +168,7 @@ const templateOptionsFor = (presets: TemplatePreset[], templates: VooneTemplate[
     presetId: preset.id,
     preset,
     name: index === 0 ? DEFAULT_WALLET_TEMPLATE_NAME : preset.name,
-    description: index === 0 ? DEFAULT_WALLET_TEMPLATE_DESCRIPTION : "Preset starting design",
+    description: index === 0 ? DEFAULT_WALLET_TEMPLATE_DESCRIPTION : "Diseño inicial predefinido",
     programName: index === 0 ? DEFAULT_WALLET_PROGRAM_NAME : `${preset.name} Club`,
     hexBackgroundColor: index === 0 ? DEFAULT_WALLET_BACKGROUND_COLOR : preset.hexBackgroundColor,
     logoUrl: "",
@@ -241,7 +244,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   );
   const provisionMutation = useProvisionClinic({
     onSuccess: (provisionedClinic) => {
-      setStatus("Clinic saved as a draft. Continuing with treatments and program.");
+      setStatus(`${SAVED_STATUS_PREFIX} como borrador. Continuamos con los tratamientos y el programa.`);
       setSetupLinkCopied(false);
       // The centre now exists as an inactive draft; the rest of onboarding runs against it.
       const notice = provisionedClinic.walletWarning ? `?notice=${encodeURIComponent(provisionedClinic.walletWarning)}` : "";
@@ -249,7 +252,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
     },
     onError: (error) => {
       const detail = error instanceof Error && "detail" in error ? (error as ApiError).detail : undefined;
-      setStatus(detail ?? "The clinic could not be created. Check the required details and try again.");
+      setStatus(detail ?? "No se pudo crear la clínica. Revisa los datos obligatorios e inténtalo de nuevo.");
     },
   });
 
@@ -324,7 +327,7 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
   return (
     <section className={`mx-auto min-h-[650px] overflow-hidden rounded-[24px] border border-[#ded2cb] bg-white shadow-[0_20px_56px_rgba(67,48,43,0.12)] ${step === 2 ? "max-w-[1180px]" : "max-w-[900px]"}`}>
       <div className="flex min-w-0 flex-col p-7 sm:p-10">
-        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Back</Link><span className="text-sm text-[#806d63]">Step {step + 1} of {steps.length}</span></div>
+        <div className="flex items-center justify-between gap-4"><Link href="/admin/onboarding" className="inline-flex items-center gap-2 text-sm font-semibold text-[#704f40]"><ArrowLeft className="h-4 w-4" /> Volver</Link><span className="text-sm text-[#806d63]">Paso {step + 1} de {steps.length}</span></div>
         <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]"><span className="block h-full rounded-full bg-[#201715] transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
 
         <div className="my-auto pt-10">
@@ -335,19 +338,19 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
 
         <div className="mt-8 border-t border-[#eadfd8] pt-5">
           {!status && blocked ? <p className="mb-4 text-sm text-[#806d63]">{blocked}</p> : null}
-          {status ? <p className={`mb-4 text-sm ${status.startsWith("Clinic saved") ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
+          {status ? <p className={`mb-4 text-sm ${status.startsWith(SAVED_STATUS_PREFIX) ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
           {setupUrl ? (
             <div className="mb-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Client password setup link</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Enlace para que el cliente cree su contraseña</p>
               <code className="mt-2 block break-all rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#2e2421]">{setupUrl}</code>
               <Button type="button" variant="outline" onClick={copySetupLink} className="mt-3 rounded-xl">
-                <Copy className="mr-2 h-4 w-4" /> {setupLinkCopied ? "Copied" : "Copy setup link"}
+                <Copy className="mr-2 h-4 w-4" /> {setupLinkCopied ? "Copiado" : "Copiar enlace"}
               </Button>
             </div>
           ) : null}
           <div className="flex items-center justify-between gap-3">
-            <Button type="button" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="rounded-xl">Previous</Button>
-            {step < steps.length - 1 ? <Button type="button" onClick={next} disabled={blocked !== null} title={blocked ?? undefined} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continue <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending || blocked !== null} title={blocked ?? undefined} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Saving..." : "Save and continue"}<ArrowRight className="ml-2 h-4 w-4" /></Button>}
+            <Button type="button" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="rounded-xl">Anterior</Button>
+            {step < steps.length - 1 ? <Button type="button" onClick={next} disabled={blocked !== null} title={blocked ?? undefined} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">Continuar <ArrowRight className="ml-2 h-4 w-4" /></Button> : <Button type="button" onClick={finish} disabled={provisionMutation.isPending || blocked !== null} title={blocked ?? undefined} className="rounded-xl bg-[#201715] text-white hover:bg-[#3b2a25]">{provisionMutation.isPending ? "Guardando..." : "Guardar y continuar"}<ArrowRight className="ml-2 h-4 w-4" /></Button>}
           </div>
         </div>
       </div>
@@ -357,34 +360,34 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
 }
 
 function OwnerStep({ values, update }: { values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void }) {
-  return <StepContent title="Welcome. Who is leading this clinic?" detail="We’ll use these details for clinic ownership and implementation communication."><div className="grid gap-4 sm:grid-cols-2"><WizardField label="Owner name"><Input value={values.ownerName} onChange={(event) => update("ownerName", event.target.value)} placeholder="Ana Lopez" /></WizardField><WizardField label="Owner mobile"><Input value={values.ownerMobile} onChange={(event) => update("ownerMobile", event.target.value)} placeholder="+34 600 000 000" /></WizardField><WizardField label="Owner email" className="sm:col-span-2"><Input type="email" value={values.ownerEmail} onChange={(event) => update("ownerEmail", event.target.value)} placeholder="ana@clinic.com" /></WizardField><WizardField label="Primary contact name"><Input value={values.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Main setup contact" /></WizardField><WizardField label="Primary contact mobile"><Input value={values.mobile} onChange={(event) => update("mobile", event.target.value)} placeholder="+34 600 000 000" /></WizardField></div></StepContent>;
+  return <StepContent title="Te damos la bienvenida. ¿Quién dirige esta clínica?" detail="Usaremos estos datos para la titularidad de la clínica y la comunicación durante la puesta en marcha."><div className="grid gap-4 sm:grid-cols-2"><WizardField label="Nombre del propietario"><Input value={values.ownerName} onChange={(event) => update("ownerName", event.target.value)} placeholder="Ana López" /></WizardField><WizardField label="Móvil del propietario"><Input value={values.ownerMobile} onChange={(event) => update("ownerMobile", event.target.value)} placeholder="+34 600 000 000" /></WizardField><WizardField label="Email del propietario" className="sm:col-span-2"><Input type="email" value={values.ownerEmail} onChange={(event) => update("ownerEmail", event.target.value)} placeholder="ana@clinic.com" /></WizardField><WizardField label="Nombre del contacto principal"><Input value={values.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Persona de contacto para la puesta en marcha" /></WizardField><WizardField label="Móvil del contacto principal"><Input value={values.mobile} onChange={(event) => update("mobile", event.target.value)} placeholder="+34 600 000 000" /></WizardField></div></StepContent>;
 }
 
 function CenterStep({ values, update }: { values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void }) {
   return (
-    <StepContent title="Tell us about the center." detail="These details create the public membership page and form the clinic record.">
+    <StepContent title="Cuéntanos sobre el centro." detail="Estos datos crean la página pública de alta de miembros y forman la ficha de la clínica.">
       <div className="grid gap-4 sm:grid-cols-2">
-        <WizardField label="Center name" className="sm:col-span-2">
+        <WizardField label="Nombre del centro" className="sm:col-span-2">
           <Input value={values.centerName} onChange={(event) => update("centerName", event.target.value)} placeholder="Clínica Aurea" />
         </WizardField>
-        <WizardField label="Center address" className="sm:col-span-2">
+        <WizardField label="Dirección del centro" className="sm:col-span-2">
           <Input value={values.addressLine} onChange={(event) => update("addressLine", event.target.value)} placeholder="Calle Serrano 42" />
         </WizardField>
-        <WizardField label="Postal code">
+        <WizardField label="Código postal">
           <Input value={values.pincode} onChange={(event) => update("pincode", event.target.value)} placeholder="28001" />
         </WizardField>
-        <WizardField label="Center mobile">
+        <WizardField label="Móvil del centro">
           <Input value={values.centerMobile} onChange={(event) => update("centerMobile", event.target.value)} placeholder="+34 910 000 000" />
         </WizardField>
-        <WizardField label="Center email">
+        <WizardField label="Email del centro">
           <Input type="email" value={values.centerEmail} onChange={(event) => update("centerEmail", event.target.value)} placeholder="hola@clinic.com" />
         </WizardField>
         <label className="flex items-start gap-3 rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm sm:col-span-2">
           <input type="checkbox" checked={values.dataConsent} onChange={(event) => update("dataConsent", event.target.checked)} className="mt-1 h-4 w-4 accent-[#201715]" />
           <span>
-            <span className="font-semibold">Data processing consent</span>
-            <span className="mt-1 block text-[#806d63]">The center confirms it is authorised to process membership data.</span>
-            <a href="/legal/tratamiento-datos" target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold underline">Read the full consent document</a>
+            <span className="font-semibold">Consentimiento de tratamiento de datos</span>
+            <span className="mt-1 block text-[#806d63]">El centro confirma que está autorizado a tratar los datos de sus miembros.</span>
+            <a href="/legal/tratamiento-datos" target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold underline">Leer el documento de consentimiento completo</a>
           </span>
         </label>
       </div>
@@ -393,59 +396,59 @@ function CenterStep({ values, update }: { values: OnboardingValues; update: <Val
 }
 
 function PassStepEditor({ templates, selectedTemplate, templateEdited, values, update, selectTemplate }: { templates: OnboardingTemplateOption[]; selectedTemplate: OnboardingTemplateOption | undefined; templateEdited: boolean; values: OnboardingValues; update: <Value extends keyof OnboardingValues>(key: Value, value: OnboardingValues[Value]) => void; selectTemplate: (template: OnboardingTemplateOption) => void }) {
-  const cardName = values.centerName.trim() || "Center name";
+  const cardName = values.centerName.trim() || "Nombre del centro";
 
   return (
-    <StepContent title="Customize the wallet card." detail="Choose a design and fill only the fields shown on the member card.">
+    <StepContent title="Personaliza la tarjeta de wallet." detail="Elige un diseño y rellena solo los campos que se muestran en la tarjeta del miembro.">
       <div className="space-y-5">
         <div className="grid gap-2 sm:grid-cols-3">
           {templates.map((template, index) => (
             <button key={template.id} type="button" onClick={() => selectTemplate(template)} className={`flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-left text-sm transition ${values.vooneTemplateId === template.id ? "border-[#201715] ring-2 ring-[#d9b477]/50" : "border-[#ded2cb] hover:border-[#b98a4f]"}`}>
               <span className="h-6 w-6 rounded-full border border-[#ded2cb]" style={{ backgroundColor: template.hexBackgroundColor }} />
-              <span className="font-semibold">Design {index + 1}</span>
+              <span className="font-semibold">Diseño {index + 1}</span>
             </button>
           ))}
         </div>
 
-        {templates.length === 0 ? <p className="rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm text-[#806d63]">Create a Template Design before onboarding a clinic.</p> : null}
+        {templates.length === 0 ? <p className="rounded-xl border border-[#ded2cb] bg-[#fffaf6] p-4 text-sm text-[#806d63]">Crea un diseño de plantilla antes de dar de alta una clínica.</p> : null}
 
         {selectedTemplate ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
             <form className="rounded-[22px] border border-[#ded2cb] bg-white p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Wallet card fields</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Campos de la tarjeta de wallet</p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight">{cardName}</h2>
-                <p className="mt-1 text-xs text-[#806d63]">Template name is set from the center name; the club name appears on the wallet card.</p>
+                <p className="mt-1 text-xs text-[#806d63]">El nombre de la plantilla se toma del nombre del centro; el nombre del club aparece en la tarjeta de wallet.</p>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <WizardField label="Card color">
+                <WizardField label="Color de la tarjeta">
                   <Input type="color" value={values.colors[0]} onChange={(event) => update("colors", [event.target.value, values.colors[1], values.colors[2]])} className="h-10 rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Clinic logo URL" action={<ImageUploadButton kind="logo" scope="admin" labels={{ ...ENGLISH_UPLOAD_LABELS, ariaLabel: "Upload clinic logo image" }} onUploaded={(url) => update("logo", url)} />}>
+                <WizardField label="URL del logo de la clínica" action={<ImageUploadButton kind="logo" scope="admin" labels={{ ariaLabel: "Subir imagen del logo de la clínica" }} onUploaded={(url) => update("logo", url)} />}>
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Logo for dark background (optional, Apple Wallet only)" className="sm:col-span-2" action={<ImageUploadButton kind="logoOnDark" scope="admin" labels={{ ...ENGLISH_UPLOAD_LABELS, ariaLabel: "Upload logo image for dark background" }} onUploaded={(url) => update("logoOnDark", url)} />}>
+                <WizardField label="Logo para fondo oscuro (opcional, solo Apple Wallet)" className="sm:col-span-2" action={<ImageUploadButton kind="logoOnDark" scope="admin" labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => update("logoOnDark", url)} />}>
                   <Input value={values.logoOnDark} onChange={(event) => update("logoOnDark", event.target.value)} placeholder="https://.../logo-light.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Program / club name" className="sm:col-span-2">
+                <WizardField label="Nombre del programa o club" className="sm:col-span-2">
                   <Input value={values.programName} onChange={(event) => update("programName", event.target.value)} placeholder="Club Diamante" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Hero image URL (optional)" className="sm:col-span-2" action={<ImageUploadButton kind="hero" scope="admin" labels={{ ...ENGLISH_UPLOAD_LABELS, ariaLabel: "Upload hero image" }} onUploaded={(url) => update("heroImageUrl", url)} />}>
+                <WizardField label="URL de la imagen principal (opcional)" className="sm:col-span-2" action={<ImageUploadButton kind="hero" scope="admin" labels={{ ariaLabel: "Subir imagen principal" }} onUploaded={(url) => update("heroImageUrl", url)} />}>
                   <Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.jpg" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Wallet button text">
+                <WizardField label="Texto del botón de wallet">
                   <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Ver beneficios" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Button URL">
+                <WizardField label="URL del botón">
                   <div className="flex items-center gap-2">
                     <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/benefits" className="min-w-0 flex-1 rounded-xl bg-[#fffaf6]" />
                     <button
                       type="button"
                       onClick={() => update("extraButtons", [...values.extraButtons, { label: "", url: "" }])}
                       disabled={values.extraButtons.length >= EXTRA_BUTTONS_MAX}
-                      aria-label="Add another wallet button"
-                      title={values.extraButtons.length >= EXTRA_BUTTONS_MAX ? `Up to ${EXTRA_BUTTONS_MAX} extra buttons` : "Add another wallet button"}
+                      aria-label="Añadir otro botón de wallet"
+                      title={values.extraButtons.length >= EXTRA_BUTTONS_MAX ? `Hasta ${EXTRA_BUTTONS_MAX} botones adicionales` : "Añadir otro botón de wallet"}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#cdb9aa] bg-white text-[#704f40] transition hover:bg-[#f4e9df] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Plus className="h-4 w-4" />
@@ -454,16 +457,16 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 </WizardField>
                 {values.extraButtons.map((button, index) => (
                   <div key={index} className="grid gap-2 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3 sm:col-span-2 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
-                    <WizardField label={`Button ${index + 2} text`}>
+                    <WizardField label={`Texto del botón ${index + 2}`}>
                       <Input value={button.label} maxLength={30} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)))} placeholder="Reservar cita" className="rounded-xl bg-white" />
                     </WizardField>
-                    <WizardField label={`Button ${index + 2} URL`}>
+                    <WizardField label={`URL del botón ${index + 2}`}>
                       <Input value={button.url} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} placeholder="https://clinic.com/book" className="rounded-xl bg-white" />
                     </WizardField>
                     <button
                       type="button"
                       onClick={() => update("extraButtons", values.extraButtons.filter((_, i) => i !== index))}
-                      aria-label={`Remove button ${index + 2}`}
+                      aria-label={`Quitar botón ${index + 2}`}
                       className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e8b9b1] bg-white text-[#b94135] transition hover:bg-[#fff3f1]"
                     >
                       <X className="h-4 w-4" />
@@ -485,7 +488,7 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
           </div>
         ) : null}
 
-        <p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `Design ${templateEdited ? "edited for this clinic" : "will be copied as-is"}` : "No design selected"}</p>
+        <p className={`flex items-center gap-2 text-sm ${templateEdited ? "text-[#704f40]" : "text-[#2f7d57]"}`}><CheckCircle2 className="h-4 w-4" /> {selectedTemplate ? `Diseño ${templateEdited ? "editado para esta clínica" : "se copiará tal cual"}` : "Ningún diseño seleccionado"}</p>
       </div>
     </StepContent>
   );
@@ -501,8 +504,8 @@ function CardPreviewPanel({ centerName, color, logoUrl, programName, heroImageUr
   return (
     <aside className="rounded-[22px] border border-[#ded2cb] bg-[#fffaf6] p-5 shadow-[0_12px_28px_rgba(67,48,43,0.08)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Live preview</p>
-        <div role="tablist" aria-label="Wallet preview" className="flex rounded-full bg-[#efe5dc] p-0.5 text-xs font-semibold">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">Vista previa en directo</p>
+        <div role="tablist" aria-label="Vista previa de wallet" className="flex rounded-full bg-[#efe5dc] p-0.5 text-xs font-semibold">
           {options.map((option) => (
             <button
               key={option.id}

@@ -29,22 +29,24 @@ describe("comparisonHeadline", () => {
   it("says how much less, with the standard values", () => {
     assert.equal(
       comparisonHeadline({ ...base, delta: -1200 }),
-      `Compared with our recommended plan, this plan earns ${formatEuros(1200)} less net over 5 years ` +
-        `(standard values: 300 clients, ${formatEuros(60)} ticket)`,
+      `Comparado con nuestro plan recomendado, este plan deja ${formatEuros(1200)} menos de beneficio neto en 5 años ` +
+        `(valores estándar: 300 clientes, ticket de ${formatEuros(60)})`,
     );
   });
 
   it("says how much more, using the size of the difference", () => {
     const text = comparisonHeadline({ ...base, delta: 15000 }) ?? "";
 
-    assert.ok(text.includes(`earns ${formatEuros(15000)} more net over 5 years`));
+    assert.ok(
+      text.includes(`deja ${formatEuros(15000)} más de beneficio neto en 5 años`),
+    );
     assert.ok(!text.includes("-"));
   });
 
   it("says the same when nothing differs", () => {
     const text = comparisonHeadline({ ...base, delta: 0 }) ?? "";
 
-    assert.ok(text.includes("earns the same net over 5 years"));
+    assert.ok(text.includes("deja el mismo beneficio neto en 5 años"));
   });
 
   it("is null without a recommended plan", () => {
