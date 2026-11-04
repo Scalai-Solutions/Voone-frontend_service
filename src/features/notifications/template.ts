@@ -8,7 +8,8 @@ export const VARIABLE_LABELS: Record<string, string> = {
   first_name: "Nombre",
   clinic_name: "Centro",
   google_maps_link: "Enlace de reseñas",
-  referral_reward: "Recompensa",
+  referral_reward: "Premio por referido",
+  birthday_gift: "Regalo",
   new_tier: "Nuevo nivel",
   benefits_summary: "Ventajas",
 };
@@ -27,16 +28,21 @@ export const unknownVariables = (
   ),
 ];
 
-/** Example values for the preview; the centre's real name, link and reward are used when set. */
+/**
+ * Example values for the preview; the centre's real name and review link are used when set.
+ * The referral reward and birthday gift are worked out per client from the live programme when
+ * the message is sent, so the preview can only show an example.
+ */
 export const sampleValues = (
   clinicName: string,
-  clinic: Pick<NotificationSettings, "googleReviewUrl" | "referralRewardText">,
+  clinic: Pick<NotificationSettings, "googleReviewUrl">,
 ): Record<string, string> => ({
   first_name: "Lucía",
   clinic_name: clinicName,
   google_maps_link:
     clinic.googleReviewUrl ?? "https://g.page/r/tu-centro/review",
-  referral_reward: clinic.referralRewardText ?? "10 € de descuento",
+  referral_reward: "una limpieza facial",
+  birthday_gift: "un tratamiento de cortesía",
   new_tier: "Oro",
   benefits_summary: "descuento en cosmética y prioridad en citas",
 });
@@ -53,8 +59,5 @@ export const renderPreview = (
 /** What the clinic still has to fill in before this event can be switched on. */
 export const missingClinicValue = (
   entry: AutomationCatalogEntry,
-  settings: Pick<
-    NotificationSettings,
-    "googleReviewUrl" | "referralRewardText"
-  >,
+  settings: Pick<NotificationSettings, "googleReviewUrl">,
 ): boolean => Boolean(entry.requires && !settings[entry.requires]);

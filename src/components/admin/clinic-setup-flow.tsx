@@ -25,11 +25,11 @@ import { ApiError, saveClinicBilling } from "@/lib/api-client";
  */
 
 const STEPS = [
-  { id: "program", label: "Treatments and program" },
-  { id: "messages", label: "Automatic messages" },
-  { id: "billing", label: "Billing" },
-  { id: "account", label: "Account" },
-  { id: "activate", label: "Activate" },
+  { id: "program", label: "Tratamientos y programa" },
+  { id: "messages", label: "Mensajes automáticos" },
+  { id: "billing", label: "Facturación" },
+  { id: "account", label: "Cuenta" },
+  { id: "activate", label: "Activar" },
 ] as const;
 
 /** Steps 1 to 3 (owner, center, card) happened in the wizard before the centre existed. */
@@ -72,14 +72,14 @@ export function ClinicSetupFlow({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a47845]">
-              {alreadyActive ? "Active center" : "Draft, not live yet"}
+              {alreadyActive ? "Centro activo" : "Borrador, aún no está activo"}
             </p>
             <h2 className="mt-1 font-serif text-2xl font-semibold">
               {clinicName}
             </h2>
           </div>
           <span className="text-sm text-[#806d63]">
-            Step {DONE_BEFORE + stepIndex + 1} of {TOTAL_STEPS}
+            Paso {DONE_BEFORE + stepIndex + 1} de {TOTAL_STEPS}
           </span>
         </div>
         <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#eee6e0]">
@@ -123,10 +123,10 @@ export function ClinicSetupFlow({
           clinicId={clinicId}
           alreadyActive={alreadyActive}
           checks={[
-            { label: "Card designed", done: hasCard },
-            { label: "Program live", done: hasLiveProgram },
+            { label: "Tarjeta diseñada", done: hasCard },
+            { label: "Programa activo", done: hasLiveProgram },
             {
-              label: "Sign-in link shared with the owner",
+              label: "Enlace de acceso enviado al propietario",
               done: accountShared,
               optional: true,
             },
@@ -141,13 +141,13 @@ export function ClinicSetupFlow({
           disabled={stepIndex === 0}
           onClick={() => setStepIndex((current) => current - 1)}
         >
-          Previous
+          Anterior
         </Button>
         {step.id !== "activate" ? (
           <div className="flex items-center gap-3">
             {!canContinue ? (
               <p className="text-xs text-[#806d63]">
-                Activate the program to continue.
+                Activa el programa para continuar.
               </p>
             ) : null}
             <Button
@@ -156,7 +156,7 @@ export function ClinicSetupFlow({
               disabled={!canContinue}
               className="bg-[#201715] text-white hover:bg-[#3b2a25]"
             >
-              Continue
+              Continuar
             </Button>
           </div>
         ) : null}
@@ -179,12 +179,12 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
     <div className="grid gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5">
       <div>
         <h2 className="font-serif text-2xl font-semibold">
-          Automatic messages
+          Mensajes automáticos
         </h2>
         <p className="mt-1 text-sm text-[#806d63]">
-          Keep or switch off each message the center sends by itself, and edit
-          its text. You can change all of this later from the notification
-          center.
+          Mantén o desactiva cada mensaje que el centro envía por sí solo y
+          edita su texto. Puedes cambiarlo todo más tarde desde el centro de
+          notificaciones.
         </p>
       </div>
       <AutomationsPanel api={api} openFirstByDefault />
@@ -230,7 +230,7 @@ function BillingStep({
       setProblem(
         error instanceof ApiError && error.detail
           ? error.detail
-          : "Could not save the billing details.",
+          : "No se pudieron guardar los datos de facturación.",
       );
     }
   };
@@ -241,10 +241,10 @@ function BillingStep({
       className="grid gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5"
     >
       <div>
-        <h2 className="font-serif text-2xl font-semibold">Billing details</h2>
+        <h2 className="font-serif text-2xl font-semibold">Datos de facturación</h2>
         <p className="mt-1 text-sm text-[#806d63]">
-          Who and where Voone&apos;s invoices go. Optional now: the center can
-          also fill this in later from Settings.
+          A quién y dónde se envían las facturas de Voone. Es opcional ahora:
+          el centro también puede rellenarlo más tarde desde Ajustes.
         </p>
       </div>
       <BillingFields
@@ -263,14 +263,14 @@ function BillingStep({
           {state === "saving" ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : null}
-          Save billing details
+          Guardar datos de facturación
         </Button>
         {state === "saved" && !dirty ? (
           <p
             role="status"
             className="flex items-center gap-1 text-sm font-semibold text-[#3d6a48]"
           >
-            <Check className="h-4 w-4" /> Saved
+            <Check className="h-4 w-4" /> Guardado
           </p>
         ) : null}
         {problem ? (
@@ -279,7 +279,7 @@ function BillingStep({
           </p>
         ) : null}
         {dirty && state !== "saving" ? (
-          <p className="text-xs text-[#806d63]">Unsaved changes.</p>
+          <p className="text-xs text-[#806d63]">Cambios sin guardar.</p>
         ) : null}
       </div>
     </form>
@@ -316,7 +316,7 @@ function ActivateStep({
           message?: string;
         } | null;
 
-        setProblem(body?.message ?? "The center could not be activated.");
+        setProblem(body?.message ?? "No se pudo activar el centro.");
         return;
       }
 
@@ -331,12 +331,12 @@ function ActivateStep({
     <div className="grid gap-4 rounded-[26px] border border-[#ded2cb] bg-white/78 p-5">
       <div>
         <h2 className="font-serif text-2xl font-semibold">
-          {alreadyActive ? "Center is active" : "Activate the center"}
+          {alreadyActive ? "El centro está activo" : "Activar el centro"}
         </h2>
         <p className="mt-1 text-sm text-[#806d63]">
           {alreadyActive
-            ? "Clients can already sign up and the center is operating."
-            : "Once active, the sign-up page opens and the center can register visits."}
+            ? "Los clientes ya pueden registrarse y el centro está operativo."
+            : "Al activarlo, se abre la página de registro y el centro puede registrar visitas."}
         </p>
       </div>
 
@@ -352,7 +352,7 @@ function ActivateStep({
             <span className={check.done ? "" : "text-[#806d63]"}>
               {check.label}
               {!check.done && check.optional
-                ? " (not yet, can be done later)"
+                ? " (pendiente, se puede hacer más tarde)"
                 : ""}
             </span>
           </li>
@@ -363,7 +363,7 @@ function ActivateStep({
         confirming ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl bg-[#f4e9df] p-4">
             <p className="text-sm font-semibold">
-              Are you sure you want to continue?
+              ¿Seguro que quieres continuar?
             </p>
             <Button
               type="button"
@@ -371,7 +371,7 @@ function ActivateStep({
               disabled={busy}
             >
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              <span>Yes, activate</span>
+              <span>Sí, activar</span>
             </Button>
             <Button
               type="button"
@@ -379,7 +379,7 @@ function ActivateStep({
               onClick={() => setConfirming(false)}
               disabled={busy}
             >
-              Cancel
+              Cancelar
             </Button>
           </div>
         ) : (
@@ -389,7 +389,7 @@ function ActivateStep({
             disabled={!ready}
             className="w-fit bg-[#201715] text-white hover:bg-[#3b2a25]"
           >
-            Activate center
+            Activar centro
           </Button>
         )
       ) : null}

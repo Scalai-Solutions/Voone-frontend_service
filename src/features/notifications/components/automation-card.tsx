@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { CharCounter } from "@/components/shared/char-counter";
 import type {
   AutomationCatalogEntry,
+  AutomationEvent,
   AutomationSetting,
   ClinicVariableKey,
   NotificationSettings,
@@ -45,13 +46,14 @@ const CLINIC_FIELDS: Record<
     type: "url",
     max: 500,
   },
-  referralRewardText: {
-    label: "Recompensa por referido",
-    help: "Lo que reciben tú y tu cliente por cada amigo que venga de su parte. Aparece en el mensaje.",
-    placeholder: "10 € de descuento en tu próximo tratamiento",
-    type: "text",
-    max: 120,
-  },
+};
+
+/** Messages whose reward the system fills in for each client; nobody picks it by hand. */
+const AUTO_VALUE_NOTE: Partial<Record<AutomationEvent, string>> = {
+  REFERRAL_PROMO:
+    "El premio lo elige el sistema para cada cliente: el que ganará con su próximo referido, según su programa.",
+  BIRTHDAY:
+    "El regalo lo elige el sistema: el regalo de cumpleaños que tu programa asigna al nivel de cada cliente.",
 };
 
 const statusTag = (active: boolean) =>
@@ -87,7 +89,7 @@ function NoticeLine({ notice }: { notice: Notice }) {
   );
 }
 
-/** The clinic's own value (review link, referral reward) an event depends on. */
+/** The clinic's own value (the review link) an event depends on. */
 function ClinicValueField({
   field,
   saved,
@@ -395,6 +397,12 @@ export function AutomationCard({
                 saved={clinic[entry.requires]}
                 onSave={onSave}
               />
+            ) : null}
+
+            {AUTO_VALUE_NOTE[entry.event] ? (
+              <p className="rounded-xl border border-[#ead9bd] bg-[#fff8ec] p-3 text-xs leading-5 text-[#806d63]">
+                {AUTO_VALUE_NOTE[entry.event]}
+              </p>
             ) : null}
 
             <div className="grid min-w-0 gap-6 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">

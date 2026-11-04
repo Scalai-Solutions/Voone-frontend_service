@@ -6,8 +6,12 @@ import { QrCode } from "@/components/shared/qr-code";
 import { relativeLuminance } from "@/components/shared/wallet-card-preview";
 import { cn } from "@/lib/utils";
 
-/** Public Voone logo, drawn only when the clinic has not entered a logo of its own. Never saved. */
-const FALLBACK_LOGO = "/voone-logo.png";
+/**
+ * Public Voone mark, drawn only when the clinic has not entered a logo of its own. Never saved.
+ * Google crops the logo to a circle, so this is the square mark: the wide wordmark
+ * (/voone-logo.png, about 5:1) shrinks to an unreadable sliver inside the 36px circle.
+ */
+const FALLBACK_LOGO = "/voone-mark.png";
 
 type Props = {
   clinicName?: string;

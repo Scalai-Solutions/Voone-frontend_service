@@ -81,7 +81,7 @@ export function ClinicForm({ appOrigin }: { appOrigin: string }) {
     >
       <Card className="rounded-[26px] border-[#ded2cb] bg-white/78 shadow-[0_24px_70px_-50px_rgba(67,48,43,0.68)] backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="font-serif text-3xl tracking-tight">Clinic record</CardTitle>
+          <CardTitle className="font-serif text-3xl tracking-tight">Ficha de la clínica</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Field label="Nombre de la clínica" error={form.formState.errors.name?.message}>
