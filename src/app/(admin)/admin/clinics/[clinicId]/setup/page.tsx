@@ -32,17 +32,17 @@ export default async function ClinicSetupPage({
           role="status"
           className="rounded-2xl border border-[#e8cf9a] bg-[#fff7e7] p-4 text-sm text-[#7a5a1e]"
         >
-          The Google Wallet card could not be created yet. It will be retried
-          the next time the card design is saved.
+          La tarjeta de Google Wallet todavía no se ha podido crear. Se
+          reintentará la próxima vez que se guarde el diseño de la tarjeta.
         </p>
       ) : null}
       <PageHeader
-        eyebrow="Onboarding"
+        eyebrow="Alta"
         title={clinic.name}
-        description="Finish setting up the center. Everything saves as you go."
+        description="Termina de configurar el centro. Todo se guarda sobre la marcha."
         action={{
           href: `/admin/clinics/${encodeURIComponent(clinic.id)}`,
-          label: "Back to center",
+          label: "Volver al centro",
         }}
       />
       <ClinicSetupFlow

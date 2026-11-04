@@ -8,7 +8,7 @@ import {
   unknownVariables,
 } from "./template.ts";
 
-const clinic = { googleReviewUrl: null, referralRewardText: null };
+const clinic = { googleReviewUrl: null };
 
 describe("notification templates", () => {
   it("fills the preview with sample values and the centre's real name", () => {
@@ -24,23 +24,20 @@ describe("notification templates", () => {
   });
 
   it("previews the real review link once the centre has set it", () => {
-    const values = sampleValues("Sol", {
-      googleReviewUrl: "https://g.page/r/abc",
-      referralRewardText: "15 € de descuento",
-    });
-
-    assert.equal(renderPreview("{google_maps_link}", values), "https://g.page/r/abc");
-  });
-
-  it("never previews a typed-in reward: the programme picks it per client", () => {
-    const values = sampleValues("Sol", {
-      googleReviewUrl: null,
-      referralRewardText: "15 € de descuento",
-    });
+    const values = sampleValues("Sol", { googleReviewUrl: "https://g.page/r/abc" });
 
     assert.equal(
-      renderPreview("{referral_reward} · {birthday_gift}", values),
-      "Limpieza facial · Mascarilla hidratante",
+      renderPreview("{google_maps_link}", values),
+      "https://g.page/r/abc",
+    );
+  });
+
+  it("previews the programme-driven rewards with an example, never a typed value", () => {
+    const values = sampleValues("Sol", clinic);
+
+    assert.equal(
+      renderPreview("{referral_reward} / {birthday_gift}", values),
+      "una limpieza facial / un tratamiento de cortesía",
     );
   });
 

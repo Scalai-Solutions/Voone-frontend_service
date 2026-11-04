@@ -199,38 +199,7 @@ function ReportBody({
         ) : null}
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Panel eyebrow="Quota" title="Manual notifications this month">
-          <p className="font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
-            {report.manualQuota.remainingThisMonth}
-            <span className="font-sans text-sm font-normal text-[#8c7870]">
-              {" "}
-              / {report.manualQuota.monthlyQuota} remaining
-            </span>
-          </p>
-          <div className="mt-4 h-2 rounded-full bg-[#eadfd7]">
-            <div
-              className="h-full rounded-full bg-[#d6a979]"
-              style={{
-                width: `${
-                  report.manualQuota.monthlyQuota > 0
-                    ? Math.min(
-                        100,
-                        Math.round(
-                          (report.manualQuota.usedThisMonth / report.manualQuota.monthlyQuota) * 100
-                        )
-                      )
-                    : 0
-                }%`,
-              }}
-            />
-          </div>
-          <p className="mt-3 text-xs text-[#8c7870]">
-            {report.manualQuota.usedThisMonth} of {report.manualQuota.monthlyQuota} used · monthly
-            allowance
-          </p>
-        </Panel>
-
+      <section className="grid gap-4 lg:grid-cols-1">
         <Panel eyebrow="All time" title="Notifications sent">
           <p className="font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
             {report.totals.sentAllTime.toLocaleString()}

@@ -19,10 +19,6 @@ export default async function NotificationManagerPage() {
     0
   );
   const bonoTotal = clinics.reduce((total, clinic) => total + clinic.bonoCandidates, 0);
-  const quotaRemainingTotal = clinics.reduce(
-    (total, clinic) => total + clinic.manualQuota.remainingThisMonth,
-    0
-  );
   const sentTotal = clinics.reduce(
     (total, clinic) => total + clinic.recentBirthdayNotifications + clinic.recentBonoNotifications,
     0
@@ -36,12 +32,11 @@ export default async function NotificationManagerPage() {
         description="Automated birthday and bono-reminder wallet notifications: clinic settings, past sends with delivery outcomes, and upcoming candidates."
       />
 
-      <section className="grid gap-4 lg:grid-cols-5">
+      <section className="grid gap-4 lg:grid-cols-4">
         <StatCard label="Active clinics" value={clinics.length.toLocaleString()} detail="Reporting automations" />
         <StatCard label="Birthdays next 7 days" value={birthdayTotal.toLocaleString()} detail="Eligible candidates" />
         <StatCard label="Bono candidates" value={bonoTotal.toLocaleString()} detail="Active bonos with a pass" />
         <StatCard label="Automation sends" value={sentTotal.toLocaleString()} detail="Last 90 days" />
-        <StatCard label="Manual quota left" value={quotaRemainingTotal.toLocaleString()} detail="This month, all clinics" />
       </section>
 
       {clinics.length > 0 ? (
@@ -51,7 +46,7 @@ export default async function NotificationManagerPage() {
             <span>Birthday</span>
             <span>Bono reminder</span>
             <span>Upcoming</span>
-            <span>Manual quota</span>
+            <span>Sent</span>
             <span>Last automation</span>
             <span />
           </div>
@@ -85,9 +80,9 @@ export default async function NotificationManagerPage() {
                 </span>
               </span>
               <span className="text-xs font-semibold text-[#6f625d]">
-                {clinic.manualQuota.remainingThisMonth} / {clinic.manualQuota.monthlyQuota} left
+                {clinic.totalNotificationsSent.toLocaleString()}
                 <span className="mt-1 block text-[10px] uppercase tracking-[0.14em] text-[#a09288]">
-                  {clinic.manualQuota.usedThisMonth} used · {clinic.totalNotificationsSent} sent all-time
+                  sent all-time
                 </span>
               </span>
               <span className="text-xs text-[#6f625d]">

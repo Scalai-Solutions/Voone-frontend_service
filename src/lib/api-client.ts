@@ -461,7 +461,7 @@ export type AutomationEvent =
   | "TIER_UPGRADE";
 
 /** A clinic's own value an automation needs before it can be switched on. */
-export type ClinicVariableKey = "googleReviewUrl" | "referralRewardText";
+export type ClinicVariableKey = "googleReviewUrl";
 
 export interface AutomationSetting {
   enabled: boolean;
@@ -486,7 +486,6 @@ export interface NotificationSettings {
   notifyOnCredit: NotifyOnCredit;
   marketingEnabled: boolean;
   googleReviewUrl: string | null;
-  referralRewardText: string | null;
   automations: Record<AutomationEvent, AutomationSetting>;
 }
 
@@ -1273,14 +1272,12 @@ export function getClinics(
     limit?: number;
     offset?: number;
     status?: "active" | "setup";
-    plan?: VoonePlan;
   } = {},
 ) {
   const query = new URLSearchParams();
 
   if (params.q) query.set("q", params.q);
   if (params.status) query.set("status", params.status);
-  if (params.plan) query.set("plan", params.plan);
   if (params.limit !== undefined) query.set("limit", String(params.limit));
   if (params.offset !== undefined) query.set("offset", String(params.offset));
 

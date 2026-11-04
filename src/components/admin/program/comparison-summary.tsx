@@ -71,7 +71,7 @@ function ComparisonBody({
     return (
       <div
         role="status"
-        aria-label="Loading the comparison with our recommended plan"
+        aria-label="Cargando la comparación con nuestro plan recomendado"
         className="grid gap-2 rounded-lg border border-border p-4"
       >
         <Skeleton className="h-4 w-full max-w-xl" />
@@ -82,7 +82,7 @@ function ComparisonBody({
 
   if (failed || !comparison) {
     return variant === "confirm" ? (
-      <p className="text-sm text-muted-foreground">Comparison unavailable</p>
+      <p className="text-sm text-muted-foreground">Comparación no disponible</p>
     ) : null;
   }
 
@@ -92,7 +92,7 @@ function ComparisonBody({
 
   return (
     <section
-      aria-label="Comparison with our recommended plan"
+      aria-label="Comparación con nuestro plan recomendado"
       className={cn(
         "grid gap-2 rounded-lg border p-4 text-sm",
         TONE_CLASS[tone],
@@ -101,7 +101,7 @@ function ComparisonBody({
       <p className={cn("leading-6", headline && "font-medium")}>
         {headline ??
           comparisonReason(comparison) ??
-          "There is no recommended plan to compare with."}
+          "No hay un plan recomendado con el que comparar."}
       </p>
 
       {rows.length > 0 ? (
@@ -111,22 +111,22 @@ function ComparisonBody({
               className="h-3 w-3 transition-transform group-open:rotate-90"
               aria-hidden="true"
             />
-            <span>See by year</span>
+            <span>Ver por año</span>
           </summary>
           <table className="mt-2 w-full max-w-xl text-left">
             <caption className="sr-only">
-              Cumulative net by year, recommended plan and this plan
+              Beneficio neto acumulado por año, plan recomendado y este plan
             </caption>
             <thead className="text-muted-foreground">
               <tr>
                 <th scope="col" className="py-1 pr-4 font-semibold">
-                  Year
+                  Año
                 </th>
                 <th scope="col" className="py-1 pr-4 text-right font-semibold">
-                  Recommended plan, cumulative net
+                  Plan recomendado, neto acumulado
                 </th>
                 <th scope="col" className="py-1 text-right font-semibold">
-                  This plan, cumulative net
+                  Este plan, neto acumulado
                 </th>
               </tr>
             </thead>
