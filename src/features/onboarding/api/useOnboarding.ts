@@ -277,6 +277,11 @@ export function useSwapMilestone(clinicId: string, programId: string) {
         queryKeys.onboarding.program(clinicId, draft.id),
         draft,
       );
+      // A new reward costs the centre something else: the five-year chart is asked again, or it
+      // would keep showing the programme as it was until the 60 s it is cached for ran out.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
     },
   });
 }
