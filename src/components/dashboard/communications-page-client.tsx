@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { AutomationsPanel } from "@/features/notifications/components/automations-panel";
 import { staffSettingsApi } from "@/features/notifications/settings-api";
+import { personalise, usesName } from "@/features/notifications/personalise";
 import { useNotificationSettings } from "@/features/notifications/use-notification-settings";
 import {
   ApiError,
@@ -19,6 +20,8 @@ import {
   type NotificationStatus,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+
+import { InsertNameButton } from "./insert-name-button";
 
 const allMembersAudience = "all";
 /** The auto-created segment: members holding a bono with sessions left. */
@@ -55,6 +58,8 @@ export function CommunicationsPageClient() {
   >("idle");
   const [sendMessage, setSendMessage] = React.useState<string | null>(null);
   const maxLength = 180;
+  const inlineBodyRef = React.useRef<HTMLTextAreaElement>(null);
+  const modalBodyRef = React.useRef<HTMLTextAreaElement>(null);
   // No message quota is shown anywhere: the plan does not limit how many messages a centre
   // sends, only how many it has actually sent this month.
   const manualSentThisMonth =
@@ -305,10 +310,7 @@ export function CommunicationsPageClient() {
             </span>
           </div>
 
-          <div
-            key={noticeTab}
-            className="content-in"
-          >
+          <div key={noticeTab} className="content-in">
             {noticeTab === "manuales" ? (
               <>
                 <label className="mt-5 block text-sm font-semibold">
@@ -328,6 +330,7 @@ export function CommunicationsPageClient() {
                 <label className="mt-4 block text-sm font-semibold">
                   Texto del mensaje
                   <textarea
+                    ref={inlineBodyRef}
                     value={body}
                     onChange={(event) =>
                       setBody(event.target.value.slice(0, maxLength))
@@ -340,6 +343,12 @@ export function CommunicationsPageClient() {
                     {body.length}/{maxLength}
                   </span>
                 </label>
+                <InsertNameButton
+                  fieldRef={inlineBodyRef}
+                  value={body}
+                  maxLength={maxLength}
+                  onChange={setBody}
+                />
                 <button
                   onClick={() => setComposeOpen(true)}
                   className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white"
@@ -476,6 +485,7 @@ export function CommunicationsPageClient() {
               <label className="mt-4 block text-sm font-semibold">
                 Texto del mensaje
                 <textarea
+                  ref={modalBodyRef}
                   value={body}
                   onChange={(event) =>
                     setBody(event.target.value.slice(0, maxLength))
@@ -488,6 +498,19 @@ export function CommunicationsPageClient() {
                   {body.length}/{maxLength}
                 </span>
               </label>
+              <InsertNameButton
+                fieldRef={modalBodyRef}
+                value={body}
+                maxLength={maxLength}
+                onChange={setBody}
+              />
+              {audience === allMembersAudience && usesName(title, body) ? (
+                <p className="mt-3 rounded-xl bg-[#fff8ec] p-3 text-xs leading-5 text-[#806d63]">
+                  Al enviar a todos los miembros, Apple Wallet muestra el nombre
+                  de cada cliente, pero Google Wallet recibe un mensaje común
+                  sin nombre. Para que ambos lo muestren, envía a un segmento.
+                </p>
+              ) : null}
               <button
                 onClick={() => void sendCommunication()}
                 disabled={
@@ -509,6 +532,7 @@ export function CommunicationsPageClient() {
               title={title}
               body={body}
               clinicName={currentClinic.data?.name}
+              googleHasNoName={audience === allMembersAudience}
               compact
             />
           </div>
@@ -563,17 +587,31 @@ function Preview({
   title,
   body,
   clinicName,
+  googleHasNoName = false,
   compact = false,
 }: {
   title: string;
   body: string;
   clinicName?: string;
+  /** A send to everyone is one shared Google message: it cannot carry a name. */
+  googleHasNoName?: boolean;
   compact?: boolean;
 }) {
   const today = useTodayLabel();
-  const shownTitle = title.trim() || "Título del mensaje";
-  const shownBody =
-    body.trim() || "El contenido aparecerá aquí mientras escribes.";
+  const placeholderTitle = "Título del mensaje";
+  const placeholderBody = "El contenido aparecerá aquí mientras escribes.";
+  // The preview greets an example client; real messages use each client's own first name.
+  const exampleName = "Lucía";
+  const shownTitle = title.trim()
+    ? personalise(title, exampleName)
+    : placeholderTitle;
+  const shownBody = body.trim()
+    ? personalise(body, exampleName)
+    : placeholderBody;
+  const googleTitle =
+    googleHasNoName && title.trim() ? personalise(title, null) : shownTitle;
+  const googleBody =
+    googleHasNoName && body.trim() ? personalise(body, null) : shownBody;
 
   return (
     <div
@@ -595,9 +633,9 @@ function Preview({
         aria-hidden="true"
         className="mt-2 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]"
       >
-        <p className="break-words font-semibold">{shownTitle}</p>
+        <p className="break-words font-semibold">{googleTitle}</p>
         <p className="mt-2 break-words text-sm leading-5 text-[#806e66]">
-          {shownBody}
+          {googleBody}
         </p>
       </div>
 
