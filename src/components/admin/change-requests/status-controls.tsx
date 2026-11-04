@@ -10,6 +10,7 @@ import {
   actionTarget,
   statusActions,
   type ChangeRequestStatus,
+  type ChangeRequestType,
   type StatusAction,
 } from "@/lib/admin-change-requests";
 
@@ -33,9 +34,11 @@ const NOTE_LABEL: Record<"resolve" | "reject", string> = {
 export function StatusControls({
   id,
   status,
+  type,
 }: {
   id: string;
   status: ChangeRequestStatus;
+  type?: ChangeRequestType;
 }) {
   const setStatus = useSetStatus(id);
   const [asking, setAsking] = React.useState<"resolve" | "reject" | null>(null);
@@ -128,6 +131,12 @@ export function StatusControls({
                 : "Why this cannot be done."
             }
           />
+          {asking === "resolve" && (type === "REWARD" || type === "LEVEL") ? (
+            <p role="note" className="mt-3 text-sm font-semibold text-[#7a5a1e]">
+              Resolving only closes the ticket: it does not change the programme. Edit the draft in
+              the programme editor and publish it, and you will be offered to resolve this request.
+            </p>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
