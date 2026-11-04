@@ -2,6 +2,8 @@ import * as React from "react";
 
 import { IconTip } from "@/components/ui/icon-tip";
 import {
+  BLOCKED_BODY,
+  BLOCKED_LABEL,
   FLAG_FOOTNOTE,
   UNPRICED_BODY,
   UNPRICED_LABEL,
@@ -89,6 +91,18 @@ export function ChangeFlagSignal({ flag }: { flag: OwnerFlag }) {
           {UNPRICED_LABEL}
         </p>
         <p className="mt-1 text-muted-foreground">{UNPRICED_BODY}</p>
+      </>
+    );
+  }
+
+  if (flag.status === "blocked") {
+    return (
+      <>
+        <p className="flex items-center gap-2 font-bold text-warning">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-warning" aria-hidden="true" />
+          {BLOCKED_LABEL}
+        </p>
+        <p className="mt-1 text-muted-foreground">{BLOCKED_BODY[flag.kind]}</p>
       </>
     );
   }

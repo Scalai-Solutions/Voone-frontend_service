@@ -32,11 +32,19 @@ export type OwnerFlag =
       fiveYearEuros: number | null;
     }
   | { status: "unpriced" }
+  | { status: "blocked"; kind: BlockedKind }
   | { status: "none" };
+
+export type BlockedKind = "repeat" | "unavailable";
 
 export const UNPRICED_LABEL = "Sin valorar";
 export const UNPRICED_BODY =
   "Voone la valorará al revisar tu solicitud. No hay comparación todavía.";
+export const BLOCKED_LABEL = "No se puede comparar";
+export const BLOCKED_BODY: Record<BlockedKind, string> = {
+  repeat: "Ese regalo quedaría repetido en dos hitos seguidos. Elige otro artículo.",
+  unavailable: "Ese artículo no se puede dar como premio. Elige otro.",
+};
 export const FLAG_FOOTNOTE = "Estimación con valores estándar, redondeada a 100 €";
 
 const NONE: OwnerFlag = { status: "none" };
@@ -122,6 +130,11 @@ export const parseOwnerFlag = (json: unknown): OwnerFlag => {
   if (!isRecord(json)) return NONE;
 
   if (json.status === "unpriced") return { status: "unpriced" };
+  if (json.status === "blocked") {
+    return json.kind === "repeat" || json.kind === "unavailable"
+      ? { status: "blocked", kind: json.kind }
+      : NONE;
+  }
   if (json.status !== "ok") return NONE;
 
   const vsCurrent = readCells(json.vsCurrent);

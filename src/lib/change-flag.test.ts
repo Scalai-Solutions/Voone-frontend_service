@@ -181,6 +181,7 @@ describe("fiveYearSentence", () => {
     assert.equal(fiveYearSentence(flag(0)), null);
     assert.equal(fiveYearSentence({ status: "none" }), null);
     assert.equal(fiveYearSentence({ status: "unpriced" }), null);
+    assert.equal(fiveYearSentence({ status: "blocked", kind: "repeat" }), null);
   });
 });
 
@@ -200,6 +201,19 @@ describe("parseOwnerFlag", () => {
   it("answers unpriced and none exactly", () => {
     assert.deepEqual(parseOwnerFlag({ status: "unpriced" }), { status: "unpriced" });
     assert.deepEqual(parseOwnerFlag({ status: "none" }), { status: "none" });
+  });
+
+  it("answers blocked for a known kind and none for an unknown one", () => {
+    assert.deepEqual(parseOwnerFlag({ status: "blocked", kind: "repeat" }), {
+      status: "blocked",
+      kind: "repeat",
+    });
+    assert.deepEqual(parseOwnerFlag({ status: "blocked", kind: "unavailable", reason: "x" }), {
+      status: "blocked",
+      kind: "unavailable",
+    });
+    assert.deepEqual(parseOwnerFlag({ status: "blocked", kind: "other" }), { status: "none" });
+    assert.deepEqual(parseOwnerFlag({ status: "blocked" }), { status: "none" });
   });
 
   it("garbage is none", () => {
