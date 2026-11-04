@@ -14,7 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchPicker } from "@/components/ui/search-picker";
-import { useImportCatalog } from "@/features/onboarding/api/useOnboarding";
+import {
+  useAdminBonoPlansStore,
+  useImportCatalog,
+} from "@/features/onboarding/api/useOnboarding";
+import { BonoPlansEditor } from "@/components/shared/bono-plans-editor";
 import { ApiError } from "@/lib/api-client";
 import type {
   CatalogRow,
@@ -53,6 +57,7 @@ export function CatalogStep({
 }) {
   const { rows, save, edit, add, remove, replaceAll, ensureSaved } =
     useCatalogEditor(clinicId, initial);
+  const bonoStore = useAdminBonoPlansStore(clinicId);
   const [moving, setMoving] = React.useState(false);
 
   const sendable = rows.filter(isSendable);
@@ -149,6 +154,10 @@ export function CatalogStep({
       </div>
 
       <CsvImport clinicId={clinicId} onImported={replaceAll} />
+
+      {/* Optional and non-blocking: a centre may sell no bonos at all, and defining one
+          never gates "Continuar" the way an unclassified catalogue row does. */}
+      <BonoPlansEditor store={bonoStore} />
 
       <div className="flex items-center justify-end gap-3 border-t border-border pt-5">
         {blocked ? (
