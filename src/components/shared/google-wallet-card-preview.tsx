@@ -20,20 +20,28 @@ type Props = {
   color: string;
   logoUrl?: string;
   heroImageUrl?: string;
-  /** The label of the main button, shown under the card beside "Detalles". */
+  /** The card's own button (the template's app link): shown only when the card has one. */
   buttonText?: string;
   /** Further buttons the clinic added, in order. */
   extraButtons?: Array<{ label: string }>;
+  /** A website the clinic set itself: it adds "Web" to the links in Detalles. */
+  hasWebsite?: boolean;
   levelLabel?: string;
+  pointsLabel?: string;
+  /**
+   * A clinic on a programme: the card shows the member's next reward beside the tier and the
+   * count of rewards waiting. Without one, the cell says "Ver beneficios" and there is no count.
+   */
+  programme?: boolean;
   className?: string;
 };
 
 /**
- * The loyalty card as Google Wallet shows it, opened full screen: the clinic's logo and name over
- * a divider, the programme, the member's name and points, number, level and benefit, the QR, the
- * hero image, then the "Detalles" button. Google allows one button on the card, so extra links are listed as
- * what opens inside Detalles. Example data, like the Apple
- * preview beside it.
+ * The loyalty card as Google Wallet shows it, opened full screen, laid out as the backend builds
+ * the class (classService.buildClassTemplateInfo): the clinic's logo and name, the programme, the
+ * member's name and points, the tier beside the next reward, the rewards waiting, the QR with the
+ * member number under it (its only place on the card), the hero image, the card's own button, then
+ * Google's "Detalles" with the further links. Example data, like the Apple preview beside it.
  */
 export function GoogleWalletCardPreview({
   clinicName,
@@ -43,7 +51,10 @@ export function GoogleWalletCardPreview({
   heroImageUrl,
   buttonText,
   extraButtons = [],
+  hasWebsite = false,
   levelLabel,
+  pointsLabel,
+  programme = false,
   className,
 }: Props) {
   const [brokenLogo, setBrokenLogo] = React.useState<string | null>(null);
@@ -55,10 +66,13 @@ export function GoogleWalletCardPreview({
       ? heroImageUrl.trim()
       : null;
   const ink = relativeLuminance(color) > 0.45 ? "#2b211c" : "#ffffff";
-  // Google has one button on the card; further links are listed on its details screen.
-  const extraLinks = extraButtons
-    .map((button) => button.label.trim())
-    .filter(Boolean);
+  // Google has one button on the card; further links are listed on its details screen, "Web" first
+  // as the backend orders them.
+  const extraLinks = [
+    ...(hasWebsite ? ["Web"] : []),
+    ...extraButtons.map((button) => button.label.trim()).filter(Boolean),
+  ];
+  const cardButton = buttonText?.trim();
   const label = "text-[11px] opacity-75";
   const value = "mt-0.5 text-[13px] font-semibold";
 
@@ -99,35 +113,46 @@ export function GoogleWalletCardPreview({
               <p className={cn(value, "truncate")}>Nombre del cliente</p>
             </div>
             <div className="text-right">
-              <p className={label}>Puntos</p>
+              <p className={label}>{pointsLabel?.trim() || "Puntos"}</p>
               <p className={value}>250</p>
             </div>
           </div>
           <div className="mx-3 mt-3 h-px bg-current opacity-20" />
-          <div className="grid grid-cols-3 gap-2 px-4 pt-3">
+          <div className="grid grid-cols-[1fr_auto] gap-3 px-4 pt-3">
             <div className="min-w-0">
-              <p className={label}>N.º de miembro</p>
-              <p className={cn(value, "truncate")}>SOCIO-123</p>
-            </div>
-            <div className="min-w-0 text-center">
               <p className={label}>{levelLabel?.trim() || "Nivel"}</p>
               <p className={cn(value, "truncate")}>Bronce</p>
             </div>
             <div className="min-w-0 text-right">
-              <p className={label}>Beneficio</p>
-              <p className={cn(value, "truncate")}>
-                {buttonText?.trim() || "Ver beneficios"}
-              </p>
+              {programme ? (
+                <>
+                  <p className={label}>Próxima recompensa</p>
+                  <p className={cn(value, "truncate")}>Kit de minitallas</p>
+                  <p className="text-[11px] opacity-75">Te faltan 300 puntos</p>
+                </>
+              ) : (
+                <>
+                  <p className={label}>Beneficio</p>
+                  <p className={cn(value, "truncate")}>Ver beneficios</p>
+                </>
+              )}
             </div>
           </div>
+          {programme ? (
+            <div className="px-4 pt-3">
+              <p className={label}>Regalos</p>
+              <p className={value}>0 premios</p>
+            </div>
+          ) : null}
 
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex flex-col items-center">
             <QrCode
-              value="VOONE-EJEMPLO-SOCIO-123"
+              value="VOONE-EJEMPLO-K7M2Q"
               size={112}
               className="rounded-2xl p-2.5"
               title="Vista previa del código QR"
             />
+            <p className="mt-1.5 text-xs font-semibold tracking-wide">K7M2Q</p>
           </div>
 
           <div
@@ -151,6 +176,11 @@ export function GoogleWalletCardPreview({
           </div>
         </div>
 
+        {cardButton ? (
+          <span className="mt-3 flex h-10 items-center justify-center truncate rounded-full bg-[#0b57d0] px-4 text-sm font-semibold text-white">
+            {cardButton}
+          </span>
+        ) : null}
         <span className="mt-3 flex h-10 items-center justify-center truncate rounded-full border border-[#c4c7c5] px-4 text-sm font-semibold text-[#0b57d0]">
           Detalles
         </span>

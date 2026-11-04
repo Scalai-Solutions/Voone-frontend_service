@@ -123,6 +123,8 @@ export interface Template {
   appointmentUrl?: string | null;
   appLinkText?: string | null;
   appLinkDescription?: string | null;
+  /** Further card buttons, listed in Google's Detalles. */
+  extraButtons?: Array<{ label: string; url: string }> | null;
   pointsLabel: string;
   tierLabel: string;
   benefitsText: string;

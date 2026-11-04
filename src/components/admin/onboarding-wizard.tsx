@@ -524,7 +524,7 @@ function CardPreviewPanel({ centerName, color, logoUrl, programName, heroImageUr
         {wallet === "apple" ? (
           <WalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} />
         ) : (
-          <GoogleWalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} buttonText={buttonText} extraButtons={extraButtons} />
+          <GoogleWalletCardPreview clinicName={centerName} programName={programName.trim() || "Club Diamante"} color={color} logoUrl={logoUrl} heroImageUrl={heroImageUrl} buttonText={buttonText} extraButtons={extraButtons} programme />
         )}
       </div>
     </aside>
