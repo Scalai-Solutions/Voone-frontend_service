@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush } from "lucide-react";
 import { z } from "zod";
 
+import { GoogleWalletCardPreview } from "@/components/shared/google-wallet-card-preview";
 import { ImageUploadButton } from "@/components/shared/image-upload-button";
 import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
@@ -413,7 +414,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
       ) : null}
 
       {activeTab === "preview" ? (
-        <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Vista previa</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
@@ -431,15 +432,27 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               <p className="mt-4 text-xs leading-5 text-[#806e66]"><span className="font-semibold text-[#2e2421]">Beneficios:</span> {hasActiveProgramme ? "Cada cliente ve los de su nivel del programa." : values.benefitsText || "Los beneficios aparecerán aquí."}</p>
             </div>
           </div>
-          <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
-            <div className="flex items-center justify-between gap-3">
-              <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">Proveedor</p><h3 className="mt-2 font-serif text-2xl font-semibold">Google Wallet</h3></div>
-              <CreditCard className="h-6 w-6 text-[#e8cf9a]" />
+          <div>
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-[#b7874a]" aria-hidden="true" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Google Wallet</p>
             </div>
-            <div className="mt-5 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]">
-              <p className="font-semibold">{values.programName || "Nombre del programa"}</p>
-              <p className="mt-2 text-sm text-[#806e66]">{values.infoText || "El texto informativo aparecerá aquí."}</p>
-            </div>
+            {/* The same preview as onboarding step 3, laid out as the backend builds the Google class.
+                The links are the template's saved ones: this form does not edit them. */}
+            <GoogleWalletCardPreview
+              className="mt-3"
+              clinicName={currentClinic.data?.name}
+              programName={values.programName}
+              color={values.hexBackgroundColor}
+              logoUrl={values.logoUrl}
+              heroImageUrl={values.heroImageUrl}
+              levelLabel={values.tierLabel}
+              pointsLabel={values.pointsLabel}
+              programme={hasActiveProgramme}
+              buttonText={initialTemplate?.appointmentUrl ? initialTemplate.appLinkText?.trim() || "Reservar cita" : undefined}
+              hasWebsite={Boolean(initialTemplate?.websiteUrl)}
+              extraButtons={initialTemplate?.extraButtons ?? []}
+            />
           </div>
         </section>
       ) : null}
