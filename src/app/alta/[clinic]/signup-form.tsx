@@ -148,14 +148,9 @@ const signupSchema = z.object({
   // Optional and never validated: a malformed code is not an error, it is just not sent (see
   // onSubmit), because the backend ignores bad codes and a typo must not stop someone joining.
   referralCode: z.string(),
-  // Both tick boxes are required to move forward (2026-10 product decision). Marketing
-  // consent included — note that conditioning sign-up on marketing consent is the GDPR
-  // Art 7(4) bundling the backend's schema comments warn about; the decision is the
-  // clinic's to make and this form is where it is enforced. Still never .default(true)
-  // and never pre-ticked: consent has to be the member's affirmative act.
-  consentMarketing: z.boolean().refine((value) => value, {
-    message: "Debes aceptar recibir novedades y ofertas para unirte",
-  }),
+  // Optional: joining is never conditioned on marketing consent (GDPR Art 7(4), LSSI art. 21).
+  // Never .default(true) and never pre-ticked: consent has to be the member's affirmative act.
+  consentMarketing: z.boolean(),
   // Required and never pre-ticked: the person accepts the processing of their data themselves.
   acceptedPrivacy: z.boolean().refine((value) => value, {
     message: "Debes aceptar el tratamiento de tus datos para unirte",
@@ -502,11 +497,6 @@ export function SignupForm({
             WhatsApp.
           </span>
         </label>
-        {form.formState.errors.consentMarketing ? (
-          <p role="alert" className="text-xs text-[#9f3d2f]">
-            {form.formState.errors.consentMarketing.message}
-          </p>
-        ) : null}
       </div>
 
       {failure ? (

@@ -8,7 +8,8 @@ export const VARIABLE_LABELS: Record<string, string> = {
   first_name: "Nombre",
   clinic_name: "Centro",
   google_maps_link: "Enlace de reseñas",
-  referral_reward: "Recompensa",
+  referral_reward: "Próximo premio por recomendar",
+  birthday_gift: "Regalo de cumpleaños",
   new_tier: "Nuevo nivel",
   benefits_summary: "Ventajas",
 };
@@ -27,7 +28,10 @@ export const unknownVariables = (
   ),
 ];
 
-/** Example values for the preview; the centre's real name, link and reward are used when set. */
+/**
+ * Example values for the preview; the centre's real name and link are used when set. The referral
+ * reward and the birthday gift are chosen per client from the programme when the message goes out.
+ */
 export const sampleValues = (
   clinicName: string,
   clinic: Pick<NotificationSettings, "googleReviewUrl" | "referralRewardText">,
@@ -36,7 +40,8 @@ export const sampleValues = (
   clinic_name: clinicName,
   google_maps_link:
     clinic.googleReviewUrl ?? "https://g.page/r/tu-centro/review",
-  referral_reward: clinic.referralRewardText ?? "10 € de descuento",
+  referral_reward: "Limpieza facial",
+  birthday_gift: "Mascarilla hidratante",
   new_tier: "Oro",
   benefits_summary: "descuento en cosmética y prioridad en citas",
 });
