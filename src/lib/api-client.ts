@@ -352,6 +352,14 @@ export interface NotificationSegmentInput {
   categoryNotVisited?: string;
   /** The auto-created segment: members holding a bono with sessions left. */
   activeBono?: boolean;
+  sex?: NonNullable<Member["sex"]>;
+  /** Inclusive, in whole years. Members with no birth data never match. */
+  ageMin?: number;
+  ageMax?: number;
+  /** 1-12. */
+  birthMonth?: number;
+  /** "YYYY-MM-DD": signed up on or after this day. */
+  joinedAfter?: string;
 }
 
 export interface SegmentNotificationInput extends NotificationMessageInput {

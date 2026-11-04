@@ -29,6 +29,11 @@ const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
   prefiero_no_decirlo: "Prefiere no decirlo",
 };
 
+const MONTHS = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
 const ageFromBirthDate = (birthDate: string) => {
   const today = new Date();
   const date = new Date(`${birthDate}T00:00:00.000Z`);
@@ -235,9 +240,17 @@ function AudiencesTable({ members }: { members: Member[] }) {
   const [draftTier, setDraftTier] = React.useState("all");
   const [draftActiveBono, setDraftActiveBono] = React.useState(false);
   const [draftInactiveDays, setDraftInactiveDays] = React.useState("");
+  const [draftSex, setDraftSex] = React.useState("all");
+  const [draftAgeMin, setDraftAgeMin] = React.useState("");
+  const [draftAgeMax, setDraftAgeMax] = React.useState("");
+  const [draftBirthMonth, setDraftBirthMonth] = React.useState("all");
+  const [draftJoinedAfter, setDraftJoinedAfter] = React.useState("");
   const [creating, setCreating] = React.useState(false);
 
   const tiers = Array.from(new Set(members.map((member) => member.tier))).sort();
+  const ageMin = wholeNumber(draftAgeMin);
+  const ageMax = wholeNumber(draftAgeMax);
+  const ageRangeInvalid = ageMin !== undefined && ageMax !== undefined && ageMin > ageMax;
   const rows = audiencesQuery.data ?? [];
   const visibleRows = rows.filter((row) => {
     const matchesSearch = row.name.toLowerCase().includes(searchTerm.trim().toLowerCase());
@@ -254,6 +267,11 @@ function AudiencesTable({ members }: { members: Member[] }) {
       setDraftTier("all");
       setDraftActiveBono(false);
       setDraftInactiveDays("");
+      setDraftSex("all");
+      setDraftAgeMin("");
+      setDraftAgeMax("");
+      setDraftBirthMonth("all");
+      setDraftJoinedAfter("");
       setCreating(false);
       await queryClient.invalidateQueries({ queryKey: ["audiences", clinicId] });
     },
@@ -268,7 +286,7 @@ function AudiencesTable({ members }: { members: Member[] }) {
     event.preventDefault();
     const name = draftName.trim();
 
-    if (!name) return;
+    if (!name || ageRangeInvalid) return;
 
     // Only criteria the backend accepts, in its own shape; anything else is left out.
     const inactiveDays = Number(draftInactiveDays);
@@ -278,6 +296,11 @@ function AudiencesTable({ members }: { members: Member[] }) {
       ...(draftInactiveDays.trim() !== "" && Number.isInteger(inactiveDays) && inactiveDays > 0
         ? { inactiveDays }
         : {}),
+      ...(draftSex !== "all" ? { sex: draftSex as NonNullable<Member["sex"]> } : {}),
+      ...(ageMin !== undefined ? { ageMin } : {}),
+      ...(ageMax !== undefined ? { ageMax } : {}),
+      ...(draftBirthMonth !== "all" ? { birthMonth: Number(draftBirthMonth) } : {}),
+      ...(draftJoinedAfter ? { joinedAfter: draftJoinedAfter } : {}),
     };
 
     createMutation.mutate({ name, criteria });
@@ -310,7 +333,7 @@ function AudiencesTable({ members }: { members: Member[] }) {
               <option value="all">Todos los niveles</option>
               {tiers.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
             </select>
-            <button type="submit" disabled={createMutation.isPending} className="rounded-xl bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={createMutation.isPending || ageRangeInvalid} className="rounded-xl bg-[#2d211e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
               {createMutation.isPending ? "Guardando..." : "Guardar"}
             </button>
           </div>
@@ -324,6 +347,34 @@ function AudiencesTable({ members }: { members: Member[] }) {
               <input type="number" min={1} step={1} value={draftInactiveDays} onChange={(event) => setDraftInactiveDays(event.target.value)} placeholder="—" className="h-9 w-20 rounded-lg border border-[#ded1c8] px-2 text-sm font-normal outline-none" />
             </label>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className={segmentField}>
+              <span className="text-[#927e72]">Sexo</span>
+              <select value={draftSex} onChange={(event) => setDraftSex(event.target.value)} className={segmentControl}>
+                <option value="all">Todos</option>
+                {Object.entries(sexLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <fieldset className={segmentField}>
+              <legend className="sr-only">Edad</legend>
+              <span className="text-[#927e72]">Edad</span>
+              <input type="number" min={0} max={120} step={1} value={draftAgeMin} onChange={(event) => setDraftAgeMin(event.target.value)} placeholder="desde" aria-label="Edad desde" className={cn(segmentControl, "w-16")} />
+              <span className="text-[#927e72]">–</span>
+              <input type="number" min={0} max={120} step={1} value={draftAgeMax} onChange={(event) => setDraftAgeMax(event.target.value)} placeholder="hasta" aria-label="Edad hasta" className={cn(segmentControl, "w-16")} />
+            </fieldset>
+            <label className={segmentField}>
+              <span className="text-[#927e72]">Cumpleaños en</span>
+              <select value={draftBirthMonth} onChange={(event) => setDraftBirthMonth(event.target.value)} className={segmentControl}>
+                <option value="all">Cualquier mes</option>
+                {MONTHS.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
+              </select>
+            </label>
+            <label className={segmentField}>
+              <span className="text-[#927e72]">Alta desde</span>
+              <input type="date" value={draftJoinedAfter} onChange={(event) => setDraftJoinedAfter(event.target.value)} className={segmentControl} />
+            </label>
+          </div>
+          {ageRangeInvalid ? <p className="text-sm font-semibold text-[#b94135]">La edad mínima no puede ser mayor que la máxima.</p> : null}
           {createMutation.isError ? <p className="text-sm font-semibold text-[#b94135]">No se pudo guardar el segmento. Inténtalo de nuevo.</p> : null}
         </form>
       ) : null}
@@ -355,6 +406,18 @@ function AudiencesTable({ members }: { members: Member[] }) {
   );
 }
 
+const segmentField =
+  "flex items-center gap-2 rounded-xl border border-[#ded1c8] bg-white px-3 py-2 text-sm font-semibold";
+const segmentControl =
+  "h-9 min-w-0 rounded-lg border border-[#ded1c8] bg-white px-2 text-sm font-normal outline-none";
+
+/** A whole number typed in a field, or undefined when it is empty or not one. */
+const wholeNumber = (value: string): number | undefined => {
+  const parsed = Number(value);
+
+  return value.trim() !== "" && Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+};
+
 /** What a saved audience filters by, in the words the creation form uses. */
 const describeCriteria = (criteria: ClinicAudience["criteria"]): string => {
   const parts: string[] = [];
@@ -362,6 +425,12 @@ const describeCriteria = (criteria: ClinicAudience["criteria"]): string => {
   if (criteria.tier) parts.push(`Nivel · ${criteria.tier}`);
   if (criteria.activeBono) parts.push("Bono activo");
   if (typeof criteria.inactiveDays === "number") parts.push(`Sin visitas ${criteria.inactiveDays} días`);
+  if (criteria.sex) parts.push(`Sexo · ${sexLabels[criteria.sex]}`);
+  if (criteria.ageMin !== undefined && criteria.ageMax !== undefined) parts.push(`${criteria.ageMin}–${criteria.ageMax} años`);
+  else if (criteria.ageMin !== undefined) parts.push(`Desde ${criteria.ageMin} años`);
+  else if (criteria.ageMax !== undefined) parts.push(`Hasta ${criteria.ageMax} años`);
+  if (criteria.birthMonth) parts.push(`Cumpleaños en ${MONTHS[criteria.birthMonth - 1]}`);
+  if (criteria.joinedAfter) parts.push(`Alta desde ${formatUpdatedAt(criteria.joinedAfter)}`);
 
   return parts.length > 0 ? parts.join(" · ") : "Todos los miembros";
 };
