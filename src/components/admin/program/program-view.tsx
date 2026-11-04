@@ -50,6 +50,7 @@ import { formatEuros, formatProgress } from "@/lib/euros";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
 import { catalogPickerItems } from "./picker-items";
 import { infoNotes, rewardValueLabel } from "./reward-value";
+import { offersSwap } from "./swap-offer";
 import { swapRefusalMessage } from "./swap-refusal";
 import {
   MAX_DESCRIPTION_LENGTH,
@@ -1070,7 +1071,12 @@ function MilestoneRow({
           <span className="text-right font-semibold">
             {formatProgress(milestone.realSpend)}
           </span>
-          {onSwap && (alternatives.length > 0 || catalogItems.length > 0) ? (
+          {offersSwap({
+            hasReward: Boolean(reward),
+            canSwap: Boolean(onSwap),
+            alternatives: alternatives.length,
+            catalogItems: catalogItems.length,
+          }) ? (
             <Button
               type="button"
               variant="outline"

@@ -150,8 +150,17 @@ export function EditableText({
         <span className="text-[11px] font-normal text-muted-foreground">
           {draft.length}/{maxLength}
         </span>
+        {restorable ? (
+          <span className="text-[11px] font-normal text-muted-foreground">
+            Solo cambia el nombre que se muestra. El premio y su valor siguen
+            igual: para cambiarlos, usa «Cambiar».
+          </span>
+        ) : null}
         {problem ? (
-          <span role="alert" className="text-[11px] font-normal text-destructive">
+          <span
+            role="alert"
+            className="text-[11px] font-normal text-destructive"
+          >
             {problem}
           </span>
         ) : null}

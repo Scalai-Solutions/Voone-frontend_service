@@ -359,7 +359,7 @@ export function TicketDetail({ id }: { id: string }) {
       </section>
 
       <section className={cardClass}>
-        <StatusControls id={ticket.id} status={ticket.status} />
+        <StatusControls id={ticket.id} status={ticket.status} type={ticket.type} />
       </section>
 
       <p className="px-1 text-xs text-[#9a8a82]">{emailStatusLine(ticket)}</p>
