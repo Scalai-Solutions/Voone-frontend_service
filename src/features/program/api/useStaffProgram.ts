@@ -66,6 +66,8 @@ export function useRedeemReward(memberId: string) {
       surpriseItem?: string;
     }) => redeemReward(memberId, rewardId, { visitId, surpriseItem }),
     onSuccess: () => {
+      // The redemption appears in the member's history.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.member(memberId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.memberRewards(memberId) });
     },
   });

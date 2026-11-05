@@ -304,10 +304,13 @@ export function MemberDetail({ memberId }: { memberId: string }) {
                   className={
                     item.points < 0
                       ? "font-semibold text-destructive"
-                      : "font-semibold text-success"
+                      : item.points === 0
+                        ? "font-semibold text-muted-foreground"
+                        : "font-semibold text-success"
                   }
                 >
-                  {formatSignedPoints(item.points)}
+                  {/* A redeemed programme reward moves no points. */}
+                  {item.points === 0 ? "Canjeada" : formatSignedPoints(item.points)}
                 </span>
               </div>
             ))
