@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { ApiError, uploadImage, type ImageUploadKind } from "@/lib/api-client";
+import { IMAGE_UPLOAD_HINTS } from "@/lib/image-upload-hints";
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -59,7 +60,9 @@ const describeError = (caught: unknown, text: ImageUploadLabels): string => {
 
   const message = caught.detail || text.failed;
 
-  return caught.code === STORAGE_UNCONFIGURED ? `${message} ${text.pasteUrl}` : message;
+  return caught.code === STORAGE_UNCONFIGURED
+    ? `${message} ${text.pasteUrl}`
+    : message;
 };
 
 /**
@@ -80,10 +83,16 @@ export function ImageUploadButton({
   labels?: Partial<ImageUploadLabels>;
   disabled?: boolean;
 }) {
-  const text: ImageUploadLabels = { ...SPANISH_UPLOAD_LABELS, ...labels };
+  // The hint is per kind (sizes differ for a logo and a hero image) unless a caller words its own.
+  const text: ImageUploadLabels = {
+    ...SPANISH_UPLOAD_LABELS,
+    hint: IMAGE_UPLOAD_HINTS[kind],
+    ...labels,
+  };
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [warnings, setWarnings] = React.useState<string[]>([]);
 
   const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.target;
@@ -111,12 +120,14 @@ export function ImageUploadButton({
     }
 
     setError(null);
+    setWarnings([]);
     setUploading(true);
 
     try {
-      const { url } = await uploadImage(file, kind, scope);
+      const { url, warnings: advice } = await uploadImage(file, kind, scope);
 
       onUploaded(url);
+      setWarnings(advice);
     } catch (caught) {
       setError(describeError(caught, text));
     } finally {
@@ -152,6 +163,19 @@ export function ImageUploadButton({
         <p role="alert" className="mt-1 text-sm text-destructive">
           {error}
         </p>
+      ) : null}
+      {warnings.length > 0 ? (
+        <ul
+          role="status"
+          className="mt-1 list-disc space-y-1 rounded-lg bg-[#fff8ec] py-2 pl-6 pr-3 text-xs leading-5 text-[#806d63]"
+        >
+          <li className="list-none font-semibold text-[#6f4d3f] -ml-4">
+            Imagen subida, pero se puede mejorar:
+          </li>
+          {warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );

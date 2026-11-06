@@ -24,6 +24,7 @@ import { useTemplateRefreshStatus, type RefreshPolling } from "@/features/templa
 import { useTemplatePresets } from "@/features/templates/api/useTemplatePresets";
 import { ApiError, type SaveTemplateInput, type Template, type TemplatePreset } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { chooseLogoUrl } from "@/lib/logo-choice";
 import { cn } from "@/lib/utils";
 import { WALLET_TEXT_MAX, WALLET_TEXT_MAX_MESSAGE, clampChars, countChars } from "@/lib/wallet-text";
 import { CharCounter } from "@/components/shared/char-counter";
@@ -362,7 +363,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                 <ImageUploadButton kind="logo" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo" }} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
                 {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
-              <Field label="Logo para fondo oscuro (opcional, solo Apple Wallet)" error={form.formState.errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
+              <Field label="Logo para fondo oscuro (opcional, se usa si el color de la tarjeta es oscuro)" error={form.formState.errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
                 <Input id="template-logo-on-dark-url" aria-describedby={form.formState.errors.logoOnDarkUrl ? "template-logo-on-dark-url-error" : undefined} aria-invalid={form.formState.errors.logoOnDarkUrl ? true : undefined} {...form.register("logoOnDarkUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="logoOnDark" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
@@ -424,7 +425,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                 clinicName={currentClinic.data?.name}
                 programName={values.programName}
                 color={values.hexBackgroundColor}
-                logoUrl={values.logoUrl}
+                logoUrl={chooseLogoUrl({ logoUrl: values.logoUrl, logoOnDarkUrl: values.logoOnDarkUrl, color: values.hexBackgroundColor })}
                 heroImageUrl={values.heroImageUrl}
                 levelLabel={values.tierLabel}
                 pointsLabel={values.pointsLabel}
@@ -444,7 +445,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               clinicName={currentClinic.data?.name}
               programName={values.programName}
               color={values.hexBackgroundColor}
-              logoUrl={values.logoUrl}
+              logoUrl={chooseLogoUrl({ logoUrl: values.logoUrl, logoOnDarkUrl: values.logoOnDarkUrl, color: values.hexBackgroundColor })}
               heroImageUrl={values.heroImageUrl}
               levelLabel={values.tierLabel}
               pointsLabel={values.pointsLabel}

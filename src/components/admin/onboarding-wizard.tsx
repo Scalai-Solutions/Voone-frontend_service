@@ -11,6 +11,7 @@ import { WalletCardPreview } from "@/components/shared/wallet-card-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useProvisionClinic } from "@/features/onboarding/api/useProvisionClinic";
+import { chooseLogoUrl } from "@/lib/logo-choice";
 import { toPoints } from "@/lib/points";
 import { type ApiError, type TemplatePreset, type VooneTemplate } from "@/lib/api-client";
 import {
@@ -428,7 +429,7 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 <WizardField label="URL del logo de la clínica" action={<ImageUploadButton kind="logo" scope="admin" labels={{ ariaLabel: "Subir imagen del logo de la clínica" }} onUploaded={(url) => update("logo", url)} />}>
                   <Input value={values.logo} onChange={(event) => update("logo", event.target.value)} placeholder="https://.../logo.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Logo para fondo oscuro (opcional, solo Apple Wallet)" className="sm:col-span-2" action={<ImageUploadButton kind="logoOnDark" scope="admin" labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => update("logoOnDark", url)} />}>
+                <WizardField label="Logo para fondo oscuro (opcional, se usa si el color de la tarjeta es oscuro)" className="sm:col-span-2" action={<ImageUploadButton kind="logoOnDark" scope="admin" labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => update("logoOnDark", url)} />}>
                   <Input value={values.logoOnDark} onChange={(event) => update("logoOnDark", event.target.value)} placeholder="https://.../logo-light.png" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
                 <WizardField label="Nombre del programa o club" className="sm:col-span-2">
@@ -479,7 +480,7 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
             <CardPreviewPanel
               centerName={cardName}
               color={values.colors[0]}
-              logoUrl={values.logo}
+              logoUrl={chooseLogoUrl({ logoUrl: values.logo, logoOnDarkUrl: values.logoOnDark, color: values.colors[0] })}
               programName={values.programName}
               heroImageUrl={values.heroImageUrl}
               buttonText={values.appLinkText}
