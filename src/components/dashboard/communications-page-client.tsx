@@ -506,9 +506,10 @@ export function CommunicationsPageClient() {
               />
               {audience === allMembersAudience && usesName(title, body) ? (
                 <p className="mt-3 rounded-xl bg-[#fff8ec] p-3 text-xs leading-5 text-[#806d63]">
-                  Al enviar a todos los miembros, Apple Wallet muestra el nombre
-                  de cada cliente, pero Google Wallet recibe un mensaje común
-                  sin nombre. Para que ambos lo muestren, envía a un segmento.
+                  Como el mensaje lleva el nombre, se enviará a cada cliente por
+                  separado y tanto Apple Wallet como Google Wallet lo mostrarán.
+                  Solo lo recibirán los clientes que aceptaron recibir
+                  comunicaciones.
                 </p>
               ) : null}
               <button
@@ -532,7 +533,6 @@ export function CommunicationsPageClient() {
               title={title}
               body={body}
               clinicName={currentClinic.data?.name}
-              googleHasNoName={audience === allMembersAudience}
               compact
             />
           </div>
@@ -587,14 +587,11 @@ function Preview({
   title,
   body,
   clinicName,
-  googleHasNoName = false,
   compact = false,
 }: {
   title: string;
   body: string;
   clinicName?: string;
-  /** A send to everyone is one shared Google message: it cannot carry a name. */
-  googleHasNoName?: boolean;
   compact?: boolean;
 }) {
   const today = useTodayLabel();
@@ -608,10 +605,6 @@ function Preview({
   const shownBody = body.trim()
     ? personalise(body, exampleName)
     : placeholderBody;
-  const googleTitle =
-    googleHasNoName && title.trim() ? personalise(title, null) : shownTitle;
-  const googleBody =
-    googleHasNoName && body.trim() ? personalise(body, null) : shownBody;
 
   return (
     <div
@@ -633,9 +626,9 @@ function Preview({
         aria-hidden="true"
         className="mt-2 rounded-2xl bg-[#f8f0ea] p-4 text-[#2e2421]"
       >
-        <p className="break-words font-semibold">{googleTitle}</p>
+        <p className="break-words font-semibold">{shownTitle}</p>
         <p className="mt-2 break-words text-sm leading-5 text-[#806e66]">
-          {googleBody}
+          {shownBody}
         </p>
       </div>
 
