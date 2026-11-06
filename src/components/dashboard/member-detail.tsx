@@ -60,6 +60,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
   const [manualReason, setManualReason] = useState("");
   const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState(false);
+  const [tab, setTab] = useState<"history" | "referrals">("history");
   const member = useMember(memberId);
   // A centre with an active programme records visits in euros; one without keeps the older
   // points form. Not decided until the lookup has answered, so neither form flashes.
@@ -283,45 +284,83 @@ export function MemberDetail({ memberId }: { memberId: string }) {
         </CardContent>
       </Card>
 
-      {member.data.referral ? <ReferralCard referral={member.data.referral} /> : null}
-
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Historial</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {member.data.history.length ? (
-            member.data.history.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3 text-sm"
+          <div
+            role="tablist"
+            aria-label="Detalle del miembro"
+            className="flex gap-2"
+          >
+            {(
+              [
+                ["history", "Historial"],
+                ["referrals", "Recomendaciones"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+                  tab === key
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <div>
-                  <p className="font-medium">{item.label}</p>
-                  <p className="text-muted-foreground">
-                    {item.date} · Movimiento permanente
-                  </p>
-                </div>
-                <span
-                  className={
-                    item.points < 0
-                      ? "font-semibold text-destructive"
-                      : item.points === 0
-                        ? "font-semibold text-muted-foreground"
-                        : "font-semibold text-success"
-                  }
+                {label}
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+        {tab === "referrals" ? (
+          <CardContent className="text-sm">
+            {member.data.referral ? (
+              <ReferralPanel referral={member.data.referral} />
+            ) : (
+              <p className="rounded-md border border-dashed border-border p-4 text-muted-foreground">
+                Aún no hay recomendaciones.
+              </p>
+            )}
+          </CardContent>
+        ) : (
+          <CardContent className="space-y-3">
+            {member.data.history.length ? (
+              member.data.history.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3 text-sm"
                 >
-                  {/* A redeemed programme reward moves no points. */}
-                  {item.points === 0 ? "Canjeada" : formatSignedPoints(item.points)}
-                </span>
-              </div>
-            ))
-          ) : (
-            <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Aún no hay movimientos de puntos.
-            </p>
-          )}
-        </CardContent>
+                  <div>
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-muted-foreground">
+                      {item.date} · Movimiento permanente
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      item.points < 0
+                        ? "font-semibold text-destructive"
+                        : item.points === 0
+                          ? "font-semibold text-muted-foreground"
+                          : "font-semibold text-success"
+                    }
+                  >
+                    {/* A redeemed programme reward moves no points. */}
+                    {item.points === 0
+                      ? "Canjeada"
+                      : formatSignedPoints(item.points)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+                Aún no hay movimientos de puntos.
+              </p>
+            )}
+          </CardContent>
+        )}
       </Card>
     </div>
   );
@@ -568,55 +607,56 @@ function MemberEditForm({
  * Who this member has recommended and what that has earned them. Only a recommendation whose
  * first treatment has been paid counts towards a reward, so the two numbers are shown apart.
  */
-function ReferralCard({
+function ReferralPanel({
   referral,
 }: {
   referral: NonNullable<Member["referral"]>;
 }) {
   return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle>Recomendaciones</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-muted-foreground">Personas recomendadas</p>
-            <p className="text-2xl font-semibold">{referral.referred}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Con su primer tratamiento pagado</p>
-            <p className="text-2xl font-semibold">{referral.counted}</p>
-          </div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-muted-foreground">Personas recomendadas</p>
+          <p className="text-2xl font-semibold">{referral.referred}</p>
         </div>
-        <p className="text-muted-foreground">
-          {referral.next
-            ? `Le ${referral.next.remaining === 1 ? "falta 1 recomendación" : `faltan ${referral.next.remaining} recomendaciones`} para: ${referral.next.title}.`
-            : "Ha conseguido todos los premios por recomendar."}
-        </p>
-        <ul className="space-y-2">
-          {referral.steps.map((step) => (
-            <li
-              key={step.n}
-              className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3"
+        <div>
+          <p className="text-muted-foreground">
+            Con su primer tratamiento pagado
+          </p>
+          <p className="text-2xl font-semibold">{referral.counted}</p>
+        </div>
+      </div>
+      <p className="text-muted-foreground">
+        {referral.next
+          ? `Le ${referral.next.remaining === 1 ? "falta 1 recomendación" : `faltan ${referral.next.remaining} recomendaciones`} para: ${referral.next.title}.`
+          : "Ha conseguido todos los premios por recomendar."}
+      </p>
+      <ul className="space-y-2">
+        {referral.steps.map((step) => (
+          <li
+            key={step.n}
+            className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3"
+          >
+            <span>
+              <span className="font-medium">
+                {step.n === 1
+                  ? "1.ª recomendación"
+                  : `${step.n}.ª recomendación`}
+              </span>
+              <span className="text-muted-foreground"> · {step.title}</span>
+            </span>
+            <span
+              className={
+                step.reached
+                  ? "font-semibold text-success"
+                  : "font-semibold text-muted-foreground"
+              }
             >
-              <span>
-                <span className="font-medium">
-                  {step.n === 1 ? "1.ª recomendación" : `${step.n}.ª recomendación`}
-                </span>
-                <span className="text-muted-foreground"> · {step.title}</span>
-              </span>
-              <span
-                className={
-                  step.reached ? "font-semibold text-success" : "font-semibold text-muted-foreground"
-                }
-              >
-                {step.reached ? "Conseguido" : "Pendiente"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+              {step.reached ? "Conseguido" : "Pendiente"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
