@@ -364,10 +364,17 @@ export function ProgramVisitPanel({
     }
 
     const filled = lines.filter((line) => line.amount.trim() !== "");
-    const parsed = filled.map((line) => ({
-      amountEuro: parseAmount(line.amount),
-      ...(line.category ? { category: line.category } : {}),
-    }));
+    const parsed = filled.map((line) => {
+      const name = (catalog.data ?? []).find(
+        (item) => item.externalId === line.picked,
+      )?.name;
+
+      return {
+        amountEuro: parseAmount(line.amount),
+        ...(line.category ? { category: line.category } : {}),
+        ...(name ? { name } : {}),
+      };
+    });
 
     if (
       parsed.length === 0 ||

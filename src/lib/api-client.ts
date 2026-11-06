@@ -1040,22 +1040,9 @@ export function getAdminMembers() {
 }
 
 export function getMember(memberId: string) {
-  return staffProxyFetch<Member[]>("/members", { method: "GET" }).then(
-    (members) => {
-      const member = members.find((item) => item.id === memberId);
-
-      if (!member) {
-        throw new ApiError(
-          "Member not found",
-          404,
-          "MEMBER_NOT_FOUND",
-          "Member not found",
-        );
-      }
-
-      return member;
-    },
-  );
+  return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}`, {
+    method: "GET",
+  });
 }
 
 export function deleteMember(memberId: string) {
