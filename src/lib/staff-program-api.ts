@@ -21,6 +21,8 @@ export interface StaffProgram {
 }
 
 export interface VisitLineInput {
+  /** The catalogue item's name, when picked: shown in the member's history. */
+  name?: string;
   category?: CategoryCode;
   amountEuro: number;
 }
