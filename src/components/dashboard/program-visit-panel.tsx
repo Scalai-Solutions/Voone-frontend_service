@@ -761,15 +761,25 @@ export function ProgramVisitPanel({
               aria-label="Multiplicador de puntos"
               className="mt-2 w-full disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <div className="mt-1 flex justify-between text-[11px] font-medium text-muted-foreground">
+            <div className="relative mt-1 h-4 text-[11px] font-medium text-muted-foreground">
               {["sin extra", "x2", "x3", "x5", "x10"].map((label, index) => (
                 <span
                   key={label}
-                  className={
+                  // Under the thumb's centre at each stop: it travels the track minus its own
+                  // width (16px native thumb), so stops sit 8px in from each end. The end labels
+                  // align to their edge instead of centring, so they stay inside the box.
+                  style={{ left: `calc(8px + (100% - 16px) * ${index / 4})` }}
+                  className={`absolute whitespace-nowrap ${
+                    index === 0
+                      ? "-translate-x-2"
+                      : index === 4
+                        ? "-translate-x-[calc(100%-8px)]"
+                        : "-translate-x-1/2"
+                  } ${
                     !sliderLocked && multiplierIndex === index
                       ? "font-bold text-foreground"
                       : ""
-                  }
+                  }`}
                 >
                   {label}
                 </span>
