@@ -717,7 +717,7 @@ export async function uploadImage(
   file: File,
   kind: ImageUploadKind,
   scope: "clinic" | "admin",
-): Promise<{ url: string }> {
+): Promise<{ url: string; warnings: string[] }> {
   const response = await fetch(
     `/api/${scope === "admin" ? "admin" : "staff"}/images?kind=${encodeURIComponent(kind)}`,
     {
@@ -743,13 +743,20 @@ export async function uploadImage(
 
   const body = (await response.json().catch(() => null)) as {
     url?: string;
+    warnings?: unknown;
   } | null;
 
   if (!body?.url) {
     throw new ApiError("Voone image upload returned no URL", response.status);
   }
 
-  return { url: body.url };
+  return {
+    url: body.url,
+    // Things the clinic could improve; the image was stored. Older backends send none.
+    warnings: Array.isArray(body.warnings)
+      ? body.warnings.filter((item): item is string => typeof item === "string")
+      : [],
+  };
 }
 
 async function withMockFallback<T>(
