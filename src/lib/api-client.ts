@@ -256,6 +256,13 @@ export interface Member {
    */
   appleUpdatesRegistered?: boolean | null;
   history: Array<{ id: string; label: string; points: number; date: string }>;
+  /** On the member's own page, at a clinic with a live programme: their recommendations. */
+  referral?: {
+    referred: number;
+    counted: number;
+    steps: Array<{ n: number; title: string; reached: boolean }>;
+    next: { n: number; title: string; remaining: number } | null;
+  };
 }
 
 export interface MemberPassWallet {

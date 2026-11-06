@@ -283,6 +283,8 @@ export function MemberDetail({ memberId }: { memberId: string }) {
         </CardContent>
       </Card>
 
+      {member.data.referral ? <ReferralCard referral={member.data.referral} /> : null}
+
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>Historial</CardTitle>
@@ -559,5 +561,62 @@ function MemberEditForm({
         </p>
       ) : null}
     </form>
+  );
+}
+
+/**
+ * Who this member has recommended and what that has earned them. Only a recommendation whose
+ * first treatment has been paid counts towards a reward, so the two numbers are shown apart.
+ */
+function ReferralCard({
+  referral,
+}: {
+  referral: NonNullable<Member["referral"]>;
+}) {
+  return (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <CardTitle>Recomendaciones</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-muted-foreground">Personas recomendadas</p>
+            <p className="text-2xl font-semibold">{referral.referred}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Con su primer tratamiento pagado</p>
+            <p className="text-2xl font-semibold">{referral.counted}</p>
+          </div>
+        </div>
+        <p className="text-muted-foreground">
+          {referral.next
+            ? `Le ${referral.next.remaining === 1 ? "falta 1 recomendación" : `faltan ${referral.next.remaining} recomendaciones`} para: ${referral.next.title}.`
+            : "Ha conseguido todos los premios por recomendar."}
+        </p>
+        <ul className="space-y-2">
+          {referral.steps.map((step) => (
+            <li
+              key={step.n}
+              className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/70 px-4 py-3"
+            >
+              <span>
+                <span className="font-medium">
+                  {step.n === 1 ? "1.ª recomendación" : `${step.n}.ª recomendación`}
+                </span>
+                <span className="text-muted-foreground"> · {step.title}</span>
+              </span>
+              <span
+                className={
+                  step.reached ? "font-semibold text-success" : "font-semibold text-muted-foreground"
+                }
+              >
+                {step.reached ? "Conseguido" : "Pendiente"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
