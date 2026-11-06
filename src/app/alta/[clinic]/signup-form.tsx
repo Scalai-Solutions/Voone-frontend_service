@@ -493,8 +493,7 @@ export function SignupForm({
             className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#c9b9a8] accent-[#8c765a]"
           />
           <span className="text-[0.68rem] leading-4 text-[#7d746b]">
-            Quiero recibir novedades y ofertas de {clinic.name} por SMS o
-            WhatsApp.
+            Quiero recibir notificaciones promocionales de {clinic.name}.
           </span>
         </label>
       </div>

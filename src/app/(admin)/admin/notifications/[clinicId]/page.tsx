@@ -238,7 +238,7 @@ function ReportBody({
             <ToggleRow
               label="Marketing consent gate"
               on={settings.marketingEnabled}
-              detail="Members must also have consented to marketing"
+              detail="Manual sends also need the member's consent; automatic ones do not"
             />
             <div className="rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 px-4 py-3 text-sm">
               <span className="block font-semibold text-[#2e2421]">Last birthday run</span>

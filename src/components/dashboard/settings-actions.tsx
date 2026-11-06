@@ -192,7 +192,7 @@ export function DeactivationRequest({ clinicName }: { clinicName: string }) {
 
   return (
     <a href={`mailto:support@voone.ai?subject=${subject}&body=${body}`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#b94135] px-4 py-2 text-sm font-semibold text-white">
-      <LifeBuoy className="h-4 w-4" /> Request deactivation
+      <LifeBuoy className="h-4 w-4" /> Solicitar desactivación
     </a>
   );
 }
