@@ -62,7 +62,9 @@ const headingFor = (context: RequestContext): string => {
         ? `Solicitar un cambio en el nivel ${quoted(context.label)}`
         : "Solicitar un cambio en los niveles";
     case "other":
-      return "Solicitar otro cambio";
+      return context.label
+        ? `Solicitar un cambio en ${quoted(context.label)}`
+        : "Solicitar otro cambio";
   }
 };
 
@@ -110,6 +112,8 @@ function CurrentValues({ context }: { context: RequestContext }) {
     lines = [[context.kind === "reward" ? "Recompensa" : "Nivel", context.label]];
 
     if (context.detail) lines.push(["Ahora", context.detail]);
+  } else if (context.kind === "other" && context.label && context.detail) {
+    lines = [[context.label, context.detail]];
   }
 
   if (lines.length === 0) return null;

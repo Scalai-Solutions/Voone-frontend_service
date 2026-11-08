@@ -21,6 +21,7 @@ import {
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
+import { InsertLinkButton } from "./insert-link-button";
 import { InsertNameButton } from "./insert-name-button";
 
 const allMembersAudience = "all";
@@ -343,12 +344,20 @@ export function CommunicationsPageClient() {
                     {body.length}/{maxLength}
                   </span>
                 </label>
-                <InsertNameButton
-                  fieldRef={inlineBodyRef}
-                  value={body}
-                  maxLength={maxLength}
-                  onChange={setBody}
-                />
+                <div className="flex flex-wrap items-start gap-2">
+                  <InsertNameButton
+                    fieldRef={inlineBodyRef}
+                    value={body}
+                    maxLength={maxLength}
+                    onChange={setBody}
+                  />
+                  <InsertLinkButton
+                    fieldRef={inlineBodyRef}
+                    value={body}
+                    maxLength={maxLength}
+                    onChange={setBody}
+                  />
+                </div>
                 <button
                   onClick={() => setComposeOpen(true)}
                   className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white"
@@ -498,12 +507,20 @@ export function CommunicationsPageClient() {
                   {body.length}/{maxLength}
                 </span>
               </label>
-              <InsertNameButton
-                fieldRef={modalBodyRef}
-                value={body}
-                maxLength={maxLength}
-                onChange={setBody}
-              />
+              <div className="flex flex-wrap items-start gap-2">
+                <InsertNameButton
+                  fieldRef={modalBodyRef}
+                  value={body}
+                  maxLength={maxLength}
+                  onChange={setBody}
+                />
+                <InsertLinkButton
+                  fieldRef={modalBodyRef}
+                  value={body}
+                  maxLength={maxLength}
+                  onChange={setBody}
+                />
+              </div>
               {audience === allMembersAudience && usesName(title, body) ? (
                 <p className="mt-3 rounded-xl bg-[#fff8ec] p-3 text-xs leading-5 text-[#806d63]">
                   Como el mensaje lleva el nombre, se enviará a cada cliente por

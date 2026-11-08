@@ -396,9 +396,9 @@ export function ProgramView({
  * centre's own lines changeable.
  */
 /**
- * The tiers side by side in a snapping row, Bronce first and centred. Five columns at once left
- * each card too narrow for its edit and remove buttons, so the card nearest the centre is shown
- * full size and its neighbours smaller.
+ * The tiers side by side in a snapping row, starting at the left edge with Bronce. Five columns at
+ * once left each card too narrow for its edit and remove buttons, so the row scrolls; the arrows
+ * step one card at a time.
  */
 function TierScroller({
   title,
@@ -408,44 +408,34 @@ function TierScroller({
   children: React.ReactNode;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
-  const [centred, setCentred] = React.useState(0);
+  const [atStart, setAtStart] = React.useState(true);
+  const [atEnd, setAtEnd] = React.useState(false);
   const cards = React.Children.toArray(children);
 
-  const cardAt = (index: number) =>
-    ref.current?.children[index] as HTMLElement | undefined;
-
-  const updateCentred = () => {
+  const updateEdges = React.useCallback(() => {
     const row = ref.current;
     if (!row) return;
 
-    const middle = row.scrollLeft + row.clientWidth / 2;
-    let nearest = 0;
-    let nearestDistance = Infinity;
+    // A pixel of slack: fractional scroll positions never quite reach the end.
+    setAtStart(row.scrollLeft <= 1);
+    setAtEnd(row.scrollLeft + row.clientWidth >= row.scrollWidth - 1);
+  }, []);
 
-    Array.from(row.children).forEach((child, index) => {
-      const card = child as HTMLElement;
-      const distance = Math.abs(
-        card.offsetLeft + card.offsetWidth / 2 - middle,
-      );
+  // The row may already fit (wide screen), so both arrows start from the real layout.
+  React.useEffect(() => {
+    updateEdges();
+    window.addEventListener("resize", updateEdges);
+    return () => window.removeEventListener("resize", updateEdges);
+  }, [updateEdges]);
 
-      if (distance < nearestDistance) {
-        nearest = index;
-        nearestDistance = distance;
-      }
-    });
-
-    setCentred(nearest);
-  };
-
-  const centre = (index: number) => {
+  const step = (direction: 1 | -1) => {
     const row = ref.current;
-    const card = cardAt(index);
+    const card = row?.children[0] as HTMLElement | undefined;
     if (!row || !card) return;
 
+    const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
     // No behavior given: the row's own scroll-behavior applies, so reduced motion jumps.
-    row.scrollTo({
-      left: card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2,
-    });
+    row.scrollBy({ left: direction * (card.offsetWidth + gap) });
   };
 
   return (
@@ -460,8 +450,8 @@ function TierScroller({
             size="icon"
             variant="outline"
             className="h-8 w-8"
-            disabled={centred === 0}
-            onClick={() => centre(centred - 1)}
+            disabled={atStart}
+            onClick={() => step(-1)}
             aria-label="Nivel anterior"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -471,8 +461,8 @@ function TierScroller({
             size="icon"
             variant="outline"
             className="h-8 w-8"
-            disabled={centred === cards.length - 1}
-            onClick={() => centre(centred + 1)}
+            disabled={atEnd}
+            onClick={() => step(1)}
             aria-label="Nivel siguiente"
           >
             <ChevronRight className="h-4 w-4" />
@@ -484,20 +474,12 @@ function TierScroller({
         role="region"
         aria-label={title}
         tabIndex={0}
-        onScroll={updateCentred}
-        // The side padding lets Bronce and Diamante both reach the centre.
-        className="relative flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-[max(0px,calc(50%-9rem))] pb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:scroll-smooth"
+        onScroll={updateEdges}
+        // Starts at the left edge, Bronce first, so no blank space sits before the cards.
+        className="relative flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:scroll-smooth"
       >
         {cards.map((card, index) => (
-          <div
-            key={index}
-            className={cn(
-              // Same size for every card: a scaled neighbour would sit inset from the others' top and
-              // bottom edges. Only its opacity tells the centred one apart.
-              "w-72 shrink-0 snap-center motion-safe:transition-opacity motion-safe:duration-300",
-              index === centred ? "opacity-100" : "opacity-75",
-            )}
-          >
+          <div key={index} className="w-72 shrink-0 snap-start">
             {card}
           </div>
         ))}
