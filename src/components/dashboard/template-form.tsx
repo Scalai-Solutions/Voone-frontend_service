@@ -5,10 +5,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush, Plus, X } from "lucide-react";
 import { z } from "zod";
 
 import { GoogleWalletCardPreview } from "@/components/shared/google-wallet-card-preview";
@@ -40,6 +40,16 @@ const optionalUrlSchema = z
   .optional()
   .or(z.literal(""));
 
+const requiredUrlSchema = z
+  .string()
+  .trim()
+  .url("Usa una URL válida")
+  .max(2048)
+  .refine((value) => !/\s/.test(value), "Pon solo una URL, sin espacios ni texto extra");
+
+/** Same cap as the backend's CARD_EXTRA_BUTTONS_MAX. */
+const EXTRA_BUTTONS_MAX = 5;
+
 // Counted like the backend (code points), on the raw text, so what the counter shows is what is checked.
 const walletText = (emptyMessage: string) =>
   z
@@ -58,6 +68,12 @@ const designFields = {
   logoUrl: optionalUrlSchema,
   logoOnDarkUrl: optionalUrlSchema,
   heroImageUrl: optionalUrlSchema,
+  websiteUrl: optionalUrlSchema,
+  appointmentUrl: optionalUrlSchema,
+  appLinkText: z.string().trim().max(30, "Máximo 30 caracteres"),
+  extraButtons: z
+    .array(z.object({ label: z.string().trim().min(1, "Añade el texto del botón").max(30, "Máximo 30 caracteres"), url: requiredUrlSchema }))
+    .max(EXTRA_BUTTONS_MAX, `Hasta ${EXTRA_BUTTONS_MAX} botones adicionales`),
   pointsLabel: z.string().trim().min(2, "Añade la etiqueta de puntos").max(80, "Máximo 80 caracteres"),
   tierLabel: z.string().trim().min(2, "Añade la etiqueta de nivel").max(80, "Máximo 80 caracteres"),
   benefitsText: walletText("Añade un mensaje breve de beneficios"),
@@ -100,6 +116,10 @@ const emptyValues: TemplateFormValues = {
   logoUrl: "",
   logoOnDarkUrl: "",
   heroImageUrl: "",
+  websiteUrl: "",
+  appointmentUrl: "",
+  appLinkText: "",
+  extraButtons: [],
   pointsLabel: "Puntos",
   tierLabel: "Nivel",
   benefitsText: "",
@@ -124,6 +144,10 @@ function toFormValues(template: Template | undefined, selectedPreset: TemplatePr
     logoUrl: template.logoUrl ?? "",
     logoOnDarkUrl: template.logoOnDarkUrl ?? "",
     heroImageUrl: template.heroImageUrl ?? "",
+    websiteUrl: template.websiteUrl ?? "",
+    appointmentUrl: template.appointmentUrl ?? "",
+    appLinkText: template.appLinkText ?? "",
+    extraButtons: template.extraButtons ?? [],
     pointsLabel: template.pointsLabel,
     tierLabel: template.tierLabel,
     benefitsText: template.benefitsText,
@@ -172,8 +196,14 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
   // Saving the design must not rewrite the catalogue. Treatments are edited in My center, not here,
   // so they go along only when this form creates the template (with its starter treatment).
-  const saveInput = (input: TemplateFormValues): SaveTemplateInput =>
-    initialTemplate ? { ...input, treatments: undefined } : input;
+  // The button fields are always sent: the backend stores a missing optional URL as null, so
+  // leaving them out would erase the card's buttons. The description mirrors the text, as onboarding does.
+  const saveInput = (input: TemplateFormValues): SaveTemplateInput => {
+    const withButtons = { ...input, appLinkDescription: input.appLinkText };
+
+    return initialTemplate ? { ...withButtons, treatments: undefined } : withButtons;
+  };
+  const extraButtons = useFieldArray({ control: form.control, name: "extraButtons" });
   const values = form.watch();
 
   // Registers a text field that cannot grow past the backend cap. Counting in code points, a native
@@ -374,6 +404,42 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
                 {heroUnchecked ? <p className="mt-2 text-xs text-[#927e72]">No se pudo comprobar este enlace.</p> : null}
               </Field>
             </div>
+
+            <div className="mt-4 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Botones de la tarjeta</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label="Texto del botón principal" error={form.formState.errors.appLinkText?.message}>
+                  <Input {...form.register("appLinkText")} maxLength={30} placeholder="Reservar cita" />
+                </Field>
+                <Field label="URL del botón principal" error={form.formState.errors.appointmentUrl?.message}>
+                  <Input {...form.register("appointmentUrl")} placeholder="https://..." />
+                </Field>
+                <Field label="Página web (opcional, aparece como «Web»)" error={form.formState.errors.websiteUrl?.message} className="sm:col-span-2">
+                  <Input {...form.register("websiteUrl")} placeholder="https://..." />
+                </Field>
+                {extraButtons.fields.map((button, index) => (
+                  <div key={button.id} className="grid gap-2 rounded-2xl border border-[#eadfd8] bg-white/70 p-3 sm:col-span-2 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+                    <Field label={`Texto del botón ${index + 2}`} error={form.formState.errors.extraButtons?.[index]?.label?.message}>
+                      <Input {...form.register(`extraButtons.${index}.label`)} maxLength={30} placeholder="Ver tratamientos" />
+                    </Field>
+                    <Field label={`URL del botón ${index + 2}`} error={form.formState.errors.extraButtons?.[index]?.url?.message}>
+                      <Input {...form.register(`extraButtons.${index}.url`)} placeholder="https://..." />
+                    </Field>
+                    <button type="button" onClick={() => extraButtons.remove(index)} aria-label={`Quitar botón ${index + 2}`} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e8b9b1] bg-white text-[#b94135] transition hover:bg-[#fff3f1]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => extraButtons.append({ label: "", url: "" })}
+                disabled={extraButtons.fields.length >= EXTRA_BUTTONS_MAX}
+                className="mt-3 inline-flex items-center gap-1 rounded-full border border-[#ded1c8] bg-white px-3 py-1.5 text-xs font-semibold text-[#6f4d3f] hover:bg-[#f7efe8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="h-3.5 w-3.5" /> {extraButtons.fields.length >= EXTRA_BUTTONS_MAX ? `Máximo ${EXTRA_BUTTONS_MAX} botones adicionales` : "Añadir botón"}
+              </button>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3">
@@ -438,8 +504,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               <CreditCard className="h-4 w-4 text-[#b7874a]" aria-hidden="true" />
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Google Wallet</p>
             </div>
-            {/* The same preview as onboarding step 3, laid out as the backend builds the Google class.
-                The links are the template's saved ones: this form does not edit them. */}
+            {/* The same preview as onboarding step 3, laid out as the backend builds the Google class. */}
             <GoogleWalletCardPreview
               className="mt-3"
               clinicName={currentClinic.data?.name}
@@ -450,9 +515,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
               levelLabel={values.tierLabel}
               pointsLabel={values.pointsLabel}
               programme={hasActiveProgramme}
-              buttonText={initialTemplate?.appointmentUrl ? initialTemplate.appLinkText?.trim() || "Reservar cita" : undefined}
-              hasWebsite={Boolean(initialTemplate?.websiteUrl)}
-              extraButtons={initialTemplate?.extraButtons ?? []}
+              buttonText={values.appointmentUrl?.trim() ? values.appLinkText?.trim() || "Reservar cita" : undefined}
+              hasWebsite={Boolean(values.websiteUrl?.trim())}
+              extraButtons={values.extraButtons ?? []}
             />
           </div>
         </section>

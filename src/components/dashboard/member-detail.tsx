@@ -294,7 +294,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
             {(
               [
                 ["history", "Historial"],
-                ["referrals", "Recomendaciones"],
+                ["referrals", "Referidos"],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -320,7 +320,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
               <ReferralPanel referral={member.data.referral} />
             ) : (
               <p className="rounded-md border border-dashed border-border p-4 text-muted-foreground">
-                Aún no hay recomendaciones.
+                Aún no hay referidos.
               </p>
             )}
           </CardContent>
@@ -616,7 +616,7 @@ function ReferralPanel({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-muted-foreground">Personas recomendadas</p>
+          <p className="text-muted-foreground">Personas referidas</p>
           <p className="text-2xl font-semibold">{referral.referred}</p>
         </div>
         <div>
@@ -628,8 +628,8 @@ function ReferralPanel({
       </div>
       <p className="text-muted-foreground">
         {referral.next
-          ? `Le ${referral.next.remaining === 1 ? "falta 1 recomendación" : `faltan ${referral.next.remaining} recomendaciones`} para: ${referral.next.title}.`
-          : "Ha conseguido todos los premios por recomendar."}
+          ? `Le ${referral.next.remaining === 1 ? "falta 1 referido" : `faltan ${referral.next.remaining} referidos`} para: ${referral.next.title}.`
+          : "Ha conseguido todos los premios de referidos."}
       </p>
       <ul className="space-y-2">
         {referral.steps.map((step) => (
@@ -639,9 +639,9 @@ function ReferralPanel({
           >
             <span>
               <span className="font-medium">
-                {step.n === 1
-                  ? "1.ª recomendación"
-                  : `${step.n}.ª recomendación`}
+                {step.n === 1 || step.n === 3
+                  ? `${step.n}.er referido`
+                  : `${step.n}.º referido`}
               </span>
               <span className="text-muted-foreground"> · {step.title}</span>
             </span>

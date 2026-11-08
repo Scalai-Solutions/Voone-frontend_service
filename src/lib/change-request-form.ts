@@ -43,7 +43,8 @@ export type RequestContext =
   | { kind: "bono-remove"; plan: BonoRef }
   | { kind: "reward"; milestone?: number; label?: string; detail?: string }
   | { kind: "level"; tier?: string; label?: string; detail?: string }
-  | { kind: "other" };
+  /** `title` pre-fills the editable title; `label`/`detail` name what it is about (a referral step). */
+  | { kind: "other"; title?: string; label?: string; detail?: string };
 
 /** A reward request names a catalogue item, or describes the wish in words. */
 export type RewardMode = "item" | "text";
@@ -100,6 +101,10 @@ export const initialValues = (context: RequestContext): FormValues => {
       price: priceToText(context.plan.totalEuro),
       sessions: String(context.plan.totalSessions),
     };
+  }
+
+  if (context.kind === "other" && context.title) {
+    return { ...empty, title: clip(context.title) };
   }
 
   return empty;

@@ -67,6 +67,8 @@ export interface SaveTemplateInput {
   appointmentUrl?: string;
   appLinkText?: string;
   appLinkDescription?: string;
+  /** Buttons beside the main one; left out, the backend keeps the saved ones. */
+  extraButtons?: Array<{ label: string; url: string }>;
   pointsLabel: string;
   tierLabel: string;
   benefitsText: string;
