@@ -176,15 +176,18 @@ function WalletReady({
   return (
     <div className={panelClassName}>
       <div className="text-center">
+        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-[#efe5d9]">
+          <Check className="h-6 w-6 text-[#8c765a]" aria-hidden />
+        </div>
         <p className="text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-[#9b927f]">
           {clinic.name}
         </p>
         <h2 className="mt-7 font-serif text-[1.92rem] font-semibold leading-none tracking-[-0.045em] text-[#24211f]">
-          Tu pase está listo
+          Te has registrado correctamente
         </h2>
         <p className="mx-auto mt-4 max-w-[286px] text-[0.82rem] leading-6 text-[#7d746b]">
-          Añádelo a tu Wallet para identificarte en recepción y empezar a
-          disfrutar de tus privilegios.
+          Tu pase está listo. Guárdalo en tu Wallet y lo encontrarás en la app
+          Wallet de tu móvil para identificarte en recepción.
         </p>
       </div>
 

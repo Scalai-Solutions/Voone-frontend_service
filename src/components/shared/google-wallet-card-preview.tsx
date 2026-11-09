@@ -187,7 +187,7 @@ export function GoogleWalletCardPreview({
         {extraLinks.length > 0 ? (
           <div className="mt-3 rounded-2xl bg-[#f3f4f6] px-4 py-3">
             <p className="text-[11px] font-semibold text-[#5f6368]">
-              Al abrir Detalles
+              Se muestran al pulsar Detalles
             </p>
             <ul className="mt-1.5 grid gap-1">
               {extraLinks.map((text, index) => (

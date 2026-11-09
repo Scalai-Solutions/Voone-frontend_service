@@ -87,11 +87,11 @@ export function ClinicCredentialsActions({ clinicId, email, setupUrl, setupToken
       setCurrentSetupUrl(result.setupUrl);
       setCurrentSetupTokenExpiresAt(result.setupTokenExpiresAt);
       setCopied(false);
-      setStatus(result.emailSent ? "Enlace de configuración generado y enviado por email." : "Enlace de configuración generado. No se envió el email; copia el enlace manualmente.");
+      setStatus(result.emailSent ? "Enlace para configurar la contraseña generado y enviado por email." : "Enlace para configurar la contraseña generado. No se envió el email; copia el enlace manualmente.");
       router.refresh();
     },
     onError: (error) => {
-      setStatus(error instanceof ApiError && error.detail ? error.detail : "No se pudo generar el enlace de configuración.");
+      setStatus(error instanceof ApiError && error.detail ? error.detail : "No se pudo generar el enlace para configurar la contraseña.");
     },
   });
 
@@ -122,7 +122,7 @@ export function ClinicCredentialsActions({ clinicId, email, setupUrl, setupToken
         <CredentialFact label="Último envío" value={sentAt ? new Date(sentAt).toLocaleString("es-ES") : "Nunca enviado"} />
       </div>
       <div className="mt-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6]/86 p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Enlace de configuración</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Configurar contraseña</p>
         {currentSetupUrl ? (
           <div className="mt-2 flex flex-col gap-3">
             <code className="break-all rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#2e2421]">{currentSetupUrl}</code>
