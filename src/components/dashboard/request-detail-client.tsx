@@ -128,7 +128,7 @@ export function RequestDetailClient({ id }: { id: string }) {
       <BackLink />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <TypeChip type={request.type} />
-        <StatusChip status={request.status} />
+        <StatusChip status={request.status} auto={request.autoApproved} />
       </div>
       <h1 className="mt-3 break-words font-serif text-4xl font-semibold tracking-[-0.03em]">
         {request.title}
@@ -137,6 +137,11 @@ export function RequestDetailClient({ id }: { id: string }) {
         Creada el {formatRequestDate(request.createdAt)} por{" "}
         {request.createdByEmail}
       </p>
+      {request.autoApproved ? (
+        <p className="mt-2 max-w-2xl text-sm text-[#927e72]">
+          Este cambio lo hiciste tú y se aplicó al momento. Queda aquí como registro.
+        </p>
+      ) : null}
 
       <div className="mt-6 rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
         <h2 className="font-serif text-xl font-semibold">Tu solicitud</h2>

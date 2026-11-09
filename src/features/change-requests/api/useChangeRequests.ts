@@ -69,10 +69,24 @@ function useRefreshRequests() {
 
 export function useCreateChangeRequest() {
   const refresh = useRefreshRequests();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (body: CreateChangeRequestBody) => createChangeRequest(body),
-    onSuccess: () => refresh(),
+    onSuccess: (ticket) => {
+      // A treatment or bono change is already applied: the lists the centre looks at must show it.
+      if (ticket.autoApproved) {
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.treatmentCatalogue() }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.currentClinic() }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.treatments() }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.staffCatalog() }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.bonoPlans() }),
+        ]);
+      }
+
+      return refresh();
+    },
   });
 }
 

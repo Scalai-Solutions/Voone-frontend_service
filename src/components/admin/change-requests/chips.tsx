@@ -24,6 +24,18 @@ export function StatusChip({ status }: { status: ChangeRequestStatus }) {
   );
 }
 
+/** A change the centre made itself (treatments, bonos): applied at once, kept as a record. */
+export function AutoChip() {
+  return (
+    <span
+      title="Approved and applied automatically when the clinic made the change"
+      className="inline-flex items-center rounded-full border border-[#b9d3bf] bg-[#eef6ef] px-2.5 py-0.5 text-xs font-semibold text-[#2f6b3c]"
+    >
+      Automatic
+    </span>
+  );
+}
+
 export function TypeChip({ type }: { type: ChangeRequestType }) {
   return (
     <span className="inline-flex items-center rounded-full border border-[#d9c9b6] px-2.5 py-0.5 text-xs font-semibold text-[#6f4d3f]">

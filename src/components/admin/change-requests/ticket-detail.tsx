@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 
 import {
+  AutoChip,
   StatusChip,
   TypeChip,
   cardClass,
@@ -248,6 +249,7 @@ export function TicketDetail({ id }: { id: string }) {
         <div className="flex flex-wrap items-center gap-2">
           <TypeChip type={ticket.type} />
           <StatusChip status={ticket.status} />
+          {ticket.autoApproved ? <AutoChip /> : null}
         </div>
         <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight">{ticket.title}</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -359,7 +361,14 @@ export function TicketDetail({ id }: { id: string }) {
       </section>
 
       <section className={cardClass}>
-        <StatusControls id={ticket.id} status={ticket.status} type={ticket.type} />
+        {ticket.autoApproved ? (
+          <p className="text-sm text-[#6f5b50]">
+            The clinic made this change itself and it was approved and applied automatically. It
+            stays here as a record, so its status does not change.
+          </p>
+        ) : (
+          <StatusControls id={ticket.id} status={ticket.status} type={ticket.type} />
+        )}
       </section>
 
       <p className="px-1 text-xs text-[#9a8a82]">{emailStatusLine(ticket)}</p>

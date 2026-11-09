@@ -34,11 +34,11 @@ interface ActivePanel {
 }
 
 /**
- * The centre's services, read-only: treatments and bono plans are the price list the loyalty
- * programme is built on, so the centre changes them by asking Voone (a change request that
- * Voone resolves) rather than editing. `canRequest` is the owner or manager; anyone else sees
- * the list without the buttons. With the catalogue a category is part of a service; without it
- * prices are whole euros and there is no category.
+ * The centre's services. The owner or manager (`canRequest`) adds, edits and removes treatments
+ * and bono plans themselves: a change is applied when saved and the backend keeps it as a
+ * resolved ticket in Mis solicitudes. Anyone else sees the list without the buttons. With the
+ * catalogue a category is part of a service; without it prices are whole euros and there is no
+ * category.
  */
 export function TreatmentsEditor({
   canEdit,
@@ -91,7 +91,7 @@ export function TreatmentsEditor({
           </h2>
           <p className="mt-1 text-sm text-[#927e72]">
             {canRequest
-              ? "Servicios disponibles para tu equipo y tu programa de fidelización. Para cambiarlos, solicita un cambio a Voone."
+              ? "Servicios disponibles para tu equipo y tu programa de fidelización. Puedes añadir, editar y eliminar tratamientos y bonos: el cambio se aplica al momento y queda registrado en Mis solicitudes."
               : "Servicios disponibles para tu equipo y tu programa de fidelización."}
           </p>
         </div>
@@ -111,7 +111,7 @@ export function TreatmentsEditor({
             className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"
           >
             <Plus size={15} className="mr-1 inline" />
-            Solicitar nuevo servicio
+            Añadir tratamiento
           </button>
         ) : null}
       </div>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, Send, X } from "lucide-react";
+import { CheckCircle2, Save, Send, Trash2, X } from "lucide-react";
 
 import { catalogPickerItems } from "@/components/admin/program/picker-items";
 import { ChangeFlagMarks, ChangeFlagSignal } from "@/components/dashboard/change-flag";
@@ -11,12 +11,14 @@ import { SearchPicker } from "@/components/ui/search-picker";
 import { useChangeFlag } from "@/features/change-requests/api/useChangeFlag";
 import { useCreateChangeRequest } from "@/features/change-requests/api/useChangeRequests";
 import { useStaffCatalog } from "@/features/program/api/useStaffProgram";
+import type { ChangeRequest } from "@/lib/staff-change-requests-api";
 import { ApiError, type TreatmentCategory } from "@/lib/api-client";
 import {
   buildChangeRequest,
   buildFlagRequest,
   categoryChoices,
   initialValues,
+  isDirectChange,
   isUnpricedReward,
   withRewardMode,
   type FormErrors,
@@ -41,18 +43,19 @@ const quoted = (text: string) => `«${text}»`;
 
 const headingFor = (context: RequestContext): string => {
   switch (context.kind) {
+    // Treatments and bonos the centre changes itself: the change is applied when it is saved.
     case "service-edit":
-      return `Solicitar un cambio en ${quoted(context.treatment.name)}`;
+      return `Editar ${quoted(context.treatment.name)}`;
     case "service-add":
-      return "Solicitar un nuevo servicio";
+      return "Añadir un tratamiento";
     case "service-remove":
-      return `Solicitar la baja de ${quoted(context.treatment.name)}`;
+      return `Eliminar ${quoted(context.treatment.name)}`;
     case "bono-add":
-      return "Solicitar un nuevo bono";
+      return "Añadir un bono";
     case "bono-edit":
-      return `Solicitar un cambio en el bono ${quoted(context.plan.name)}`;
+      return `Editar el bono ${quoted(context.plan.name)}`;
     case "bono-remove":
-      return `Solicitar la baja del bono ${quoted(context.plan.name)}`;
+      return `Eliminar el bono ${quoted(context.plan.name)}`;
     case "reward":
       return context.label
         ? `Solicitar un cambio en ${quoted(context.label)}`
@@ -69,16 +72,22 @@ const headingFor = (context: RequestContext): string => {
 };
 
 /** What the server said, when it said something worth showing; otherwise a generic line. */
-export function submitErrorMessage(error: unknown): string {
+export function submitErrorMessage(error: unknown, direct = false): string {
   if (error instanceof ApiError) {
-    // 409 carries the cap on open requests; 400 and 422 are Spanish validation copy.
-    if ([400, 409, 422].includes(error.status) && error.detail) return error.detail;
+    // 409 carries the cap on open requests; 400 and 422 are Spanish validation copy, and a direct
+    // change that the catalogue refuses (404: it is already gone) says so in its own words.
+    if ([400, 404, 409, 422].includes(error.status) && error.detail) return error.detail;
     if (error.status === 403) {
-      return error.detail ?? "No tienes permiso para solicitar cambios.";
+      return (
+        error.detail ??
+        (direct ? "No tienes permiso para hacer este cambio." : "No tienes permiso para solicitar cambios.")
+      );
     }
   }
 
-  return "No se pudo enviar la solicitud. Inténtalo de nuevo.";
+  return direct
+    ? "No se pudo guardar el cambio. Inténtalo de nuevo."
+    : "No se pudo enviar la solicitud. Inténtalo de nuevo.";
 }
 
 /** The current values the request is about, so the person sees what she is asking to change. */
@@ -133,10 +142,12 @@ function CurrentValues({ context }: { context: RequestContext }) {
 }
 
 /**
- * An inline panel for asking Voone to change something the centre no longer edits itself:
- * services, bonos, rewards and levels. It renders where the parent puts it (under a row, or at
- * the top of a list), opens with the request's own context, validates with the backend's
- * limits, and ends in "Solicitud enviada" with a link to Mis solicitudes. No browser dialogs.
+ * An inline panel for changing something in the centre. Treatments and bonos the centre edits
+ * itself: saving applies the change at once and the backend keeps it as a resolved ticket, so it
+ * ends in "Cambio aplicado" (with anything the centre should know) and a link to Mis solicitudes.
+ * Rewards and levels are still a request to Voone: it ends in "Solicitud enviada". It renders where
+ * the parent puts it (under a row, or at the top of a list), opens with its own context and
+ * validates with the backend's limits. No browser dialogs.
  */
 export function ChangeRequestPanel({
   context,
@@ -156,9 +167,10 @@ export function ChangeRequestPanel({
   const [typed, setValues] = React.useState<FormValues>(() => initialValues(context));
   const [errors, setErrors] = React.useState<FormErrors>({});
   const [serverError, setServerError] = React.useState<string | null>(null);
-  const [sent, setSent] = React.useState(false);
+  const [done, setDone] = React.useState<ChangeRequest | null>(null);
   const headingRef = React.useRef<HTMLHeadingElement>(null);
   const pending = create.isPending;
+  const direct = isDirectChange(context);
   const isReward = context.kind === "reward";
   const catalog = useStaffCatalog(isReward);
   const giftableItems = React.useMemo(
@@ -228,8 +240,8 @@ export function ChangeRequestPanel({
     setErrors({});
     setServerError(null);
     create.mutate(built.body, {
-      onSuccess: () => setSent(true),
-      onError: (failure) => setServerError(submitErrorMessage(failure)),
+      onSuccess: (ticket) => setDone(ticket),
+      onError: (failure) => setServerError(submitErrorMessage(failure, direct)),
     });
   }
 
@@ -251,12 +263,51 @@ export function ChangeRequestPanel({
   const idPrefix = React.useId();
   const removalLabel =
     context.kind === "service-remove"
-      ? `Quiero solicitar la baja de ${quoted(context.treatment.name)}.`
+      ? `Quiero eliminar ${quoted(context.treatment.name)}.`
       : context.kind === "bono-remove"
-        ? `Quiero solicitar la baja del bono ${quoted(context.plan.name)}.`
+        ? `Quiero eliminar el bono ${quoted(context.plan.name)}.`
         : "";
 
-  if (sent) {
+  if (done && direct) {
+    return (
+      <section role="status" className={cn("bg-[#fffaf6] p-5", className)}>
+        <p className="flex items-center gap-2 font-serif text-xl font-semibold">
+          <CheckCircle2 size={20} className="text-[#4f8a5b]" aria-hidden="true" />
+          Cambio aplicado
+        </p>
+        <p className="mt-2 max-w-xl text-sm text-[#927e72]">
+          El cambio ya está hecho en tu centro. Queda registrado en Mis solicitudes.
+        </p>
+        {done.warnings && done.warnings.length > 0 ? (
+          <div className="mt-3 max-w-xl rounded-2xl bg-white/70 px-4 py-3 text-sm">
+            <p className="font-semibold text-[#8a5a2b]">Ten en cuenta</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-[#6f5b50]">
+              {done.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-[#2d211e] px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            Cerrar
+          </button>
+          <Link
+            href="/dashboard/requests"
+            className="rounded-full border border-[#cdb9aa] px-5 py-2.5 text-sm font-semibold text-[#754b36]"
+          >
+            Ver el registro
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  if (done) {
     return (
       <section
         role="status"
@@ -303,8 +354,9 @@ export function ChangeRequestPanel({
         {headingFor(context)}
       </h3>
       <p className="mt-1 max-w-xl text-sm text-[#927e72]">
-        Voone revisará tu solicitud y te responderá. No se cambia nada hasta que
-        Voone lo aplique.
+        {direct
+          ? "El cambio se aplica al guardar y queda registrado en Mis solicitudes."
+          : "Voone revisará tu solicitud y te responderá. No se cambia nada hasta que Voone lo aplique."}
       </p>
       <CurrentValues context={context} />
 
@@ -484,21 +536,23 @@ export function ChangeRequestPanel({
             </div>
           ) : null}
 
-          <Field
-            label="Motivo"
-            error={errors.reason}
-            hint={`${values.reason.trim().length}/${REASON_MAX}`}
-            className="md:col-span-2"
-          >
-            <textarea
-              value={values.reason}
-              onChange={(event) => set("reason", event.target.value)}
-              maxLength={REASON_MAX + 200}
-              rows={4}
-              placeholder="Cuéntanos por qué quieres este cambio."
-              className={textareaClass}
-            />
-          </Field>
+          {direct ? null : (
+            <Field
+              label="Motivo"
+              error={errors.reason}
+              hint={`${values.reason.trim().length}/${REASON_MAX}`}
+              className="md:col-span-2"
+            >
+              <textarea
+                value={values.reason}
+                onChange={(event) => set("reason", event.target.value)}
+                maxLength={REASON_MAX + 200}
+                rows={4}
+                placeholder="Cuéntanos por qué quieres este cambio."
+                className={textareaClass}
+              />
+            </Field>
+          )}
         </fieldset>
 
         {errors.form ? (
@@ -518,8 +572,26 @@ export function ChangeRequestPanel({
             disabled={pending}
             className="inline-flex h-11 items-center rounded-xl bg-[#2d211e] px-4 text-sm font-semibold text-white disabled:opacity-60"
           >
-            <Send size={15} className="mr-2" aria-hidden="true" />
-            {pending ? "Enviando..." : "Enviar solicitud"}
+            {direct ? (
+              isRemoval ? (
+                <Trash2 size={15} className="mr-2" aria-hidden="true" />
+              ) : (
+                <Save size={15} className="mr-2" aria-hidden="true" />
+              )
+            ) : (
+              <Send size={15} className="mr-2" aria-hidden="true" />
+            )}
+            {direct
+              ? pending
+                ? isRemoval
+                  ? "Eliminando..."
+                  : "Guardando..."
+                : isRemoval
+                  ? "Eliminar"
+                  : "Guardar"
+              : pending
+                ? "Enviando..."
+                : "Enviar solicitud"}
           </button>
           <button
             type="button"

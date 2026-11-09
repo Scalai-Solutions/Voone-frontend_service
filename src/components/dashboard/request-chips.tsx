@@ -15,7 +15,14 @@ const STATUS_STYLE: Record<ChangeRequestStatus, string> = {
   REJECTED: "bg-[#f7e2de] text-[#9a3a2e]",
 };
 
-export function StatusChip({ status }: { status: ChangeRequestStatus }) {
+/** `auto`: a change the centre made itself (treatments, bonos), applied the moment it was made. */
+export function StatusChip({
+  status,
+  auto = false,
+}: {
+  status: ChangeRequestStatus;
+  auto?: boolean;
+}) {
   return (
     <span
       className={cn(
@@ -23,7 +30,7 @@ export function StatusChip({ status }: { status: ChangeRequestStatus }) {
         STATUS_STYLE[status],
       )}
     >
-      {STATUS_LABELS[status]}
+      {auto && status === "RESOLVED" ? "Aplicado automáticamente" : STATUS_LABELS[status]}
     </span>
   );
 }

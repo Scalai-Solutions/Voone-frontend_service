@@ -119,7 +119,7 @@ export function RequestsListClient() {
                 </div>
                 <div className="flex items-center gap-2">
                   <TypeChip type={item.type} />
-                  <StatusChip status={item.status} />
+                  <StatusChip status={item.status} auto={item.autoApproved} />
                 </div>
               </Link>
             </li>

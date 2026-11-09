@@ -1,5 +1,5 @@
 /**
- * The words on the owner's row request buttons. They are icons now, so this one string is both
+ * The words on the owner's row buttons for a treatment or a bono (edit and remove). They are icons now, so this one string is both
  * the `aria-label` (the accessible name) and the tooltip text, and the two can never drift.
  */
 
@@ -14,7 +14,7 @@ const clipSubject = (text: string): string =>
 export const requestButtonLabel = (kind: RequestButtonKind, subject: string): string => {
   const name = clipSubject(subject.replace(/\s+/g, " ").trim());
 
-  if (kind === "edit") return name ? `Solicitar cambio en ${name}` : "Solicitar cambio";
+  if (kind === "edit") return name ? `Editar ${name}` : "Editar";
 
-  return name ? `Solicitar baja de ${name}` : "Solicitar baja";
+  return name ? `Eliminar ${name}` : "Eliminar";
 };
