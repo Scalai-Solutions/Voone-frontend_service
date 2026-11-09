@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, CreditCard, Eye, Paintbrush, Plus, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, X } from "lucide-react";
 import { z } from "zod";
 
 import { GoogleWalletCardPreview } from "@/components/shared/google-wallet-card-preview";
@@ -94,12 +94,7 @@ const updateSchemaWithProgramme = z.object({
 });
 
 type TemplateFormValues = z.infer<typeof createSchema>;
-type TemplateTab = "edit" | "preview";
-
-const templateTabs: Array<{ id: TemplateTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "edit", label: "Diseño", icon: Paintbrush },
-  { id: "preview", label: "Vista previa", icon: Eye },
-];
+type PreviewWallet = "google" | "apple";
 
 const POLL_WINDOW_MS = 60_000;
 
@@ -182,7 +177,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const presetsQuery = useTemplatePresets({ initialData: presets });
   const availablePresets = presetsQuery.data ?? presets;
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
-  const [activeTab, setActiveTab] = React.useState<TemplateTab>("edit");
+  const [previewWallet, setPreviewWallet] = React.useState<PreviewWallet>("google");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
   const [heroUnchecked, setHeroUnchecked] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
@@ -349,230 +344,267 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     }
   }
 
+  const errors = form.formState.errors;
+  const previewLogo = chooseLogoUrl({ logoUrl: values.logoUrl, logoOnDarkUrl: values.logoOnDarkUrl, color: values.hexBackgroundColor });
+
   return (
-    <form onSubmit={form.handleSubmit(submit)} className="mx-auto max-w-[1120px] space-y-3">
-      <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/70 p-1">
-        {templateTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition", activeTab === tab.id ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}> 
-              <Icon className="h-4 w-4" /> {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {activeTab === "edit" ? (
-        <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-4 lg:grid-cols-[1fr_0.95fr]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Diseño de la tarjeta</p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Diseño y contenido</h2>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {availablePresets.map((preset) => (
-                <button key={preset.id} type="button" className={cn("flex items-center gap-3 rounded-2xl border p-3 text-left transition", preset.id === values.presetId ? "border-[#a47845] bg-[#fff8ed] shadow-sm" : "border-[#ded1c8] bg-white/70 hover:border-[#c8a36a]")} onClick={() => selectPreset(preset)}>
-                  <span className="h-8 w-8 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: preset.hexBackgroundColor }} />
-                  <span className="text-sm font-semibold">{preset.name}</span>
-                </button>
-              ))}
+    <form onSubmit={form.handleSubmit(submit)} className="mx-auto max-w-[1180px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <div className="space-y-5">
+          <Section title="Estilo" description="Elige un punto de partida y ajusta el color.">
+            <div className="flex flex-wrap gap-2">
+              {availablePresets.map((preset) => {
+                const selected = preset.id === values.presetId;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => selectPreset(preset)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-4 text-sm font-medium transition",
+                      selected ? "border-[#2d211e] bg-[#2d211e] text-white shadow-sm" : "border-[#e2d5cc] bg-white text-[#4a3a33] hover:border-[#c8a36a]",
+                    )}
+                  >
+                    <span className="h-6 w-6 rounded-full border border-black/10" style={{ backgroundColor: preset.hexBackgroundColor }} />
+                    {preset.name}
+                  </button>
+                );
+              })}
             </div>
-            {form.formState.errors.presetId?.message ? <p className="mt-2 text-sm text-destructive">{form.formState.errors.presetId.message}</p> : null}
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Nombre del programa" error={form.formState.errors.programName?.message}>
-                <Input {...form.register("programName")} placeholder="Nombre del programa" />
+            {errors.presetId?.message ? <p className="text-sm text-destructive">{errors.presetId.message}</p> : null}
+            <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
+              <Field label="Nombre del programa" error={errors.programName?.message}>
+                <Input {...form.register("programName")} placeholder="Club Diamante" />
               </Field>
-              <Field label="Color de fondo" error={form.formState.errors.hexBackgroundColor?.message} htmlFor="template-background-color">
-                <div className="flex h-10 items-center gap-3 rounded-xl border border-[#ded1c8] bg-white px-3 shadow-sm">
-                  <input id="template-background-color" type="color" className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0" value={values.hexBackgroundColor} onChange={(event) => form.setValue("hexBackgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })} />
+              <Field label="Color de la tarjeta" error={errors.hexBackgroundColor?.message} htmlFor="template-background-color">
+                <label className="flex h-10 cursor-pointer items-center gap-3 rounded-xl border border-[#ded1c8] bg-white px-2 shadow-sm">
+                  <input id="template-background-color" type="color" className="h-7 w-7 cursor-pointer rounded-full border-0 bg-transparent p-0" value={values.hexBackgroundColor} onChange={(event) => form.setValue("hexBackgroundColor", event.target.value, { shouldDirty: true, shouldValidate: true })} />
                   <input type="hidden" {...form.register("hexBackgroundColor")} />
-                  <span className="text-sm text-[#806d63]">{values.hexBackgroundColor}</span>
-                </div>
+                  <span className="font-mono text-sm uppercase text-[#806d63]">{values.hexBackgroundColor}</span>
+                </label>
               </Field>
-              <Field label="URL del logo" error={form.formState.errors.logoUrl?.message} htmlFor="template-logo-url">
-                <Input id="template-logo-url" aria-describedby={form.formState.errors.logoUrl ? "template-logo-url-error" : undefined} aria-invalid={form.formState.errors.logoUrl ? true : undefined} {...form.register("logoUrl")} placeholder="https://..." />
+            </div>
+          </Section>
+
+          <Section title="Imágenes" description="Sube un archivo o pega un enlace.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Logo" error={errors.logoUrl?.message} htmlFor="template-logo-url">
+                <Input id="template-logo-url" aria-describedby={errors.logoUrl ? "template-logo-url-error" : undefined} aria-invalid={errors.logoUrl ? true : undefined} {...form.register("logoUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="logo" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo" }} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
-                {!values.logoUrl?.trim() ? <p className="mt-2 text-xs text-[#927e72]">Añade el logo de tu centro; sin él la tarjeta usa el logo de Voone.</p> : null}
               </Field>
-              <Field label="Logo para fondo oscuro (opcional, se usa si el color de la tarjeta es oscuro)" error={form.formState.errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
-                <Input id="template-logo-on-dark-url" aria-describedby={form.formState.errors.logoOnDarkUrl ? "template-logo-on-dark-url-error" : undefined} aria-invalid={form.formState.errors.logoOnDarkUrl ? true : undefined} {...form.register("logoOnDarkUrl")} placeholder="https://..." />
+              <Field label="Logo para fondo oscuro (opcional)" error={errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
+                <Input id="template-logo-on-dark-url" aria-describedby={errors.logoOnDarkUrl ? "template-logo-on-dark-url-error" : undefined} aria-invalid={errors.logoOnDarkUrl ? true : undefined} {...form.register("logoOnDarkUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="logoOnDark" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
-              <Field label="URL de imagen principal" error={form.formState.errors.heroImageUrl?.message} className="sm:col-span-2" htmlFor="template-hero-image-url">
-                <Input id="template-hero-image-url" aria-describedby={form.formState.errors.heroImageUrl ? "template-hero-image-url-error" : undefined} aria-invalid={form.formState.errors.heroImageUrl ? true : undefined} {...form.register("heroImageUrl")} placeholder="https://..." />
+              <Field label="Imagen principal (opcional)" error={errors.heroImageUrl?.message} className="sm:col-span-2" htmlFor="template-hero-image-url">
+                <Input id="template-hero-image-url" aria-describedby={errors.heroImageUrl ? "template-hero-image-url-error" : undefined} aria-invalid={errors.heroImageUrl ? true : undefined} {...form.register("heroImageUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="hero" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen principal" }} onUploaded={(url) => form.setValue("heroImageUrl", url, { shouldDirty: true, shouldValidate: true })} />
-                {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-md bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
+                {heroWarning ? <p className="mt-2 flex items-start gap-2 rounded-xl bg-[#fff7e7] p-3 text-sm text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{heroWarning}</p> : null}
                 {heroUnchecked ? <p className="mt-2 text-xs text-[#927e72]">No se pudo comprobar este enlace.</p> : null}
               </Field>
             </div>
+          </Section>
 
-            <div className="mt-4 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Botones de la tarjeta</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <Field label="Texto del botón principal" error={form.formState.errors.appLinkText?.message}>
-                  <Input {...form.register("appLinkText")} maxLength={30} placeholder="Reservar cita" />
-                </Field>
-                <Field label="URL del botón principal" error={form.formState.errors.appointmentUrl?.message}>
-                  <Input {...form.register("appointmentUrl")} placeholder="https://..." />
-                </Field>
-                <Field label="Página web (opcional, aparece como «Web»)" error={form.formState.errors.websiteUrl?.message} className="sm:col-span-2">
-                  <Input {...form.register("websiteUrl")} placeholder="https://..." />
-                </Field>
-                {extraButtons.fields.map((button, index) => (
-                  <div key={button.id} className="grid gap-2 rounded-2xl border border-[#eadfd8] bg-white/70 p-3 sm:col-span-2 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
-                    <Field label={`Texto del botón ${index + 2}`} error={form.formState.errors.extraButtons?.[index]?.label?.message}>
-                      <Input {...form.register(`extraButtons.${index}.label`)} maxLength={30} placeholder="Ver tratamientos" />
-                    </Field>
-                    <Field label={`URL del botón ${index + 2}`} error={form.formState.errors.extraButtons?.[index]?.url?.message}>
-                      <Input {...form.register(`extraButtons.${index}.url`)} placeholder="https://..." />
-                    </Field>
-                    <button type="button" onClick={() => extraButtons.remove(index)} aria-label={`Quitar botón ${index + 2}`} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e8b9b1] bg-white text-[#b94135] transition hover:bg-[#fff3f1]">
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => extraButtons.append({ label: "", url: "" })}
-                disabled={extraButtons.fields.length >= EXTRA_BUTTONS_MAX}
-                className="mt-3 inline-flex items-center gap-1 rounded-full border border-[#ded1c8] bg-white px-3 py-1.5 text-xs font-semibold text-[#6f4d3f] hover:bg-[#f7efe8] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus className="h-3.5 w-3.5" /> {extraButtons.fields.length >= EXTRA_BUTTONS_MAX ? `Máximo ${EXTRA_BUTTONS_MAX} botones adicionales` : "Añadir botón"}
-              </button>
+          <Section title="Botones" description="El botón principal va en la parte frontal; los secundarios, en el reverso de la tarjeta.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Texto del botón principal" error={errors.appLinkText?.message}>
+                <Input {...form.register("appLinkText")} maxLength={30} placeholder="Sitio web" />
+              </Field>
+              <Field label="Enlace del botón principal" error={errors.appointmentUrl?.message}>
+                <Input {...form.register("appointmentUrl")} placeholder="https://..." />
+              </Field>
             </div>
-          </div>
 
-          <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Texto Wallet</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <Field label="Etiqueta de puntos" error={form.formState.errors.pointsLabel?.message}>
+            <div className="space-y-3 border-t border-[#f0e6df] pt-4">
+              <p className="text-sm font-semibold text-[#2e2421]">Botones secundarios</p>
+              <Field label="Página web (opcional)" error={errors.websiteUrl?.message}>
+                <Input {...form.register("websiteUrl")} placeholder="https://..." />
+              </Field>
+              {extraButtons.fields.map((button, index) => (
+                <div key={button.id} className="grid gap-3 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+                  <Field label={`Texto del botón ${index + 1}`} error={errors.extraButtons?.[index]?.label?.message}>
+                    <Input {...form.register(`extraButtons.${index}.label`)} maxLength={30} placeholder="Reservar cita" />
+                  </Field>
+                  <Field label={`Enlace del botón ${index + 1}`} error={errors.extraButtons?.[index]?.url?.message}>
+                    <Input {...form.register(`extraButtons.${index}.url`)} placeholder="https://..." />
+                  </Field>
+                  <button type="button" onClick={() => extraButtons.remove(index)} aria-label={`Quitar botón ${index + 1}`} className="flex h-10 w-10 items-center justify-center rounded-xl text-[#a08b80] transition hover:bg-[#fff3f1] hover:text-[#b94135]">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {extraButtons.fields.length < EXTRA_BUTTONS_MAX ? (
+                <button
+                  type="button"
+                  onClick={() => extraButtons.append({ label: "", url: "" })}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-[#cdb9aa] px-3 py-2 text-sm font-semibold text-[#6f4d3f] transition hover:border-[#a47845] hover:bg-[#fffaf6]"
+                >
+                  <Plus className="h-4 w-4" /> Añadir botón secundario
+                </button>
+              ) : null}
+            </div>
+          </Section>
+
+          <Section title="Textos de la tarjeta">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Etiqueta de puntos" error={errors.pointsLabel?.message}>
                 <Input {...form.register("pointsLabel")} placeholder="Puntos" />
               </Field>
-              <Field label="Etiqueta de nivel" error={form.formState.errors.tierLabel?.message}>
+              <Field label="Etiqueta de nivel" error={errors.tierLabel?.message}>
                 <Input {...form.register("tierLabel")} placeholder="Nivel" />
               </Field>
               {hasActiveProgramme ? (
-                <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2" data-testid="template-benefits-from-programme">
+                <div className="sm:col-span-2" data-testid="template-benefits-from-programme">
                   <p className="text-sm font-medium text-[#2e2421]">Beneficios</p>
-                  <p className="mt-1 rounded-xl border border-[#eadfd8] bg-white/60 p-3 text-xs leading-5 text-[#806e66]">
-                    Los beneficios de tu tarjeta se toman del programa de fidelización: cada cliente ve los de su nivel. Se editan en el programa.
+                  <p className="mt-1 rounded-xl bg-[#faf5f1] p-3 text-xs leading-5 text-[#806e66]">
+                    Cada cliente ve los beneficios de su nivel del programa.
                     {scope === "admin" ? (
                       <>
                         {" "}
-                        <Link href={`/admin/clinics/${clinicId}/program`} className="font-semibold text-[#b7874a] underline underline-offset-2">Edítalos en Programa</Link>
+                        <Link href={`/admin/clinics/${clinicId}/program`} className="font-semibold text-[#b7874a] underline underline-offset-2">Editar en Programa</Link>
                       </>
                     ) : null}
                   </p>
                 </div>
               ) : (
-                <Field label="Beneficios" error={form.formState.errors.benefitsText?.message} htmlFor="template-benefits-text" className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                  <Textarea id="template-benefits-text" rows={2} className="min-h-16" aria-describedby="template-benefits-text-note" aria-invalid={form.formState.errors.benefitsText ? true : undefined} {...limitedRegister("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
+                <Field label="Beneficios" error={errors.benefitsText?.message} htmlFor="template-benefits-text" className="sm:col-span-2">
+                  <Textarea id="template-benefits-text" rows={2} className="min-h-16" aria-invalid={errors.benefitsText ? true : undefined} {...limitedRegister("benefitsText")} placeholder="Reservas prioritarias, ofertas para miembros, crédito de cumpleaños." />
                   <CharCounter text={values.benefitsText ?? ""} />
-                  <p id="template-benefits-text-note" className="mt-1 text-xs leading-5 text-[#927e72]">Se muestra en la tarjeta de tus clientes.</p>
                 </Field>
               )}
-              <Field label="Texto informativo" error={form.formState.errors.infoText?.message} htmlFor="template-info-text" className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                <Textarea id="template-info-text" rows={2} className="min-h-16" aria-invalid={form.formState.errors.infoText ? true : undefined} {...limitedRegister("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
+              <Field label="Texto informativo" error={errors.infoText?.message} htmlFor="template-info-text" className="sm:col-span-2">
+                <Textarea id="template-info-text" rows={2} className="min-h-16" aria-invalid={errors.infoText ? true : undefined} {...limitedRegister("infoText")} placeholder="Muestra este pase en recepción antes de pagar." />
                 <CharCounter text={values.infoText ?? ""} />
               </Field>
             </div>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "preview" ? (
-        <section className="grid gap-4 rounded-3xl border border-[#e2d5cc] bg-white/82 p-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Vista previa</p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Así verá el cliente el pase</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#927e72]">Esta pestaña solo previsualiza el pase. Los cambios de contenido van en Diseño y los tratamientos y sus puntos se gestionan en Mi centro.</p>
-            <div className="mt-5 max-w-[360px]">
-              <WalletCardPreview
-                clinicName={currentClinic.data?.name}
-                programName={values.programName}
-                color={values.hexBackgroundColor}
-                logoUrl={chooseLogoUrl({ logoUrl: values.logoUrl, logoOnDarkUrl: values.logoOnDarkUrl, color: values.hexBackgroundColor })}
-                heroImageUrl={values.heroImageUrl}
-                levelLabel={values.tierLabel}
-                pointsLabel={values.pointsLabel}
-              />
-              <p className="mt-4 text-xs leading-5 text-[#806e66]"><span className="font-semibold text-[#2e2421]">Beneficios:</span> {hasActiveProgramme ? "Cada cliente ve los de su nivel del programa." : values.benefitsText || "Los beneficios aparecerán aquí."}</p>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-[#b7874a]" aria-hidden="true" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Google Wallet</p>
-            </div>
-            {/* The same preview as onboarding step 3, laid out as the backend builds the Google class. */}
-            <GoogleWalletCardPreview
-              className="mt-3"
-              clinicName={currentClinic.data?.name}
-              programName={values.programName}
-              color={values.hexBackgroundColor}
-              logoUrl={chooseLogoUrl({ logoUrl: values.logoUrl, logoOnDarkUrl: values.logoOnDarkUrl, color: values.hexBackgroundColor })}
-              heroImageUrl={values.heroImageUrl}
-              levelLabel={values.tierLabel}
-              pointsLabel={values.pointsLabel}
-              programme={hasActiveProgramme}
-              buttonText={values.appointmentUrl?.trim() ? values.appLinkText?.trim() || "Reservar cita" : undefined}
-              hasWebsite={Boolean(values.websiteUrl?.trim())}
-              extraButtons={values.extraButtons ?? []}
-            />
-          </div>
-        </section>
-      ) : null}
-
-      {confirming ? (
-        <section role="alertdialog" aria-labelledby="template-confirm-title" className="rounded-3xl border border-[#d9b98f] bg-[#fff8ed] p-4">
-          <p id="template-confirm-title" className="font-semibold text-[#2e2421]">
-            {refreshStatus.isPending
-              ? "Comprobando cuántas tarjetas se actualizarán..."
-              : status
-                ? status.eligible > 0
-                  ? status.eligible === 1
-                    ? "Se actualizará 1 tarjeta"
-                    : `Se actualizarán ${status.eligible.toLocaleString("es-ES")} tarjetas`
-                  : "Todavía no hay tarjetas emitidas; el cambio se aplicará a las nuevas."
-                : "No se pudo comprobar cuántas tarjetas se actualizarán."}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" className="rounded-2xl" disabled={mutation.isPending} onClick={() => void form.handleSubmit((input) => save(saveInput(input)), () => setConfirming(false))()}>Guardar y actualizar</Button>
-            <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setConfirming(false)}>Cancelar</Button>
-          </div>
-        </section>
-      ) : null}
-
-      {statusEnabled && (lastChange || showProgress) ? (
-        <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-3 text-sm">
-          {lastChange && lastChangeTime ? (
-            <p className="text-[#806e66]">Último cambio: {lastChange.by ? `${lastChange.by} · ${lastChangeTime}` : lastChangeTime}</p>
-          ) : null}
-          {showProgress && status && lastChange ? (
-            <>
-              <p className="mt-1 font-semibold text-[#2e2421]">
-                {status.syncedSince.toLocaleString("es-ES")} de {lastChange.cardsAtSave.toLocaleString("es-ES")} tarjetas actualizadas en el servidor
-              </p>
-              {status.failedSince > 0 ? (
-                <p className="mt-1 text-destructive">
-                  {status.failedSince === 1 ? "1 tarjeta con error" : `${status.failedSince.toLocaleString("es-ES")} tarjetas con error`}: se reintentarán al guardar de nuevo.
-                </p>
-              ) : null}
-            </>
-          ) : null}
-        </section>
-      ) : null}
-
-      <section className="rounded-3xl border border-[#e2d5cc] bg-white/82 p-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-h-6 text-sm">
-            {statusMessage ? <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>{!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}{statusMessage}</span> : <span className="text-[#927e72]">Los cambios se guardan y llegan a las tarjetas que ya tienen tus clientes.</span>}
-          </div>
-          <Button type="submit" className="h-10 rounded-2xl px-6" disabled={mutation.isPending}>
-            {mutation.isPending ? "Guardando..." : initialTemplate ? "Actualizar diseño" : "Crear diseño"}
-          </Button>
+          </Section>
         </div>
-      </section>
+
+        <aside className="lg:sticky lg:top-6">
+          <div className="rounded-3xl border border-[#e2d5cc] bg-gradient-to-b from-[#faf5f1] to-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[#2e2421]">Vista previa</p>
+              <div className="flex rounded-full bg-[#efe6df] p-0.5 text-xs font-semibold" role="group" aria-label="Wallet de la vista previa">
+                {(["google", "apple"] as const).map((wallet) => (
+                  <button
+                    key={wallet}
+                    type="button"
+                    aria-pressed={previewWallet === wallet}
+                    onClick={() => setPreviewWallet(wallet)}
+                    className={cn("rounded-full px-3 py-1 transition", previewWallet === wallet ? "bg-white text-[#2e2421] shadow-sm" : "text-[#806b60] hover:text-[#2e2421]")}
+                  >
+                    {wallet === "google" ? "Google" : "Apple"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mx-auto mt-4 max-w-[340px]">
+              {previewWallet === "google" ? (
+                // Laid out as the backend builds the Google class, like onboarding step 3.
+                <GoogleWalletCardPreview
+                  clinicName={currentClinic.data?.name}
+                  programName={values.programName}
+                  color={values.hexBackgroundColor}
+                  logoUrl={previewLogo}
+                  heroImageUrl={values.heroImageUrl}
+                  levelLabel={values.tierLabel}
+                  pointsLabel={values.pointsLabel}
+                  programme={hasActiveProgramme}
+                  buttonText={values.appointmentUrl?.trim() ? values.appLinkText?.trim() || "Reservar cita" : undefined}
+                  hasWebsite={Boolean(values.websiteUrl?.trim())}
+                  extraButtons={values.extraButtons ?? []}
+                />
+              ) : (
+                <WalletCardPreview
+                  clinicName={currentClinic.data?.name}
+                  programName={values.programName}
+                  color={values.hexBackgroundColor}
+                  logoUrl={previewLogo}
+                  heroImageUrl={values.heroImageUrl}
+                  levelLabel={values.tierLabel}
+                  pointsLabel={values.pointsLabel}
+                />
+              )}
+            </div>
+            {!values.logoUrl?.trim() ? <p className="mt-3 text-center text-xs text-[#927e72]">Sin logo, la tarjeta usa el de Voone.</p> : null}
+          </div>
+
+          {statusEnabled && (lastChange || showProgress) ? (
+            <div className="mt-3 rounded-2xl border border-[#e2d5cc] bg-white p-3 text-xs">
+              {lastChange && lastChangeTime ? (
+                <p className="text-[#806e66]">Último cambio: {lastChange.by ? `${lastChange.by} · ${lastChangeTime}` : lastChangeTime}</p>
+              ) : null}
+              {showProgress && status && lastChange ? (
+                <>
+                  <p className="mt-1 font-semibold text-[#2e2421]">
+                    {status.syncedSince.toLocaleString("es-ES")} de {lastChange.cardsAtSave.toLocaleString("es-ES")} tarjetas actualizadas
+                  </p>
+                  {status.failedSince > 0 ? (
+                    <p className="mt-1 text-destructive">
+                      {status.failedSince === 1 ? "1 tarjeta con error" : `${status.failedSince.toLocaleString("es-ES")} tarjetas con error`}: se reintentarán al guardar de nuevo.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </aside>
+      </div>
+
+      <div className="sticky bottom-4 z-30 mt-6">
+        <div
+          role={confirming ? "alertdialog" : undefined}
+          aria-labelledby={confirming ? "template-confirm-title" : undefined}
+          className={cn("flex flex-col gap-3 rounded-2xl border px-4 py-3 shadow-[0_12px_40px_-12px_rgba(67,48,43,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between", confirming ? "border-[#d9b98f] bg-[#fff8ed]/95" : "border-[#e2d5cc] bg-white/90")}
+        >
+          {confirming ? (
+            <>
+              <p id="template-confirm-title" className="text-sm font-semibold text-[#2e2421]">
+                {refreshStatus.isPending
+                  ? "Comprobando cuántas tarjetas se actualizarán..."
+                  : status
+                    ? status.eligible > 0
+                      ? status.eligible === 1
+                        ? "Se actualizará 1 tarjeta"
+                        : `Se actualizarán ${status.eligible.toLocaleString("es-ES")} tarjetas`
+                      : "Todavía no hay tarjetas emitidas; el cambio se aplicará a las nuevas."
+                    : "No se pudo comprobar cuántas tarjetas se actualizarán."}
+              </p>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setConfirming(false)}>Cancelar</Button>
+                <Button type="button" className="rounded-xl px-5" disabled={mutation.isPending} onClick={() => void form.handleSubmit((input) => save(saveInput(input)), () => setConfirming(false))()}>
+                  {mutation.isPending ? "Guardando..." : "Guardar y actualizar"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="min-h-5 text-sm" role="status">
+                {statusMessage ? (
+                  <span className={mutation.isError ? "text-destructive" : "inline-flex items-center gap-2 text-success"}>
+                    {!mutation.isError ? <CheckCircle2 className="h-4 w-4" /> : null}
+                    {statusMessage}
+                  </span>
+                ) : null}
+              </div>
+              <Button type="submit" className="h-10 rounded-xl px-6" disabled={mutation.isPending}>
+                {mutation.isPending ? "Guardando..." : initialTemplate ? "Guardar cambios" : "Crear diseño"}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
     </form>
+  );
+}
+
+function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-3xl border border-[#e2d5cc] bg-white p-5 shadow-[0_1px_2px_rgba(67,48,43,0.04)] sm:p-6">
+      <h2 className="text-base font-semibold text-[#2e2421]">{title}</h2>
+      {description ? <p className="mt-0.5 text-sm text-[#927e72]">{description}</p> : null}
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
   );
 }

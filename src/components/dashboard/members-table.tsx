@@ -52,11 +52,14 @@ const memberAge = (member: Member) => {
   return "-";
 };
 
+/** Metallic tag per tier, keyed by lowercase name; a renamed tier falls back to the neutral tag. */
 const tierColors: Record<string, string> = {
-  Gold: "bg-[#f2d09a] text-[#68451f]",
-  Diamond: "bg-[#c9d7e5] text-[#30465d]",
-  Silver: "bg-[#d8d8d4] text-[#4d4e4a]",
-  Nuevo: "bg-[#eadfd8] text-[#6f5c53]",
+  bronce: "bg-gradient-to-br from-[#e3b88f] via-[#c08a5c] to-[#9a6640] text-white ring-1 ring-[#8a5a37]/40",
+  plata: "bg-gradient-to-br from-[#f4f4f6] via-[#c9cad0] to-[#a3a5ad] text-[#3e4048] ring-1 ring-[#8f919a]/40",
+  oro: "bg-gradient-to-br from-[#f7e08f] via-[#d9b24c] to-[#b48a2c] text-[#4a3510] ring-1 ring-[#a07a22]/40",
+  platino: "bg-gradient-to-br from-[#eef3f4] via-[#b7c8cc] to-[#7f9aa2] text-[#26393f] ring-1 ring-[#6f8f9a]/40",
+  diamante: "bg-gradient-to-br from-[#dbe9ff] via-[#93b4ea] to-[#4d6fa8] text-white ring-1 ring-[#3d5c91]/40",
+  nuevo: "bg-[#eadfd8] text-[#6f5c53]",
 };
 
 const formatDate = (value: string | null) =>
@@ -212,7 +215,7 @@ function MemberRow({ member }: { member: Member }) {
       <td className="px-5 py-4">{member.sex ? sexLabels[member.sex] : "-"}</td>
       <td className="px-5 py-4">{memberAge(member)}</td>
       <td className="px-5 py-4">{identityIsPhone ? member.identity : "-"}</td>
-      <td className="px-5 py-4"><span className={cn("rounded-full px-3 py-1.5 text-xs font-bold", tierColors[member.tier] ?? "bg-[#eadfd8] text-[#6f5c53]")}>{member.tier}</span></td>
+      <td className="px-5 py-4"><span className={cn("rounded-full px-3 py-1.5 text-xs font-bold shadow-sm", tierColors[member.tier.toLowerCase()] ?? "bg-[#eadfd8] text-[#6f5c53]")}>{member.tier}</span></td>
       <td className="px-5 py-4 font-semibold">{formatPoints(member.points)}</td>
       <td className="px-5 py-4 font-semibold">{spent}</td>
       <td className="px-5 py-4"><CalendarDays size={14} className="mr-1 inline text-[#b8864b]" />{formatDate(member.lastVisitedAt)}</td>

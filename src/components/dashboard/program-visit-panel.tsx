@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Gift,
   Loader2,
   Plus,
@@ -125,6 +126,13 @@ export function ProgramVisitPanel({
   const [multiplierIndex, setMultiplierIndex] = React.useState(0);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [outcome, setOutcome] = React.useState<VisitOutcome | null>(null);
+  const [toast, setToast] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
   const [recordedVisitId, setVisitId] = React.useState<string | null>(null);
 
   // A store read, not state: the server render has no storage, so the server snapshot is null and
@@ -245,6 +253,11 @@ export function ProgramVisitPanel({
     const onSuccess = (result: VisitOutcome) => {
       visitKeyRef.current = null;
       setOutcome(result);
+      setToast(
+        result.duplicate
+          ? "Esta visita ya estaba registrada."
+          : `Puntos otorgados: ${formatPoints(result.points)}`,
+      );
       setVisitId(result.visitId);
       storeVisit(memberId, result.visitId);
       setLines([
@@ -417,6 +430,15 @@ export function ProgramVisitPanel({
 
   return (
     <div className="grid gap-4">
+      {toast ? (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#201715] px-4 py-2.5 text-sm font-semibold text-white shadow-lg"
+        >
+          <CheckCircle2 className="h-4 w-4 text-success" />
+          {toast}
+        </div>
+      ) : null}
       <form
         onSubmit={submit}
         className="rounded-lg border border-border bg-background/70 p-4"
@@ -578,19 +600,6 @@ export function ProgramVisitPanel({
                 <Plus className="mr-1.5 h-3.5 w-3.5" />{" "}
                 <span>Añadir otro importe</span>
               </Button>
-              <label className="text-xs font-medium text-muted-foreground">
-                Productos con descuento de nivel
-                <input
-                  inputMode="numeric"
-                  value={discounted}
-                  onChange={(event) => {
-                    setDiscounted(event.target.value);
-                    setNotice(null);
-                  }}
-                  placeholder="0"
-                  className={`${inputClass} w-24`}
-                />
-              </label>
             </div>
           </div>
         ) : (
@@ -725,28 +734,52 @@ export function ProgramVisitPanel({
           </div>
         )}
 
-        <label className="mt-3 block text-xs font-medium text-muted-foreground">
-          Puntos extra (opcional)
-          <input
-            inputMode="numeric"
-            value={
-              multiplier !== null && multipliedBonus !== null
-                ? String(multipliedBonus)
-                : bonusPoints
-            }
-            onChange={(event) => {
-              setBonusPoints(event.target.value);
-              setMultiplierIndex(0);
-              setNotice(null);
-            }}
-            placeholder="0"
-            className={`${inputClass} w-28`}
-          />
-          <span className="mt-1 block text-[11px] font-normal leading-4 text-muted-foreground">
-            En múltiplos de 10 (10 puntos = 1 €). Se suman al progreso de la
-            visita, sin multiplicador de nivel.
-          </span>
-        </label>
+        {/* Closed on every visit; staff open it only when they need these. */}
+        <details key={outcome?.visitId ?? "new"} className="group mt-3 rounded-md border border-border bg-background/70">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
+            {mode === "PAYMENT" ? "Productos con descuento y puntos extra" : "Puntos extra"}
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid gap-3 px-3 pb-3">
+            {mode === "PAYMENT" ? (
+                <label className="text-xs font-medium text-muted-foreground">
+                  Productos con descuento de nivel
+                  <input
+                    inputMode="numeric"
+                    value={discounted}
+                    onChange={(event) => {
+                      setDiscounted(event.target.value);
+                      setNotice(null);
+                    }}
+                    placeholder="0"
+                    className={`${inputClass} w-24`}
+                  />
+                </label>
+            ) : null}
+            <label className="block text-xs font-medium text-muted-foreground">
+              Puntos extra (opcional)
+              <input
+                inputMode="numeric"
+                value={
+                  multiplier !== null && multipliedBonus !== null
+                    ? String(multipliedBonus)
+                    : bonusPoints
+                }
+                onChange={(event) => {
+                  setBonusPoints(event.target.value);
+                  setMultiplierIndex(0);
+                  setNotice(null);
+                }}
+                placeholder="0"
+                className={`${inputClass} w-28`}
+              />
+              <span className="mt-1 block text-[11px] font-normal leading-4 text-muted-foreground">
+                En múltiplos de 10 (10 puntos = 1 €). Se suman al progreso de la
+                visita, sin multiplicador de nivel.
+              </span>
+            </label>
+          </div>
+        </details>
 
         {originalPoints > 0 ? (
           <div className="mt-2 rounded-md border border-border bg-background/70 p-3">
