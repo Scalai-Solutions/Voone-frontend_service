@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CircleOff, Copy, MailCheck, Trash2 } from "lucide-react";
+import { CircleOff, Copy, KeyRound, MailCheck, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useCreatePasswordSetupLink } from "@/features/clinics/api/useCreatePasswordSetupLink";
@@ -75,7 +75,7 @@ export function ClinicAccountActions({ clinicId, isActive }: { clinicId: string;
   );
 }
 
-export function ClinicCredentialsActions({ clinicId, email, setupUrl, setupTokenExpiresAt, generatedAt, sentAt, hasPassword }: { clinicId: string; email?: string; setupUrl?: string | null; setupTokenExpiresAt?: string | null; generatedAt?: string | null; sentAt?: string | null; hasPassword?: boolean }) {
+export function ClinicCredentialsActions({ clinicId, email, setupUrl, setupTokenExpiresAt, generatedAt, sentAt, hasPassword, setPasswordLink = false }: { clinicId: string; email?: string; setupUrl?: string | null; setupTokenExpiresAt?: string | null; generatedAt?: string | null; sentAt?: string | null; hasPassword?: boolean; /** Onboarding: open the existing link instead of generating and emailing a new one. */ setPasswordLink?: boolean }) {
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
   const [currentSetupUrl, setCurrentSetupUrl] = React.useState(setupUrl ?? null);
@@ -139,9 +139,19 @@ export function ClinicCredentialsActions({ clinicId, email, setupUrl, setupToken
           <p className="mt-2 text-sm font-semibold text-[#2e2421]">No hay ningún enlace activo</p>
         )}
       </div>
-      <Button type="button" onClick={shareCredentials} disabled={!email || setupMutation.isPending} className="mt-5 rounded-2xl">
-        <MailCheck className="mr-2 h-4 w-4" /> {setupMutation.isPending ? "Generando..." : "Generar enlace"}
-      </Button>
+      {setPasswordLink ? (
+        currentSetupUrl ? (
+          <Button asChild className="mt-5 rounded-2xl">
+            <a href={currentSetupUrl} target="_blank" rel="noopener noreferrer">
+              <KeyRound className="mr-2 h-4 w-4" /> Establecer contraseña
+            </a>
+          </Button>
+        ) : null
+      ) : (
+        <Button type="button" onClick={shareCredentials} disabled={!email || setupMutation.isPending} className="mt-5 rounded-2xl">
+          <MailCheck className="mr-2 h-4 w-4" /> {setupMutation.isPending ? "Generando..." : "Generar enlace"}
+        </Button>
+      )}
       <p className="mt-3 text-xs leading-5 text-[#806d63]">El propietario de la clínica usa este enlace de un solo uso para crear su propia contraseña. La contraseña permanece vacía hasta que envíe el formulario.</p>
       {status ? <p className="mt-3 text-sm text-[#704f40]">{status}</p> : null}
     </div>

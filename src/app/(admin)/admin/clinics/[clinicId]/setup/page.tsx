@@ -61,6 +61,7 @@ export default async function ClinicSetupPage({
             generatedAt={credentials?.generatedAt}
             sentAt={credentials?.sentAt}
             hasPassword={credentials?.hasPassword}
+            setPasswordLink
           />
         }
       />

@@ -419,7 +419,7 @@ Presoterapia 30 min;35;no;PRE`}
             type="file"
             accept=".csv,.txt,text/csv,text/plain"
             aria-label="Archivo CSV"
-            className="text-sm"
+            className="text-sm text-muted-foreground file:mr-3 file:h-9 file:cursor-pointer file:rounded-xl file:border file:border-border/80 file:bg-background/70 file:px-3 file:text-sm file:font-semibold file:text-foreground file:transition-colors hover:file:bg-secondary/70"
             onChange={(event) => void readFile(event.target.files?.[0])}
           />
 
