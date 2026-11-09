@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Inbox as InboxIcon, Loader2, MessageCircle, Search } from "lucide-react";
 
 import {
+  AutoChip,
   StatusChip,
   TypeChip,
   cardClass,
@@ -165,6 +166,7 @@ export function ChangeRequestsInbox({ clinicId: fixedClinicId }: { clinicId?: st
                     <div className="flex flex-wrap items-center gap-2">
                       <TypeChip type={row.type} />
                       <StatusChip status={row.status} />
+                      {row.autoApproved ? <AutoChip /> : null}
                       <span
                         className="inline-flex items-center gap-1 text-xs text-[#8c7870]"
                         title="Messages"

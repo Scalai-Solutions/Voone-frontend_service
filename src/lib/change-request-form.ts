@@ -173,8 +173,26 @@ const checkSessions = (raw: string, errors: FormErrors): number | null => {
   return value;
 };
 
-const checkReason = (raw: string, errors: FormErrors): string => {
+/**
+ * What the centre changes itself, with no one at Voone in between: treatments and bono plans. The
+ * backend applies these the moment they are sent and keeps the ticket as the record, so the form
+ * is an editor, not a request: no reason is asked for.
+ */
+export const isDirectChange = (context: RequestContext): boolean =>
+  context.kind === "service-add" ||
+  context.kind === "service-edit" ||
+  context.kind === "service-remove" ||
+  context.kind === "bono-add" ||
+  context.kind === "bono-edit" ||
+  context.kind === "bono-remove";
+
+/** The reason a direct change is filed with when the centre writes none. */
+export const DIRECT_CHANGE_REASON = "Cambio hecho desde el panel del centro.";
+
+const checkReason = (raw: string, errors: FormErrors, optional = false): string => {
   const reason = raw.trim();
+
+  if (optional && reason === "") return DIRECT_CHANGE_REASON;
 
   if (reason.length < REASON_MIN) {
     errors.reason = `Explica el motivo de la solicitud (mínimo ${REASON_MIN} caracteres).`;
@@ -211,7 +229,7 @@ export const buildChangeRequest = (
   values: FormValues,
 ): BuildResult => {
   const errors: FormErrors = {};
-  const reason = checkReason(values.reason, errors);
+  const reason = checkReason(values.reason, errors, isDirectChange(context));
   let raw: Record<string, unknown> | null = null;
 
   switch (context.kind) {

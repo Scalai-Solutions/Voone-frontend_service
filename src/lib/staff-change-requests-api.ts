@@ -36,6 +36,10 @@ export interface ChangeRequest {
   resolutionNote: string | null;
   /** When a closed request stops being reopenable; null if it is open or the window has passed. */
   reopenableUntil: string | null;
+  /** The change was applied the moment it was made (treatments and bonos), with no one at Voone in between. */
+  autoApproved?: boolean;
+  /** On the answer to making such a change: what the centre should know about it (Spanish). */
+  warnings?: string[];
   createdAt: string;
   updatedAt: string;
 }

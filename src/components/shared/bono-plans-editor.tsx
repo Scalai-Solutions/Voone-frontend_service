@@ -136,7 +136,7 @@ export function BonoPlansEditor({
             className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"
           >
             <Plus size={15} className="mr-1 inline" />
-            Solicitar un nuevo bono
+            Añadir un bono
           </button>
           {requests.activePlanId === "new" ? (
             <div className="mt-3 overflow-hidden rounded-2xl border border-[#eadfd8]">

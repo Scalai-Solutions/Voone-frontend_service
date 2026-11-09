@@ -60,6 +60,8 @@ export interface ChangeRequest {
   programId: string | null;
   /** Set once a SERVICE_* or BONO ticket's change was applied. Absent on an older backend. */
   appliedAt?: string | null;
+  /** Approved and applied by the system when the clinic made the change. */
+  autoApproved?: boolean;
   appliedByEmail?: string | null;
   emailSentAt: string | null;
   lastEmailError: string | null;

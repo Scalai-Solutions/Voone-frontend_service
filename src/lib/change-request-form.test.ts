@@ -6,7 +6,9 @@ import {
   buildFlagRequest,
   categoryChoices,
   clip,
+  DIRECT_CHANGE_REASON,
   initialValues,
+  isDirectChange,
   isUnpricedReward,
   withRewardMode,
   type FormValues,
@@ -86,10 +88,39 @@ describe("service edit", () => {
     assert.deepEqual(okBody(plain, { price: "70" }).proposed, { priceEuro: 70 });
   });
 
-  it("requires a reason of 3 to 2000 characters", () => {
-    assert.ok(errorsOf(context, { price: "70", reason: "  " }).reason);
+  it("needs no reason: a change the centre makes itself is filed with a default one", () => {
+    const body = okBody(context, { price: "70", reason: "  " });
+
+    assert.equal(body.reason, DIRECT_CHANGE_REASON);
+    assert.equal(okBody(context, { price: "70", reason: "Subida de precios" }).reason, "Subida de precios");
+  });
+
+  it("still refuses a reason that is written but too short or too long", () => {
     assert.ok(errorsOf(context, { price: "70", reason: "ab" }).reason);
     assert.ok(errorsOf(context, { price: "70", reason: "a".repeat(2001) }).reason);
+  });
+});
+
+describe("which changes the centre makes itself", () => {
+  it("are treatments and bonos, never rewards, levels or other requests", () => {
+    const direct: RequestContext[] = [
+      { kind: "service-add", usesCatalogue: false },
+      { kind: "service-edit", treatment, usesCatalogue: false },
+      { kind: "service-remove", treatment },
+      { kind: "bono-add" },
+      { kind: "bono-edit", plan },
+      { kind: "bono-remove", plan },
+    ];
+    const waiting: RequestContext[] = [{ kind: "reward" }, { kind: "level" }, { kind: "other" }];
+
+    assert.deepEqual(direct.map(isDirectChange), direct.map(() => true));
+    assert.deepEqual(waiting.map(isDirectChange), waiting.map(() => false));
+  });
+
+  it("a reward request still needs its reason", () => {
+    const context: RequestContext = { kind: "reward" };
+
+    assert.ok(errorsOf(context, { reason: "  " }).reason);
   });
 });
 
