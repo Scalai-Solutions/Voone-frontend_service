@@ -72,8 +72,8 @@ const blockedReason = (step: number, values: OnboardingValues): string | null =>
       ["La URL del logo de la clínica", values.logo],
       ["La URL del logo para fondo oscuro", values.logoOnDark],
       ["La URL de la imagen principal", values.heroImageUrl],
-      ["La URL del botón", values.appointmentUrl],
-      ...values.extraButtons.map((button, index): [string, string] => [`La URL del botón adicional ${index + 1}`, button.url]),
+      ["La URL del botón principal", values.appointmentUrl],
+      ...values.extraButtons.map((button, index): [string, string] => [`La URL del botón secundario ${index + 1}`, button.url]),
     ];
     const bad = fields.find(([, value]) => !isSingleUrl(value));
 
@@ -438,42 +438,50 @@ function PassStepEditor({ templates, selectedTemplate, templateEdited, values, u
                 <WizardField label="URL de la imagen principal (opcional)" className="sm:col-span-2" action={<ImageUploadButton kind="hero" scope="admin" labels={{ ariaLabel: "Subir imagen principal" }} onUploaded={(url) => update("heroImageUrl", url)} />}>
                   <Input value={values.heroImageUrl} onChange={(event) => update("heroImageUrl", event.target.value)} placeholder="https://.../hero.jpg" className="rounded-xl bg-[#fffaf6]" />
                 </WizardField>
-                <WizardField label="Texto del botón de wallet">
-                  <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Ver beneficios" className="rounded-xl bg-[#fffaf6]" />
-                </WizardField>
-                <WizardField label="URL del botón">
-                  <div className="flex items-center gap-2">
-                    <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com/benefits" className="min-w-0 flex-1 rounded-xl bg-[#fffaf6]" />
-                    <button
-                      type="button"
-                      onClick={() => update("extraButtons", [...values.extraButtons, { label: "", url: "" }])}
-                      disabled={values.extraButtons.length >= EXTRA_BUTTONS_MAX}
-                      aria-label="Añadir otro botón de wallet"
-                      title={values.extraButtons.length >= EXTRA_BUTTONS_MAX ? `Hasta ${EXTRA_BUTTONS_MAX} botones adicionales` : "Añadir otro botón de wallet"}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#cdb9aa] bg-white text-[#704f40] transition hover:bg-[#f4e9df] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </WizardField>
-                {values.extraButtons.map((button, index) => (
-                  <div key={index} className="grid gap-2 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3 sm:col-span-2 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
-                    <WizardField label={`Texto del botón ${index + 2}`}>
-                      <Input value={button.label} maxLength={30} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)))} placeholder="Reservar cita" className="rounded-xl bg-white" />
+                <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3 sm:col-span-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Botón principal</p>
+                  <p className="mt-1 text-xs text-[#806d63]">Se muestra en la parte frontal de la tarjeta. Solo puede haber uno.</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <WizardField label="Texto del botón principal">
+                      <Input value={values.appLinkText} onChange={(event) => update("appLinkText", event.target.value)} placeholder="Sitio web" className="rounded-xl bg-white" />
                     </WizardField>
-                    <WizardField label={`URL del botón ${index + 2}`}>
-                      <Input value={button.url} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} placeholder="https://clinic.com/book" className="rounded-xl bg-white" />
+                    <WizardField label="URL del botón principal">
+                      <Input value={values.appointmentUrl} onChange={(event) => update("appointmentUrl", event.target.value)} placeholder="https://clinic.com" className="rounded-xl bg-white" />
                     </WizardField>
-                    <button
-                      type="button"
-                      onClick={() => update("extraButtons", values.extraButtons.filter((_, i) => i !== index))}
-                      aria-label={`Quitar botón ${index + 2}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e8b9b1] bg-white text-[#b94135] transition hover:bg-[#fff3f1]"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
                   </div>
-                ))}
+                </div>
+                <div className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-3 sm:col-span-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Botones secundarios</p>
+                  <p className="mt-1 text-xs text-[#806d63]">Se muestran en el reverso de la tarjeta.</p>
+                  <div className="mt-3 grid gap-3">
+                    {values.extraButtons.map((button, index) => (
+                      <div key={index} className="grid gap-2 rounded-2xl border border-[#eadfd8] bg-white/70 p-3 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+                        <WizardField label={`Texto del botón secundario ${index + 1}`}>
+                          <Input value={button.label} maxLength={30} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)))} placeholder="Reservar cita" className="rounded-xl bg-white" />
+                        </WizardField>
+                        <WizardField label={`URL del botón secundario ${index + 1}`}>
+                          <Input value={button.url} onChange={(event) => update("extraButtons", values.extraButtons.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} placeholder="https://clinic.com/book" className="rounded-xl bg-white" />
+                        </WizardField>
+                        <button
+                          type="button"
+                          onClick={() => update("extraButtons", values.extraButtons.filter((_, i) => i !== index))}
+                          aria-label={`Quitar botón secundario ${index + 1}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e8b9b1] bg-white text-[#b94135] transition hover:bg-[#fff3f1]"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update("extraButtons", [...values.extraButtons, { label: "", url: "" }])}
+                    disabled={values.extraButtons.length >= EXTRA_BUTTONS_MAX}
+                    className="mt-3 inline-flex items-center gap-1 rounded-full border border-[#ded1c8] bg-white px-3 py-1.5 text-xs font-semibold text-[#6f4d3f] hover:bg-[#f7efe8] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> {values.extraButtons.length >= EXTRA_BUTTONS_MAX ? `Máximo ${EXTRA_BUTTONS_MAX} botones secundarios` : "Añadir botón secundario"}
+                  </button>
+                </div>
               </div>
             </form>
 
