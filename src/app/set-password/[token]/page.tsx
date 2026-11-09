@@ -16,8 +16,8 @@ export default async function Page(context: { params: Promise<{ token: string }>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/voone-logo.png" alt="Voone" className="h-14 w-auto object-contain" />
           </Link>
-          <h2 className="mt-10 max-w-md font-serif text-6xl font-semibold leading-[0.96] tracking-tight text-[#2e2421]">Create secure access for your clinic.</h2>
-          <p className="mt-5 max-w-md text-base leading-7 text-[#806d63]">After this step, the magic link expires and you will use your email and password to sign in.</p>
+          <h2 className="mt-10 max-w-md font-serif text-6xl font-semibold leading-[0.96] tracking-tight text-[#2e2421]">Crea el acceso seguro de tu clínica.</h2>
+          <p className="mt-5 max-w-md text-base leading-7 text-[#806d63]">Después de este paso el enlace caduca y entrarás con tu email y tu contraseña.</p>
         </div>
         <PasswordSetupForm token={token} />
       </section>
