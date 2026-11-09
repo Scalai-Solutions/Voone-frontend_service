@@ -342,7 +342,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
           {status ? <p className={`mb-4 text-sm ${status.startsWith(SAVED_STATUS_PREFIX) ? "text-[#2f7d57]" : "text-destructive"}`}>{status}</p> : null}
           {setupUrl ? (
             <div className="mb-4 rounded-2xl border border-[#e4d8d1] bg-[#fffaf6] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Enlace para que el cliente cree su contraseña</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a47845]">Configurar contraseña</p>
+              <p className="mt-1 text-xs text-[#806d63]">Envía este enlace al cliente para que cree su contraseña.</p>
               <code className="mt-2 block break-all rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#2e2421]">{setupUrl}</code>
               <Button type="button" variant="outline" onClick={copySetupLink} className="mt-3 rounded-xl">
                 <Copy className="mr-2 h-4 w-4" /> {setupLinkCopied ? "Copiado" : "Copiar enlace"}
