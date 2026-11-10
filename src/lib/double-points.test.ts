@@ -16,10 +16,10 @@ describe("normalizeDoublePoints", () => {
     );
   });
 
-  it("passes a referral through", () => {
+  it("no longer knows a referral reason: a referred client's first visit is not doubled", () => {
     assert.deepEqual(normalizeDoublePoints({ applies: true, reason: "referral", until: null }), {
       applies: true,
-      reason: "referral",
+      reason: null,
       until: null,
     });
   });
@@ -62,13 +62,6 @@ describe("describeDouble", () => {
         sliderDisabled: true,
       },
     );
-  });
-
-  it("names a referral and locks the slider", () => {
-    assert.deepEqual(describeDouble({ applies: true, reason: "referral", until: null }, now), {
-      text: "Esta visita suma el doble de puntos: primera visita por recomendación",
-      sliderDisabled: true,
-    });
   });
 
   it("says nothing and leaves the slider free when nothing applies", () => {
@@ -122,7 +115,6 @@ describe("doubledNote", () => {
   });
 
   it("names the reason from the response", () => {
-    assert.equal(doubledNote(true, "referral"), " (puntos dobles por recomendación)");
     assert.equal(doubledNote(true, "perk"), " (puntos dobles por ventaja)");
   });
 
