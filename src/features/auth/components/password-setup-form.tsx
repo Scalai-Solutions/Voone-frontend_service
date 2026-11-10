@@ -21,35 +21,35 @@ import { ApiError } from "@/lib/api-client";
 /** The rules the backend enforces on a new password, shown upfront and checked as the person types. */
 const PASSWORD_RULES = [
   {
-    label: "At least 8 characters",
+    label: "Al menos 8 caracteres",
     test: (value: string) => value.length >= 8,
   },
   {
-    label: "One uppercase letter",
+    label: "Una letra mayúscula",
     test: (value: string) => /[A-Z]/.test(value),
   },
-  { label: "One number", test: (value: string) => /[0-9]/.test(value) },
+  { label: "Un número", test: (value: string) => /[0-9]/.test(value) },
 ] as const;
 
 const passwordSetupSchema = z
   .object({
     password: z
       .string()
-      .min(8, "Use at least 8 characters")
-      .max(128, "Password is too long")
-      .regex(/[A-Z]/, "Include an uppercase letter")
-      .regex(/[0-9]/, "Include a number"),
-    confirmPassword: z.string().min(1, "Confirm your password"),
+      .min(8, "Usa al menos 8 caracteres")
+      .max(128, "La contraseña es demasiado larga")
+      .regex(/[A-Z]/, "Incluye una letra mayúscula")
+      .regex(/[0-9]/, "Incluye un número"),
+    confirmPassword: z.string().min(1, "Confirma tu contraseña"),
   })
   .refine((value) => value.password === value.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Passwords do not match",
+    message: "Las contraseñas no coinciden",
   });
 
 type PasswordSetupValues = z.infer<typeof passwordSetupSchema>;
 
 const formatExpiry = (value: string): string =>
-  new Intl.DateTimeFormat("en-GB", {
+  new Intl.DateTimeFormat("es-ES", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Europe/Madrid",
@@ -92,7 +92,7 @@ export function PasswordSetupForm({ token }: { token: string }) {
           const detail =
             error instanceof ApiError && error.detail
               ? error.detail
-              : "This setup link is invalid or expired. Ask Voone admin for a new link.";
+              : "Este enlace no es válido o ha caducado. Pide uno nuevo al equipo de Voone.";
           setStatus(detail);
         }
       } finally {
@@ -130,7 +130,7 @@ export function PasswordSetupForm({ token }: { token: string }) {
       const detail =
         error instanceof ApiError && error.detail
           ? error.detail
-          : "This setup link could not be used. Ask Voone admin for a new link.";
+          : "No se pudo usar este enlace. Pide uno nuevo al equipo de Voone.";
       setStatus(detail);
     }
   }
@@ -140,14 +140,14 @@ export function PasswordSetupForm({ token }: { token: string }) {
       <div className="rounded-[28px] border border-[#d9c9b6] bg-[#fffaf3]/90 p-6 shadow-[0_30px_90px_-52px_rgba(67,48,43,0.85)] backdrop-blur-xl sm:p-8">
         <CheckCircle2 className="h-10 w-10 text-[#4d8f61]" />
         <h1 className="mt-5 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
-          Password updated
+          Contraseña actualizada
         </h1>
         <p className="mt-3 text-sm leading-6 text-[#806d63]">
-          Your account is ready. Navigating to login so you can sign in
-          {details ? ` with ${details.email}` : ""}.
+          Tu cuenta está lista. Te llevamos al inicio de sesión para que
+          entres{details ? ` con ${details.email}` : ""}.
         </p>
         <Button asChild className="mt-6 w-full rounded-2xl">
-          <Link href="/login">Go to login</Link>
+          <Link href="/login">Ir a iniciar sesión</Link>
         </Button>
       </div>
     );
@@ -160,10 +160,10 @@ export function PasswordSetupForm({ token }: { token: string }) {
           <LockKeyhole className="h-5 w-5" />
         </div>
         <h1 className="mt-6 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
-          Checking setup link
+          Comprobando el enlace
         </h1>
         <p className="mt-3 text-sm leading-6 text-[#806d63]">
-          One moment while we prepare your password setup.
+          Un momento, estamos preparando la creación de tu contraseña.
         </p>
       </div>
     );
@@ -176,14 +176,14 @@ export function PasswordSetupForm({ token }: { token: string }) {
           <LockKeyhole className="h-5 w-5" />
         </div>
         <h1 className="mt-6 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
-          Link unavailable
+          Enlace no disponible
         </h1>
         <p className="mt-3 text-sm leading-6 text-[#806d63]">
           {status ??
-            "This setup link is invalid or expired. Ask Voone admin for a new link."}
+            "Este enlace no es válido o ha caducado. Pide uno nuevo al equipo de Voone."}
         </p>
         <Button asChild className="mt-6 w-full rounded-2xl">
-          <Link href="/login">Go to login</Link>
+          <Link href="/login">Ir a iniciar sesión</Link>
         </Button>
       </div>
     );
@@ -202,14 +202,14 @@ export function PasswordSetupForm({ token }: { token: string }) {
         {details.clinicName}
       </p>
       <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-[#2e2421]">
-        Set your password
+        Crea tu contraseña
       </h1>
       <p className="mt-3 text-sm leading-6 text-[#806d63]">
-        Use this one-time link to create the password for {details.email}.
+        Usa este enlace de un solo uso para crear la contraseña de {details.email}.
       </p>
 
       <div className="mt-6 space-y-4">
-        <Field label="Password" error={form.formState.errors.password?.message}>
+        <Field label="Contraseña" error={form.formState.errors.password?.message}>
           <div className="relative">
             <Input
               {...form.register("password")}
@@ -220,7 +220,7 @@ export function PasswordSetupForm({ token }: { token: string }) {
             <button
               type="button"
               onClick={() => setPasswordVisible((visible) => !visible)}
-              aria-label={passwordVisible ? "Hide password" : "Show password"}
+              aria-label={passwordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#806d63] transition hover:bg-[#f1e2d6] hover:text-[#2e2421]"
             >
               {passwordVisible ? (
@@ -231,7 +231,7 @@ export function PasswordSetupForm({ token }: { token: string }) {
             </button>
           </div>
         </Field>
-        <ul aria-label="Password requirements" className="grid gap-1 text-xs">
+        <ul aria-label="Requisitos de la contraseña" className="grid gap-1 text-xs">
           {PASSWORD_RULES.map((rule) => {
             const met = rule.test(passwordValue);
 
@@ -254,7 +254,7 @@ export function PasswordSetupForm({ token }: { token: string }) {
           })}
         </ul>
         <Field
-          label="Confirm password"
+          label="Confirmar contraseña"
           error={form.formState.errors.confirmPassword?.message}
         >
           <div className="relative">
@@ -269,8 +269,8 @@ export function PasswordSetupForm({ token }: { token: string }) {
               onClick={() => setConfirmPasswordVisible((visible) => !visible)}
               aria-label={
                 confirmPasswordVisible
-                  ? "Hide confirmed password"
-                  : "Show confirmed password"
+                  ? "Ocultar contraseña confirmada"
+                  : "Mostrar contraseña confirmada"
               }
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#806d63] transition hover:bg-[#f1e2d6] hover:text-[#2e2421]"
             >
@@ -298,11 +298,11 @@ export function PasswordSetupForm({ token }: { token: string }) {
         disabled={form.formState.isSubmitting}
         className="mt-6 w-full rounded-2xl"
       >
-        {form.formState.isSubmitting ? "Saving..." : "Set password"}
+        {form.formState.isSubmitting ? "Guardando..." : "Crear contraseña"}
       </Button>
       <p className="mt-4 text-xs leading-5 text-[#806d63]">
-        This link expires {expiresAtLabel} and stops working after the password
-        is set.
+        Este enlace caduca el {expiresAtLabel} y deja de funcionar en cuanto
+        crees la contraseña.
       </p>
     </form>
   );
