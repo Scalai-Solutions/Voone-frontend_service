@@ -23,10 +23,16 @@ describe("the prize answer of a catalogue row", () => {
     assert.equal(choiceToPrize(""), null);
   });
 
-  it("sends nothing for a row with no answer, and the answer otherwise", () => {
-    assert.deepEqual(prizeField(null), {});
-    assert.deepEqual(prizeField(true), { prize: true });
-    assert.deepEqual(prizeField(false), { prize: false });
+  it("sends nothing for a row whose answer is the one it was loaded with", () => {
+    assert.deepEqual(prizeField(null, null), {});
+    assert.deepEqual(prizeField(true, true), {});
+    assert.deepEqual(prizeField(false, false), {});
+  });
+
+  it("sends the new answer when it changed, and null when it was cleared", () => {
+    assert.deepEqual(prizeField(true, null), { prize: true });
+    assert.deepEqual(prizeField(false, true), { prize: false });
+    assert.deepEqual(prizeField(null, true), { prize: null });
   });
 
   it("says the filter is on as soon as any row answers, and counts the Y rows", () => {

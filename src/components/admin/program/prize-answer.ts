@@ -14,11 +14,15 @@ export const choiceToPrize = (choice: string): PrizeAnswer =>
   choice === "si" ? true : choice === "no" ? false : null;
 
 /**
- * What a save sends for a row: nothing when the row has no answer, so a save can never clear one
- * the editor was not showing; the answer otherwise.
+ * What a save sends for a row: the answer, null included, only when it differs from the one the
+ * row was loaded (or last saved) with. Sending nothing for an unchanged row means an answer an
+ * owner set meanwhile, through a ticket, is not overwritten by an editor that opened before it;
+ * sending null for a changed one is what lets "Sin respuesta" actually clear a saved answer.
  */
-export const prizeField = (prize: PrizeAnswer): { prize?: boolean } =>
-  prize === null ? {} : { prize };
+export const prizeField = (
+  prize: PrizeAnswer,
+  loaded: PrizeAnswer,
+): { prize?: boolean | null } => (prize === loaded ? {} : { prize });
 
 /** Whether any row has an answer, which is what switches the prize filter on. */
 export const anyPrizeAnswered = (rows: Array<{ prize: PrizeAnswer }>): boolean =>

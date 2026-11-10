@@ -30,6 +30,8 @@ const USED_BY_ONBOARDING_API: Array<[method: string, path: string]> = [
   ["POST", "programs/prog_1/calculator"],
   ["POST", "programs/prog_1/comparison"],
   ["GET", "recalibration"],
+  ["GET", "prize-status"],
+  ["POST", "programs/redraft"],
   ["GET", "bonos"],
   ["POST", "bonos"],
   ["PATCH", "bonos/bono_1"],
@@ -116,6 +118,24 @@ describe("onboarding proxy allowlist", () => {
     for (const path of ["programs/p/comparison/x", "programs//comparison", "comparison"]) {
       assert.equal(isForwardableOnboardingPath(segments(path), "POST"), false, path);
     }
+  });
+
+  it("forwards the prize status only as GET and the redraft only as POST", () => {
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      assert.equal(
+        isForwardableOnboardingPath(segments("prize-status"), method),
+        false,
+        `prize-status ${method}`,
+      );
+    }
+    for (const method of ["PUT", "PATCH", "DELETE"]) {
+      assert.equal(
+        isForwardableOnboardingPath(segments("programs/redraft"), method),
+        false,
+        `redraft ${method}`,
+      );
+    }
+    assert.equal(isForwardableOnboardingPath(segments("programs/redraft/x"), "POST"), false);
   });
 
   it("does not forward unknown paths", () => {
