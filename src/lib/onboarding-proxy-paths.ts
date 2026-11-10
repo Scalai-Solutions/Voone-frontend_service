@@ -34,6 +34,7 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
     methods: ["PUT"],
   },
   { pattern: ["prize-status"], methods: ["GET"] },
+  { pattern: ["perk-values"], methods: ["GET", "PUT"] },
   { pattern: ["recalibration"], methods: ["GET"] },
 ];
 

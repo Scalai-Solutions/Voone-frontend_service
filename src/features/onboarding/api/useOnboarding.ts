@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useDebounced } from "@/lib/use-debounced";
 import type { BonoPlansStore } from "@/components/shared/bono-plans-editor";
-import type { TierKey } from "@/lib/onboarding-api";
+import type { PerkValues, TierKey } from "@/lib/onboarding-api";
 import {
   createBonoPlan,
   cloneProgramDraft,
@@ -22,6 +22,7 @@ import {
   getCatalog,
   getEstimates,
   getProgram,
+  getPerkValues,
   getPrizeStatus,
   getProgramComparison,
   getRecalibration,
@@ -30,6 +31,7 @@ import {
   previewProgram,
   publishProgram,
   redraftProgram,
+  savePerkValues,
   replaceCatalog,
   setProgramTexts,
   setBenefitOverrides,
@@ -398,6 +400,29 @@ export function usePrizeStatus(clinicId: string, enabled: boolean) {
     queryFn: () => getPrizeStatus(clinicId),
     enabled,
     retry: false,
+  });
+}
+
+export function usePerkValues(clinicId: string) {
+  return useQuery({
+    queryKey: queryKeys.onboarding.perkValues(clinicId),
+    queryFn: () => getPerkValues(clinicId),
+    retry: false,
+  });
+}
+
+/** What each perk is worth to a member, for the savings total. Applies from the next redemption. */
+export function useSavePerkValues(clinicId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (edits: Partial<PerkValues>) => savePerkValues(clinicId, edits),
+    onSuccess: (values) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.perkValues(clinicId),
+        values,
+      );
+    },
   });
 }
 

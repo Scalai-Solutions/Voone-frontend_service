@@ -25,6 +25,11 @@ export interface VisitLineInput {
   name?: string;
   category?: CategoryCode;
   amountEuro: number;
+  /**
+   * Set on a cosmetics line bought at the tier discount: its list price, before the discount.
+   * Marks the line as a discounted product and is what the member's savings come from.
+   */
+  discountedListPriceEuro?: number;
 }
 
 export type BoostMultiplier = 2 | 3 | 5 | 10;

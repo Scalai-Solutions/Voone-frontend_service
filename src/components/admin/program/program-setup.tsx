@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { CalculatorSection } from "./calculator-section";
 import { CatalogStep } from "./catalog-step";
 import { ComparisonSummary } from "./comparison-summary";
+import { PerkValuesCard } from "./perk-values-card";
 import { ProgramView } from "./program-view";
 import { QuestionsStep } from "./questions-step";
 import { ResolveLinkedTickets } from "./resolve-linked-tickets";
@@ -507,6 +508,8 @@ function ProgramSetupLoaded({
               />
 
               <CalculatorSection clinicId={clinicId} programId={program.id} />
+
+              <PerkValuesCard clinicId={clinicId} catalog={catalogRows} />
 
               {problem ? (
                 <p role="alert" className="text-sm text-destructive">
