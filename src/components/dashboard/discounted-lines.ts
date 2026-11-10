@@ -39,6 +39,22 @@ export const markedCount = (
   lines: Array<Pick<DiscountDraft, "discounted">>,
 ): number => lines.filter((line) => line.discounted).length;
 
+/**
+ * The discounted-product count to send. Marked lines ARE the count, sent explicitly so the yearly
+ * allowance is used up even if a list price never arrived; otherwise the count reception typed, or
+ * nothing when the box is blank.
+ */
+export const discountedProductsToSend = (
+  lines: Array<Pick<DiscountDraft, "discounted">>,
+  typed: string,
+): number | undefined => {
+  const marked = markedCount(lines);
+
+  if (marked > 0) return marked;
+
+  return typed.trim() === "" ? undefined : Number(typed);
+};
+
 /** What is wrong with the marked lines, in words for reception; null when they are fine. */
 export const discountProblem = (lines: DiscountDraft[]): string | null => {
   const marked = lines.filter((line) => line.discounted);

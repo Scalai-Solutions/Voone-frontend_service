@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   canDiscount,
   discountField,
+  discountedProductsToSend,
   discountProblem,
   formatListPrice,
   listPriceOf,
@@ -52,6 +53,17 @@ describe("discounted cosmetics on a visit", () => {
   it("counts the marked lines, which is the one number the allowance and the savings share", () => {
     assert.equal(markedCount([line(), line({ discounted: false }), line()]), 2);
     assert.equal(markedCount([]), 0);
+  });
+
+  it("sends the marked lines as the count, whatever is left typed in the box", () => {
+    assert.equal(discountedProductsToSend([line(), line()], ""), 2);
+    assert.equal(discountedProductsToSend([line()], "5"), 1);
+  });
+
+  it("sends the typed count when no line is marked, and nothing when it is blank", () => {
+    assert.equal(discountedProductsToSend([line({ discounted: false })], "2"), 2);
+    assert.equal(discountedProductsToSend([], ""), undefined);
+    assert.equal(discountedProductsToSend([], "  "), undefined);
   });
 
   it("explains a marked line that is not cosmetics, or has no price", () => {

@@ -41,6 +41,7 @@ import { formatPoints } from "@/lib/points";
 import {
   canDiscount,
   discountField,
+  discountedProductsToSend,
   discountProblem,
   formatListPrice,
   markedCount,
@@ -436,11 +437,9 @@ export function ProgramVisitPanel({
       return;
     }
 
-    // Marked lines ARE the count: the backend refuses a typed one that disagrees with them.
-    const discountedProducts =
-      markedCount(filled) > 0 || discounted.trim() === ""
-        ? undefined
-        : Number(discounted);
+    // Marked lines ARE the count, and are sent as it: the backend refuses a typed count that
+    // disagrees with them, and counts the allowance from this number.
+    const discountedProducts = discountedProductsToSend(filled, discounted);
 
     if (
       discountedProducts !== undefined &&
