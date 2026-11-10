@@ -23,7 +23,7 @@ const messageOf = (error: unknown, fallback: string) =>
 type ClinicInfoDraft = Pick<
   ClinicInfoPatch,
   "name" | "addressLine" | "pincode"
-> &
+> & { contactPhone: string; contactEmail: string } &
   BillingDraft;
 
 /**
@@ -45,6 +45,8 @@ export function ClinicInfoForm({
     name: clinic.name,
     addressLine: clinic.addressLine,
     pincode: clinic.pincode,
+    contactPhone: clinic.contactPhone ?? "",
+    contactEmail: clinic.contactEmail ?? "",
     ...billingDraftFrom(clinic),
   }));
   const [state, setState] = React.useState<
@@ -72,6 +74,8 @@ export function ClinicInfoForm({
         name: saved.name,
         addressLine: saved.addressLine,
         pincode: saved.pincode,
+        contactPhone: saved.contactPhone ?? "",
+        contactEmail: saved.contactEmail ?? "",
         ...billingDraftFrom(saved),
       });
       setState("saved");
@@ -117,6 +121,29 @@ export function ClinicInfoForm({
             className={inputClass}
           />
         </label>
+        <label className="text-sm font-semibold">
+          Teléfono del centro
+          <input
+            type="tel"
+            value={draft.contactPhone}
+            onChange={set("contactPhone")}
+            placeholder="+34 910 000 000"
+            className={inputClass}
+          />
+        </label>
+        <label className="text-sm font-semibold">
+          Email del centro
+          <input
+            type="email"
+            value={draft.contactEmail}
+            onChange={set("contactEmail")}
+            placeholder="hola@clinic.com"
+            className={inputClass}
+          />
+        </label>
+        <p className="text-xs text-[#927e72] sm:col-span-2">
+          Tus clientes los verán en su tarjeta Wallet como botones para llamar o escribir al centro.
+        </p>
       </fieldset>
 
       <div>

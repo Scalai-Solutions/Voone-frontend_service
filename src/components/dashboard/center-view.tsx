@@ -33,11 +33,6 @@ interface SetupItem {
   detail: string;
   value: string;
   /**
-   * A second right-hand figure (levels: the euros a client has spent), shown as its own column
-   * whenever the list renders one. Absent on single-column lists.
-   */
-  secondValue?: string;
-  /**
    * What a change request about this row points at: the ladder step (rewards) or the tier key
    * (levels). Absent on rows that are not part of a live programme, which cannot be requested.
    */
@@ -77,22 +72,19 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
  * A tier's floor is the PROGRESS at which the ladder promotes a member, which is the `threshold` of
  * the "nivel" step for that tier. `PresentedTier.threshold` is real spend (what a client has paid),
  * not progress, so it would show the upper levels too low. The first tier has no promotion step: it
- * starts at zero. Three columns, like the other tabs: the level with its perks, the card's points
- * when the promotion happens (`threshold` ×10) and what the client has actually paid to get there
- * (`realSpend`) — the two diverge in the upper tiers, whose progress runs ahead of their spend.
+ * starts at zero. Two columns: the level with its perks and the card's points when the promotion
+ * happens (`threshold` ×10).
  */
 function programTierRows(program: PresentedProgram): SetupItem[] {
   return program.tiers.map((tier) => {
     const promotion = program.ladder.find((step) => step.type === "nivel" && step.tier?.key === tier.key);
     const floorPoints = promotion ? toPoints(promotion.threshold) : 0;
-    const floorSpend = promotion ? promotion.realSpend : 0;
 
     return {
       id: `program-tier-${tier.key}`,
       name: tier.label,
       detail: tier.benefits.length > 0 ? tier.benefits.join(" · ") : "Sin ventajas adicionales",
       value: formatNumber(floorPoints),
-      secondValue: formatEuros(floorSpend),
       tier: tier.key,
     };
   });
@@ -191,7 +183,7 @@ export function CenterView({ canEdit, canRequest }: CenterViewProps) {
 
       {tab === "tratamientos" ? <TreatmentsEditor canEdit={canEdit} canRequest={canRequest} /> : null}
       {tab === "recompensas" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`rewards-${rewardRowsKey}`} title="Recompensas" description="Premios y beneficios de tu programa de fidelización. Para cambiarlos, solicita un cambio." requestKind="reward" nameLabel="Premio o ventaja" valueLabel="Total gastado por el cliente" initialRows={rewardRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
-      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, solicita un cambio." requestKind="level" nameLabel="Nivel" valueLabel={liveProgram ? "Puntos" : "Requisito (gasto · puntos)"} secondValueLabel={liveProgram ? "Total gastado" : undefined} initialRows={tierRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
+      {tab === "niveles" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`tiers-${tierRowsKey}`} title="Niveles" description="Niveles del programa y requisitos de acceso. Para cambiarlos, solicita un cambio." requestKind="level" nameLabel="Nivel" valueLabel={liveProgram ? "Puntos" : "Requisito (gasto · puntos)"} initialRows={tierRowsFromClinic} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
 
       {tab === "referidos" ? (programFailed ? <ProgramLoadError /> : <SetupList key={`referrals-${referralRowsKey}`} title="Programa de referidos" description="Premios para quien recomienda tu centro, que se desbloquean con el primer tratamiento de pago de la persona recomendada. Para cambiarlos, solicita un cambio." requestKind="referral" nameLabel="Referido y premio" valueLabel="Ingresos generados (mín.)" initialRows={referralRows} canRequest={canRequest} isLoading={currentClinic.isPending || programLoading} />) : null}
 
@@ -211,10 +203,10 @@ function ProgramLoadError() {
 }
 
 function rowsKey(rows: SetupItem[]) {
-  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}:${row.secondValue ?? ""}:${row.milestone ?? ""}:${row.tier ?? ""}:${row.referral ?? ""}`).join("|") || "empty";
+  return rows.map((row) => `${row.id}:${row.name}:${row.detail}:${row.value}:${row.milestone ?? ""}:${row.tier ?? ""}:${row.referral ?? ""}`).join("|") || "empty";
 }
 
-function SetupList({ title, description, requestKind, nameLabel, valueLabel, secondValueLabel, initialRows, canRequest, isLoading }: { title: string; description: string; requestKind: "reward" | "level" | "referral"; nameLabel: string; valueLabel: string; secondValueLabel?: string; initialRows: SetupItem[]; canRequest: boolean; isLoading: boolean }) {
+function SetupList({ title, description, requestKind, nameLabel, valueLabel, initialRows, canRequest, isLoading }: { title: string; description: string; requestKind: "reward" | "level" | "referral"; nameLabel: string; valueLabel: string; initialRows: SetupItem[]; canRequest: boolean; isLoading: boolean }) {
   const rows = initialRows;
   // "general" (the button at the top), a row id, or null. One request panel is open at a time.
   const [requesting, setRequesting] = React.useState<string | null>(null);
@@ -259,17 +251,10 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
 
       {/* The header and every row share one grid, so each column keeps its own width however
           long a description grows: the level and its perks wrap inside the first column (60%),
-          and the figures never drop below. The second value column (levels: total spent)
-          renders only when the list has one. */}
-      <div className={cn(
-        "grid items-center gap-3 bg-[#faf5f0] px-5 py-2",
-        secondValueLabel
-          ? "grid-cols-[minmax(0,60fr)_minmax(0,20fr)_minmax(0,20fr)]"
-          : "grid-cols-[minmax(0,60fr)_minmax(0,40fr)]",
-      )}>
+          and the figures never drop below. */}
+      <div className="grid grid-cols-[minmax(0,60fr)_minmax(0,40fr)] items-center gap-3 bg-[#faf5f0] px-5 py-2">
         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{nameLabel}</span>
         <span className="text-right text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{valueLabel}</span>
-        {secondValueLabel ? <span className="text-right text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{secondValueLabel}</span> : null}
       </div>
 
       {rows.length > 0 ? rows.map((row) => {
@@ -278,33 +263,16 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, sec
 
         return (
           <div key={row.id} className="border-b border-[#eadfd8] last:border-0">
-            <div className={cn(
-              "grid items-center gap-3 px-5 py-4",
-              secondValueLabel
-                ? "grid-cols-[minmax(0,60fr)_minmax(0,20fr)_minmax(0,20fr)]"
-                : "grid-cols-[minmax(0,60fr)_minmax(0,40fr)]",
-            )}>
+            <div className="grid grid-cols-[minmax(0,60fr)_minmax(0,40fr)] items-center gap-3 px-5 py-4">
               {/* The name and description wrap inside their own column, never pushing the figures out of theirs. */}
               <div className="min-w-0">
                 <p className="break-words font-semibold">{row.name}</p>
                 <p className="mt-1 break-words text-xs leading-5 text-[#927e72]">{row.detail}</p>
               </div>
-              {secondValueLabel ? (
-                <>
-                  {/* The card's points, at the right edge of their own column. */}
-                  <p className="justify-self-end break-words text-right text-sm font-semibold">{row.value}</p>
-                  {/* The euros as the pill, at the right edge of theirs. */}
-                  <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-                    <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.secondValue ?? "—"}</span>
-                    {requestable ? <RequestIconButton kind="edit" subject={row.name} onClick={(event) => open(row.id, event)} /> : null}
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-                  <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
-                  {requestable ? <RequestIconButton kind="edit" subject={row.name} onClick={(event) => open(row.id, event)} /> : null}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">{row.value}</span>
+                {requestable ? <RequestIconButton kind="edit" subject={row.name} onClick={(event) => open(row.id, event)} /> : null}
+              </div>
             </div>
             {requestable && requesting === row.id ? (
               <div className="border-t border-[#eadfd8]">
