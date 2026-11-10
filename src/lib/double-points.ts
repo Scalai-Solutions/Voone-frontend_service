@@ -2,15 +2,15 @@
  * Whether the next payment of a member earns double points, as the backend reports it on
  * `GET .../members/:id/rewards`.
  *
- * "perk" is a waiting double-points advantage (it lapses at `until`); "referral" is the first
- * visit of a client who joined through a recommendation (it does not lapse).
+ * "perk" is a waiting double-points advantage (it lapses at `until`). A client who joined through a
+ * recommendation is not doubled on their first visit any more, so nothing else doubles a visit.
  */
-export type DoubleReason = "perk" | "referral";
+export type DoubleReason = "perk";
 
 export interface DoublePoints {
   applies: boolean;
   reason: DoubleReason | null;
-  /** When the waiting perk lapses (ISO); null for a referral or when nothing applies. */
+  /** When the waiting perk lapses (ISO); null when nothing applies. */
   until: string | null;
 }
 
@@ -30,7 +30,7 @@ export const normalizeDoublePoints = (raw: unknown): DoublePoints => {
 
   return {
     applies: true,
-    reason: reason === "perk" || reason === "referral" ? reason : null,
+    reason: reason === "perk" ? reason : null,
     until: typeof until === "string" ? until : null,
   };
 };
@@ -67,10 +67,6 @@ export const describeDouble = (doublePoints: DoublePoints, now: Date): DoubleDes
 
   const base = "Esta visita suma el doble de puntos";
 
-  if (doublePoints.reason === "referral") {
-    return { text: `${base}: primera visita por recomendación`, sliderDisabled: true };
-  }
-
   if (doublePoints.reason === "perk" && lapse !== null) {
     return {
       text: `${base} (ventaja hasta el ${dayMonth.format(lapse)})`,
@@ -87,7 +83,6 @@ export const doubledNote = (
   reason: DoubleReason | null | undefined,
 ): string => {
   if (!doubled) return "";
-  if (reason === "referral") return " (puntos dobles por recomendación)";
   if (reason === "perk") return " (puntos dobles por ventaja)";
 
   return " (puntos dobles)";
