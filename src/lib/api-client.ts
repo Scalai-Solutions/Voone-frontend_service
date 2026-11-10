@@ -308,6 +308,9 @@ export interface Clinic {
   billingEmail?: string | null;
   billingAddressLine?: string | null;
   billingPostalCode?: string | null;
+  /** How members reach the centre: call and email buttons on the wallet card. Null when unset. */
+  contactPhone?: string | null;
+  contactEmail?: string | null;
   notificationsMonthlyQuota: number;
   notificationsUsedThisMonth: number;
   notificationsRemainingThisMonth: number;
@@ -1309,6 +1312,8 @@ export interface ClinicInfoPatch {
   billingEmail?: string | null;
   billingAddressLine?: string | null;
   billingPostalCode?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
 }
 
 /**
@@ -1581,6 +1586,8 @@ export interface ProvisionClinicInput {
   pincode: string;
   ownerName?: string;
   ownerEmail?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   presetId: string;
   programName: string;
   hexBackgroundColor?: string;

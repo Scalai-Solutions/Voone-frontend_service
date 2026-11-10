@@ -294,6 +294,8 @@ export function OnboardingWizard({ presets, templates }: { presets: TemplatePres
       pincode: values.pincode,
       ownerName: values.ownerName,
       ownerEmail: values.ownerEmail,
+      contactPhone: values.centerMobile.trim(),
+      contactEmail: values.centerEmail.trim(),
       presetId: values.presetId,
       programName: values.programName.trim(),
       hexBackgroundColor: values.colors[0],
