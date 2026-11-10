@@ -257,23 +257,29 @@ const levelProposed = object(["tier", "text"], {
 const treatmentTarget = object(["treatmentId"], { treatmentId: readId }, [
   "treatmentId",
 ]);
+/** The Prize (Y/N) answer: a plain yes or no, nothing else. */
+const readPrize = (value: unknown): boolean =>
+  typeof value === "boolean" ? value : refuse(UNKNOWN_FIELDS);
+
 const serviceEditProposed = object(
-  ["treatmentId", "name", "priceEuro", "categoryId"],
+  ["treatmentId", "name", "priceEuro", "categoryId", "prize"],
   {
     treatmentId: readId,
     name: (v) => readName(v, "Escribe el nombre del tratamiento."),
     priceEuro: readPrice,
     categoryId: readCategory,
+    prize: readPrize,
   },
   [],
-  ["name", "priceEuro", "categoryId"],
+  ["name", "priceEuro", "categoryId", "prize"],
 );
 const serviceAddProposed = object(
-  ["name", "priceEuro", "categoryId"],
+  ["name", "priceEuro", "categoryId", "prize"],
   {
     name: (v) => readName(v, "Escribe el nombre del tratamiento."),
     priceEuro: readPrice,
     categoryId: readCategory,
+    prize: readPrize,
   },
   ["name", "priceEuro"],
 );

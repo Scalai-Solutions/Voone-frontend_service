@@ -6,6 +6,7 @@ import { useReplaceCatalog } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type { CatalogInputRow, CatalogRow, CategoryCode } from "@/lib/onboarding-api";
 import { parsePriceInput } from "./format";
+import { prizeField, type PrizeAnswer } from "./prize-answer";
 
 /**
  * The catalogue as a person edits it.
@@ -37,6 +38,8 @@ export interface EditorRow {
   category: CategoryCode | null;
   classifiedBy: string | null;
   needsReview: boolean;
+  /** Prize (Y/N): true for Y, false for N, null when never answered. */
+  prize: PrizeAnswer;
 }
 
 export type SaveState =
@@ -56,6 +59,7 @@ const fromServer = (row: CatalogRow): EditorRow => ({
   category: row.category,
   classifiedBy: row.classifiedBy,
   needsReview: row.needsReview,
+  prize: row.prize ?? null,
 });
 
 const newKey = (): string => `m-${crypto.randomUUID().slice(0, 8)}`;
@@ -69,6 +73,7 @@ export const blankRow = (): EditorRow => ({
   category: null,
   classifiedBy: null,
   needsReview: false,
+  prize: null,
 });
 
 /** Whether a row is complete enough to be sent. */
@@ -82,6 +87,7 @@ const toPayload = (rows: EditorRow[]): CatalogInputRow[] =>
     priceEuro: parsePriceInput(row.price) as number,
     isProduct: row.isProduct,
     categoryId: row.categoryId === "" ? null : row.categoryId,
+    ...prizeField(row.prize),
   }));
 
 export function useCatalogEditor(clinicId: string, initial: CatalogRow[]) {

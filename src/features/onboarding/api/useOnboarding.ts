@@ -22,12 +22,14 @@ import {
   getCatalog,
   getEstimates,
   getProgram,
+  getPrizeStatus,
   getProgramComparison,
   getRecalibration,
   importCatalogCsv,
   listPrograms,
   previewProgram,
   publishProgram,
+  redraftProgram,
   replaceCatalog,
   setProgramTexts,
   setBenefitOverrides,
@@ -68,6 +70,9 @@ export function useReplaceCatalog(clinicId: string) {
       // The cache is what the editor starts from when it is opened again. Left at the rows
       // first loaded, going back a step would show the catalogue as it was before every edit.
       queryClient.setQueryData(queryKeys.onboarding.catalog(clinicId), items);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.prizeStatus(clinicId),
+      });
       // The estimates and clinic treatment list are derived from the catalogue.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.onboarding.estimates(clinicId),
@@ -90,6 +95,9 @@ export function useImportCatalog(clinicId: string) {
         queryKeys.onboarding.catalog(clinicId),
         result.items,
       );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.prizeStatus(clinicId),
+      });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.onboarding.estimates(clinicId),
       });
@@ -252,6 +260,9 @@ export function usePublishProgram(clinicId: string) {
         queryKey: queryKeys.onboarding.recalibration(clinicId),
       });
       void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.prizeStatus(clinicId),
+      });
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.currentClinic(),
       });
       void queryClient.invalidateQueries({
@@ -377,6 +388,33 @@ export function useCloneDraft(clinicId: string) {
           queryKey: queryKeys.onboarding.programs(clinicId),
         });
       }
+    },
+  });
+}
+
+export function usePrizeStatus(clinicId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.onboarding.prizeStatus(clinicId),
+    queryFn: () => getPrizeStatus(clinicId),
+    enabled,
+    retry: false,
+  });
+}
+
+/** A draft from the live programme's answers and the current catalogue: nothing goes live. */
+export function useRedraft(clinicId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => redraftProgram(clinicId),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.programs(clinicId),
+      });
     },
   });
 }

@@ -92,6 +92,12 @@ const describeServiceEdit = (
 
   if (name !== undefined) lines.push(`Rename ${label} to ${quoted(name)}`);
 
+  if (typeof proposed.prize === "boolean") {
+    lines.push(
+      `${proposed.prize ? "Mark" : "Unmark"} ${label} as a possible prize`,
+    );
+  }
+
   if (category !== undefined) {
     lines.push(
       current?.categoryId
@@ -124,6 +130,10 @@ const describeServiceAdd = (
 
   if (category !== undefined)
     lines.push(`Category: ${categoryLabel(category, lookup)}`);
+
+  if (typeof proposed.prize === "boolean") {
+    lines.push(`Possible prize: ${proposed.prize ? "yes" : "no"}`);
+  }
 
   return {
     headline: "Add a treatment",

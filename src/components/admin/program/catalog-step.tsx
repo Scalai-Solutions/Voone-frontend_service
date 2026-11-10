@@ -33,6 +33,12 @@ import {
 } from "./categories";
 import { selectableCategoryItems } from "./picker-items";
 import {
+  anyPrizeAnswered,
+  choiceToPrize,
+  prizeCount,
+  prizeToChoice,
+} from "./prize-answer";
+import {
   isSendable,
   useCatalogEditor,
   type EditorRow,
@@ -68,6 +74,7 @@ export function CatalogStep({
   const hasPresoterapia = rows.some((row) => row.category === "PRE");
 
   const blocked = sendable.length === 0 || needsReview.length > 0;
+  const prizeFilterOn = anyPrizeAnswered(rows);
 
   const next = async () => {
     setMoving(true);
@@ -99,6 +106,11 @@ export function CatalogStep({
           {products} de {RECOMMENDED_PRODUCTS} productos de venta recomendados
         </Hint>
         <Hint ok={hasPresoterapia}>Presoterapia, si el centro la ofrece</Hint>
+        {prizeFilterOn ? (
+          <Hint ok={prizeCount(rows) > 0}>
+            {prizeCount(rows)} marcados como premio
+          </Hint>
+        ) : null}
         <SaveIndicator state={save} />
       </div>
 
@@ -128,6 +140,7 @@ export function CatalogStep({
               <th className="w-28 px-3 py-3">Precio</th>
               <th className="w-44 px-3 py-3">Tipo</th>
               <th className="w-72 px-3 py-3">Categoría</th>
+              <th className="w-36 px-3 py-3">Premio</th>
               <th className="w-12 px-3 py-3">
                 <span className="sr-only">Quitar</span>
               </th>
@@ -146,6 +159,14 @@ export function CatalogStep({
           </tbody>
         </table>
       </div>
+
+      <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+        <strong>Premio:</strong> en cuanto una fila tiene respuesta, solo las
+        filas con «Sí» pueden ser premio del programa (hitos, regalos de nivel,
+        sorpresas y diagnóstico gratis). Las filas sin respuesta quedan fuera.
+        Si no se marca ninguna, el programa elige entre todas las que puede.
+        Un programa ya activo no cambia hasta que se genere uno nuevo.
+      </p>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" variant="outline" size="sm" onClick={add}>
@@ -262,6 +283,20 @@ function CatalogRowEditor({
             No suma puntos ni se regala: es medicina.
           </p>
         ) : null}
+      </td>
+      <td className="px-3 py-2">
+        <select
+          aria-label={`Premio de ${label}`}
+          className={selectClass}
+          value={prizeToChoice(row.prize)}
+          onChange={(event) =>
+            onEdit({ prize: choiceToPrize(event.target.value) })
+          }
+        >
+          <option value="">Sin respuesta</option>
+          <option value="si">Sí</option>
+          <option value="no">No</option>
+        </select>
       </td>
       <td className="px-3 py-2 text-right">
         <Button
