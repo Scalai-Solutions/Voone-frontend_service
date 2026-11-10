@@ -38,6 +38,13 @@ import type {
 } from "@/lib/staff-program-api";
 import { formatEuros } from "@/lib/euros";
 import { formatPoints } from "@/lib/points";
+import {
+  canDiscount,
+  discountField,
+  discountProblem,
+  formatListPrice,
+  markedCount,
+} from "./discounted-lines";
 
 /**
  * Recording a visit and redeeming rewards, for a centre that has a loyalty programme.
@@ -60,6 +67,9 @@ interface LineDraft {
   amount: string;
   /** The catalogue item picked for this line, so the dropdown shows it as chosen. */
   picked: string;
+  /** A cosmetics line bought at the tier discount, with the list price it was worked out from. */
+  discounted: boolean;
+  listPrice: string;
 }
 
 /** "12,50" and "12.50" both mean twelve euros fifty; people in Spain type the first. */
@@ -109,7 +119,14 @@ export function ProgramVisitPanel({
 }) {
   const [mode, setMode] = React.useState<"PAYMENT" | "BONO_SESSION">("PAYMENT");
   const [lines, setLines] = React.useState<LineDraft[]>([
-    { key: 1, category: "", amount: "", picked: "" },
+    {
+      key: 1,
+      category: "",
+      amount: "",
+      picked: "",
+      discounted: false,
+      listPrice: "",
+    },
   ]);
   const nextKey = React.useRef(2);
   const [discounted, setDiscounted] = React.useState("");
@@ -261,7 +278,14 @@ export function ProgramVisitPanel({
       setVisitId(result.visitId);
       storeVisit(memberId, result.visitId);
       setLines([
-        { key: nextKey.current++, category: "", amount: "", picked: "" },
+        {
+          key: nextKey.current++,
+          category: "",
+          amount: "",
+          picked: "",
+          discounted: false,
+          listPrice: "",
+        },
       ]);
       setDiscounted("");
       setPackageName("");
@@ -377,6 +401,13 @@ export function ProgramVisitPanel({
     }
 
     const filled = lines.filter((line) => line.amount.trim() !== "");
+    const problem = discountProblem(filled);
+
+    if (problem) {
+      setNotice(problem);
+      return;
+    }
+
     const parsed = filled.map((line) => {
       const name = (catalog.data ?? []).find(
         (item) => item.externalId === line.picked,
@@ -386,6 +417,7 @@ export function ProgramVisitPanel({
         amountEuro: parseAmount(line.amount),
         ...(line.category ? { category: line.category } : {}),
         ...(name ? { name } : {}),
+        ...discountField(line),
       };
     });
 
@@ -404,8 +436,11 @@ export function ProgramVisitPanel({
       return;
     }
 
+    // Marked lines ARE the count: the backend refuses a typed one that disagrees with them.
     const discountedProducts =
-      discounted.trim() === "" ? undefined : Number(discounted);
+      markedCount(filled) > 0 || discounted.trim() === ""
+        ? undefined
+        : Number(discounted);
 
     if (
       discountedProducts !== undefined &&
@@ -528,6 +563,11 @@ export function ProgramVisitPanel({
                             category: item.category ?? "",
                             amount: String(item.priceEuro).replace(".", ","),
                             picked: item.externalId,
+                            // The price sheet is the list price; a mark stays only on cosmetics.
+                            listPrice: formatListPrice(item.priceEuro),
+                            discounted:
+                              line.discounted &&
+                              canDiscount(item.category ?? ""),
                           });
                         }
                       }}
@@ -543,6 +583,7 @@ export function ProgramVisitPanel({
                     onChange={(value) =>
                       updateLine(line.key, {
                         category: value as CategoryCode | "",
+                        discounted: line.discounted && canDiscount(value),
                       })
                     }
                     items={categoryItems}
@@ -578,6 +619,44 @@ export function ProgramVisitPanel({
                 ) : (
                   <span />
                 )}
+                {canDiscount(line.category) ? (
+                  <div className="flex flex-wrap items-end gap-3 sm:col-span-3">
+                    <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={line.discounted}
+                        onChange={(event) =>
+                          updateLine(line.key, {
+                            discounted: event.target.checked,
+                            // Starts from the price sheet's price when there is one.
+                            listPrice:
+                              line.listPrice.trim() === ""
+                                ? line.amount
+                                : line.listPrice,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-input"
+                      />
+                      Con descuento de nivel
+                    </label>
+                    {line.discounted ? (
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Precio de lista (€)
+                        <input
+                          inputMode="decimal"
+                          value={line.listPrice}
+                          onChange={(event) =>
+                            updateLine(line.key, {
+                              listPrice: event.target.value,
+                            })
+                          }
+                          placeholder="0,00"
+                          className={`${inputClass} w-28`}
+                        />
+                      </label>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))}
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -593,6 +672,8 @@ export function ProgramVisitPanel({
                       category: "",
                       amount: "",
                       picked: "",
+                      discounted: false,
+                      listPrice: "",
                     },
                   ])
                 }
@@ -741,7 +822,13 @@ export function ProgramVisitPanel({
             <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
           </summary>
           <div className="grid gap-3 px-3 pb-3">
-            {mode === "PAYMENT" ? (
+            {mode === "PAYMENT" && markedCount(lines) > 0 ? (
+              <p className="text-xs leading-4 text-muted-foreground">
+                {markedCount(lines)}{" "}
+                {markedCount(lines) === 1 ? "producto" : "productos"} con
+                descuento de nivel, marcados en las líneas de arriba.
+              </p>
+            ) : mode === "PAYMENT" ? (
                 <label className="text-xs font-medium text-muted-foreground">
                   Productos con descuento de nivel
                   <input

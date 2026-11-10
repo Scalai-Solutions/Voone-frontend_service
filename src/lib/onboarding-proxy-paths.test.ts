@@ -31,6 +31,8 @@ const USED_BY_ONBOARDING_API: Array<[method: string, path: string]> = [
   ["POST", "programs/prog_1/comparison"],
   ["GET", "recalibration"],
   ["GET", "prize-status"],
+  ["GET", "perk-values"],
+  ["PUT", "perk-values"],
   ["POST", "programs/redraft"],
   ["GET", "bonos"],
   ["POST", "bonos"],
@@ -118,6 +120,20 @@ describe("onboarding proxy allowlist", () => {
     for (const path of ["programs/p/comparison/x", "programs//comparison", "comparison"]) {
       assert.equal(isForwardableOnboardingPath(segments(path), "POST"), false, path);
     }
+  });
+
+  it("forwards the perk values only as GET and PUT", () => {
+    for (const method of ["POST", "PATCH", "DELETE"]) {
+      assert.equal(
+        isForwardableOnboardingPath(segments("perk-values"), method),
+        false,
+        `perk-values ${method}`,
+      );
+    }
+    assert.equal(
+      isForwardableOnboardingPath(segments("perk-values/x"), "PUT"),
+      false,
+    );
   });
 
   it("forwards the prize status only as GET and the redraft only as POST", () => {

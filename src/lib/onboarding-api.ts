@@ -477,6 +477,24 @@ export const getPrizeStatus = (clinicId: string) =>
 export const redraftProgram = (clinicId: string) =>
   request<ProgramEnvelope>(clinicId, "/programs/redraft", { method: "POST" });
 
+/** What the centre says each perk is worth to a member, in euros; null when it has not said. */
+export type PerkKey = "diag" | "mejora" | "sorpresa";
+
+export type PerkValues = Record<PerkKey, number | null>;
+
+export const getPerkValues = (clinicId: string) =>
+  request<PerkValues>(clinicId, "/perk-values");
+
+/** A key left out keeps its value; null clears it. Applies from the next redemption. */
+export const savePerkValues = (
+  clinicId: string,
+  edits: Partial<PerkValues>,
+) =>
+  request<PerkValues>(clinicId, "/perk-values", {
+    method: "PUT",
+    body: JSON.stringify(edits),
+  });
+
 export const getRecalibration = (clinicId: string) =>
   request<RecalibrationAdvice>(clinicId, "/recalibration");
 
