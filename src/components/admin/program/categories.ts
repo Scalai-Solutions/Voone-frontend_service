@@ -41,7 +41,7 @@ export const SELECTABLE_CATEGORIES: CategoryCode[] = [
   "MNF",
 ];
 
-/** Categories that never earn progress and are never given away. A legal constraint in Spain. */
+/** Medicine: never given away as a reward. Since 2026-11-10 it earns progress like any treatment. */
 export const EARNS_NOTHING: ReadonlySet<CategoryCode> = new Set<CategoryCode>(["MFA", "MNF"]);
 
 /** How the engine arrived at a category, as a short phrase for the row. */

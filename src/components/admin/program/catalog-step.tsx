@@ -259,7 +259,7 @@ function CatalogRowEditor({
         ) : null}
         {row.category && EARNS_NOTHING.has(row.category) ? (
           <p className="mt-1 text-xs text-muted-foreground">
-            No suma puntos ni se regala: es medicina.
+            Suma puntos, pero no se regala: es medicina.
           </p>
         ) : null}
       </td>
