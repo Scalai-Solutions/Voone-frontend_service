@@ -105,6 +105,9 @@ function CurrentValues({ context }: { context: RequestContext }) {
           ? formatEuros(treatment.priceEuro)
           : "sin precio",
       ],
+      ...(context.kind === "service-edit" && context.usesPrize
+        ? [["Premio", treatment.prize === true ? "Sí" : "No"] as [string, string]]
+        : []),
     ];
   } else if (context.kind === "bono-edit" || context.kind === "bono-remove") {
     const { plan } = context;
@@ -436,6 +439,25 @@ export function ChangeRequestPanel({
                 className="[&>button]:h-11 [&>button]:rounded-xl [&>button]:border-[#ded1c8] [&>button]:bg-white"
               />
             </Field>
+          ) : null}
+
+          {(context.kind === "service-add" || context.kind === "service-edit") &&
+          context.usesPrize ? (
+            <div className="md:col-span-2">
+              <label className="flex items-start gap-2 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={values.prize}
+                  onChange={(event) => set("prize", event.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span>Puede darse como premio del programa</span>
+              </label>
+              <p className="mt-1 text-xs text-[#927e72]">
+                Solo los tratamientos marcados así entran en los premios cuando se
+                genera un programa nuevo. El programa activo no cambia.
+              </p>
+            </div>
           ) : null}
 
           {isReward && values.rewardMode === "item" ? (

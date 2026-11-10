@@ -53,6 +53,11 @@ export interface CatalogRow {
    * is not medical. Absent from an older backend, which is read as "yes".
    */
   giftable?: boolean;
+  /**
+   * The centre's Prize (Y/N) answer: true for Y, false for N, null when it never said. Once any
+   * row has an answer, only the rows marked Y can be a prize. Absent from an older backend.
+   */
+  prize?: boolean | null;
 }
 
 /** What is sent when saving. Prices are euros as a number, never the text typed. */
@@ -63,6 +68,8 @@ export interface CatalogInputRow {
   isProduct?: boolean;
   categoryId?: CategoryCode | null;
   estimated?: boolean;
+  /** Left out when the row has no answer, so saving never clears one the editor does not show. */
+  prize?: boolean | null;
 }
 
 export interface SkippedCsvRow {
@@ -456,6 +463,19 @@ export const cloneProgramDraft = (clinicId: string, programId: string) =>
     `/programs/${encodeURIComponent(programId)}/draft`,
     { method: "POST" },
   );
+
+/** Whether the centre marks prizes, and whether the live programme predates the current answers. */
+export interface PrizeStatus {
+  usesPrize: boolean;
+  liveOutdated: boolean;
+}
+
+export const getPrizeStatus = (clinicId: string) =>
+  request<PrizeStatus>(clinicId, "/prize-status");
+
+/** A new draft from the live programme's answers and today's catalogue. Nothing goes live. */
+export const redraftProgram = (clinicId: string) =>
+  request<ProgramEnvelope>(clinicId, "/programs/redraft", { method: "POST" });
 
 export const getRecalibration = (clinicId: string) =>
   request<RecalibrationAdvice>(clinicId, "/recalibration");

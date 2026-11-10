@@ -1153,11 +1153,18 @@ export interface ManagedTreatment {
   priceEuro: number | null;
   points: number;
   categoryId: string | null;
+  /** The centre's Prize (Y/N) answer; null or absent when it never said. */
+  prize?: boolean | null;
 }
 
 export interface TreatmentCatalogue {
   /** True when treatments come from the catalogue: a category is required and cents are allowed. */
   usesCatalogue: boolean;
+  /**
+   * True when the centre marks which treatments can be a prize. Only then is the choice offered:
+   * marking one treatment at a centre that does not would switch the filter on for the rest.
+   */
+  usesPrize?: boolean;
   items: ManagedTreatment[];
 }
 
@@ -1171,6 +1178,7 @@ export interface CreateTreatmentInput {
   name: string;
   priceEuro: number;
   categoryId?: string;
+  prize?: boolean;
 }
 
 export type UpdateTreatmentInput = Partial<CreateTreatmentInput>;

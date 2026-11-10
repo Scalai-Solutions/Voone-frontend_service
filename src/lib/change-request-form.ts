@@ -24,6 +24,8 @@ export interface TreatmentRef {
   name: string;
   priceEuro: number | null;
   categoryId: string | null;
+  /** The centre's Prize (Y/N) answer; null or absent when it never said. */
+  prize?: boolean | null;
 }
 
 export interface BonoRef {
@@ -35,8 +37,14 @@ export interface BonoRef {
 }
 
 export type RequestContext =
-  | { kind: "service-edit"; treatment: TreatmentRef; usesCatalogue: boolean }
-  | { kind: "service-add"; usesCatalogue: boolean }
+  | {
+      kind: "service-edit";
+      treatment: TreatmentRef;
+      usesCatalogue: boolean;
+      /** The centre marks which treatments can be a prize, so the form asks. */
+      usesPrize?: boolean;
+    }
+  | { kind: "service-add"; usesCatalogue: boolean; usesPrize?: boolean }
   | { kind: "service-remove"; treatment: TreatmentRef }
   | { kind: "bono-add" }
   | { kind: "bono-edit"; plan: BonoRef }
@@ -53,6 +61,8 @@ export interface FormValues {
   name: string;
   price: string;
   categoryId: string;
+  /** "Puede darse como premio"; only asked at a centre that marks prizes. */
+  prize: boolean;
   sessions: string;
   text: string;
   /** The catalogue item a reward request proposes (its externalId); used in `item` mode. */
@@ -76,6 +86,7 @@ export const initialValues = (context: RequestContext): FormValues => {
     name: "",
     price: "",
     categoryId: "",
+    prize: false,
     sessions: "",
     text: "",
     itemId: "",
@@ -91,6 +102,7 @@ export const initialValues = (context: RequestContext): FormValues => {
       name: context.treatment.name,
       price: priceToText(context.treatment.priceEuro),
       categoryId: context.treatment.categoryId ?? "",
+      prize: context.treatment.prize === true,
     };
   }
 
@@ -255,6 +267,10 @@ export const buildChangeRequest = (
         proposed.categoryId = values.categoryId;
       }
 
+      if (context.usesPrize && values.prize !== (treatment.prize === true)) {
+        proposed.prize = values.prize;
+      }
+
       if (Object.keys(errors).length === 0 && Object.keys(proposed).length === 0) {
         errors.form = NOTHING_CHANGED_SERVICE;
       }
@@ -286,6 +302,7 @@ export const buildChangeRequest = (
           ...(context.usesCatalogue && values.categoryId
             ? { categoryId: values.categoryId }
             : {}),
+          ...(context.usesPrize ? { prize: values.prize } : {}),
         },
       };
       break;

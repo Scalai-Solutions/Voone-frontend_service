@@ -11,6 +11,8 @@ import {
   useCatalog,
   useCloneDraft,
   useCreateDraft,
+  usePrizeStatus,
+  useRedraft,
   useEstimates,
   useProgram,
   useProgramComparison,
@@ -176,6 +178,8 @@ function ProgramSetupLoaded({
 
   const estimates = useEstimates(clinicId, step === 1);
   const recalibration = useRecalibration(clinicId, Boolean(active));
+  const prizeStatus = usePrizeStatus(clinicId, Boolean(active));
+  const redraft = useRedraft(clinicId);
 
   const generate = () => {
     setProblem(null);
@@ -186,6 +190,19 @@ function ProgramSetupLoaded({
       },
       onError: (error) =>
         setProblem(messageOf(error, "No se ha podido generar el programa.")),
+    });
+  };
+
+  const regenerateForPrizes = () => {
+    setProblem(null);
+    redraft.mutate(undefined, {
+      // A draft only: the live programme stays as it is until this one is activated.
+      onSuccess: (draft) => {
+        setDraftId(draft.id);
+        setStep(2);
+      },
+      onError: (error) =>
+        setProblem(messageOf(error, "No se ha podido crear el borrador.")),
     });
   };
 
@@ -405,6 +422,35 @@ function ProgramSetupLoaded({
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
                     <span>Editar una copia (borrador)</span>
+                  </Button>
+                </div>
+              ) : null}
+
+              {prizeStatus.data?.liveOutdated && !isDraft ? (
+                <div
+                  role="status"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm"
+                >
+                  <p className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Las respuestas de premio del catálogo han cambiado desde
+                      que se generó este programa. Genera un borrador con los
+                      mismos datos y los premios nuevos. Nada cambia hasta que
+                      lo actives.
+                    </span>
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={redraft.isPending}
+                    onClick={regenerateForPrizes}
+                  >
+                    {redraft.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    <span>Generar borrador con estos premios</span>
                   </Button>
                 </div>
               ) : null}

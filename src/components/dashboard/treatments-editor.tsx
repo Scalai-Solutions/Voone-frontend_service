@@ -50,6 +50,7 @@ export function TreatmentsEditor({
 }) {
   const catalogue = useTreatmentCatalogue();
   const usesCatalogue = catalogue.data?.usesCatalogue ?? false;
+  const usesPrize = catalogue.data?.usesPrize ?? false;
   const categoriesQuery = useTreatmentCategories(usesCatalogue);
   const categories = React.useMemo(
     () => categoriesQuery.data ?? [],
@@ -103,7 +104,7 @@ export function TreatmentsEditor({
                 {
                   id: "new",
                   area: "treatment",
-                  context: { kind: "service-add", usesCatalogue },
+                  context: { kind: "service-add", usesCatalogue, usesPrize },
                 },
                 event.currentTarget,
               )
@@ -153,6 +154,7 @@ export function TreatmentsEditor({
           name: treatment.name,
           priceEuro: treatment.priceEuro,
           categoryId: treatment.categoryId,
+          prize: treatment.prize,
         };
 
         return (
@@ -168,6 +170,11 @@ export function TreatmentsEditor({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm">
+                {usesPrize && treatment.prize === true ? (
+                  <span className="rounded-full bg-[#e3efe2] px-3 py-1 text-xs font-semibold text-[#3d6a3a]">
+                    Premio
+                  </span>
+                ) : null}
                 <span className="rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-semibold text-[#805637]">
                   {formatNumber(treatment.points)} puntos
                 </span>
@@ -185,6 +192,7 @@ export function TreatmentsEditor({
                               kind: "service-edit",
                               treatment: ref,
                               usesCatalogue,
+                              usesPrize,
                             },
                           },
                           event.currentTarget,

@@ -19,6 +19,9 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["preview"], methods: ["POST"] },
   { pattern: ["programs"], methods: ["GET", "POST"] },
   { pattern: ["programs", "*"], methods: ["GET"] },
+  // A draft from the live programme's answers and the current catalogue. Named, not matched by the
+  // `*` above, which is GET only: "redraft" is an action, not a programme id.
+  { pattern: ["programs", "redraft"], methods: ["POST"] },
   { pattern: ["programs", "*", "publish"], methods: ["POST"] },
   { pattern: ["programs", "*", "milestones", "*"], methods: ["PATCH"] },
   { pattern: ["programs", "*", "draft"], methods: ["POST"] },
@@ -30,6 +33,7 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
     pattern: ["programs", "*", "tiers", "*", "benefit-overrides"],
     methods: ["PUT"],
   },
+  { pattern: ["prize-status"], methods: ["GET"] },
   { pattern: ["recalibration"], methods: ["GET"] },
 ];
 

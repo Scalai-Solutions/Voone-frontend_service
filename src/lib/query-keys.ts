@@ -38,6 +38,8 @@ export const queryKeys = {
       ["onboarding", clinicId, "program", programId] as const,
     recalibration: (clinicId: string) =>
       ["onboarding", clinicId, "recalibration"] as const,
+    prizeStatus: (clinicId: string) =>
+      ["onboarding", clinicId, "prize-status"] as const,
     calculator: (clinicId: string, programId: string, input: unknown) =>
       ["onboarding", clinicId, "calculator", programId, input] as const,
     /** Every calculator answer of one programme, whatever clients and ticket were asked. */

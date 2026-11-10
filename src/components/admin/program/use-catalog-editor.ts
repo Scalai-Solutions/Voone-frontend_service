@@ -6,6 +6,7 @@ import { useReplaceCatalog } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type { CatalogInputRow, CatalogRow, CategoryCode } from "@/lib/onboarding-api";
 import { parsePriceInput } from "./format";
+import { prizeField, type PrizeAnswer } from "./prize-answer";
 
 /**
  * The catalogue as a person edits it.
@@ -37,6 +38,10 @@ export interface EditorRow {
   category: CategoryCode | null;
   classifiedBy: string | null;
   needsReview: boolean;
+  /** Prize (Y/N): true for Y, false for N, null when never answered. */
+  prize: PrizeAnswer;
+  /** The answer the server last held for the row; a save sends the answer only when it differs. */
+  prizeLoaded: PrizeAnswer;
 }
 
 export type SaveState =
@@ -56,6 +61,8 @@ const fromServer = (row: CatalogRow): EditorRow => ({
   category: row.category,
   classifiedBy: row.classifiedBy,
   needsReview: row.needsReview,
+  prize: row.prize ?? null,
+  prizeLoaded: row.prize ?? null,
 });
 
 const newKey = (): string => `m-${crypto.randomUUID().slice(0, 8)}`;
@@ -69,6 +76,8 @@ export const blankRow = (): EditorRow => ({
   category: null,
   classifiedBy: null,
   needsReview: false,
+  prize: null,
+  prizeLoaded: null,
 });
 
 /** Whether a row is complete enough to be sent. */
@@ -82,6 +91,7 @@ const toPayload = (rows: EditorRow[]): CatalogInputRow[] =>
     priceEuro: parsePriceInput(row.price) as number,
     isProduct: row.isProduct,
     categoryId: row.categoryId === "" ? null : row.categoryId,
+    ...prizeField(row.prize, row.prizeLoaded),
   }));
 
 export function useCatalogEditor(clinicId: string, initial: CatalogRow[]) {
@@ -130,6 +140,8 @@ export function useCatalogEditor(clinicId: string, initial: CatalogRow[]) {
                   category: server.category,
                   classifiedBy: server.classifiedBy,
                   needsReview: server.needsReview,
+                  // What the server now holds, so the next save sends the answer only if it moves.
+                  prizeLoaded: server.prize ?? null,
                 }
               : row;
           }),

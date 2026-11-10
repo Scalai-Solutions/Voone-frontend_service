@@ -442,3 +442,62 @@ describe("clip", () => {
     assert.ok(body.title.length <= 120);
   });
 });
+
+describe("the prize choice on a treatment request", () => {
+  const marked = { ...treatment, prize: true };
+  const edit: RequestContext = {
+    kind: "service-edit",
+    treatment: marked,
+    usesCatalogue: true,
+    usesPrize: true,
+  };
+
+  it("opens an edit with the treatment's own answer", () => {
+    assert.equal(initialValues(edit).prize, true);
+    assert.equal(
+      initialValues({ ...edit, treatment: { ...treatment, prize: null } }).prize,
+      false,
+    );
+  });
+
+  it("proposes the answer only when it changed, and counts as a change on its own", () => {
+    const body = okBody(edit, { prize: false });
+
+    assert.deepEqual(body.proposed, { prize: false });
+    assert.deepEqual(errorsOf(edit, {}), { form: errorsOf(edit, {}).form });
+  });
+
+  it("asks nothing at a centre that does not mark prizes", () => {
+    const plain: RequestContext = {
+      kind: "service-edit",
+      treatment: marked,
+      usesCatalogue: true,
+    };
+
+    assert.deepEqual(okBody(plain, { price: "70", prize: false }).proposed, {
+      priceEuro: 70,
+    });
+    assert.equal(
+      "prize" in
+        okBody(
+          { kind: "service-add", usesCatalogue: true },
+          { name: "Nuevo", price: "40", categoryId: "FAC", prize: true },
+        ).proposed!,
+      false,
+    );
+  });
+
+  it("records the answer, yes or no, on a new treatment at a centre that marks prizes", () => {
+    const add: RequestContext = { kind: "service-add", usesCatalogue: true, usesPrize: true };
+
+    assert.equal(
+      okBody(add, { name: "Nuevo", price: "40", categoryId: "FAC", prize: true }).proposed!
+        .prize,
+      true,
+    );
+    assert.equal(
+      okBody(add, { name: "Nuevo", price: "40", categoryId: "FAC" }).proposed!.prize,
+      false,
+    );
+  });
+});

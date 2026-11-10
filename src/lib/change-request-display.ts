@@ -61,6 +61,10 @@ const num = (value: unknown): number | null =>
 const sessionsText = (count: number): string =>
   `${count} ${count === 1 ? "sesión" : "sesiones"}`;
 
+/** The Prize (Y/N) answer of a treatment request: "Sí" or "No", nothing when it was not asked. */
+const prizeText = (value: unknown): string | null =>
+  typeof value === "boolean" ? (value ? "Sí" : "No") : null;
+
 /**
  * The request's proposed values in plain Spanish, one line each. `categoryLabel` turns a
  * category id into its name when the caller has the list; without it the id is not shown,
@@ -85,11 +89,13 @@ export const describeRequest = (
       add("Nombre nuevo", text(proposed.name));
       add("Precio nuevo", price === null ? null : formatRequestEuros(price));
       add("Categoría nueva", categoryName);
+      add("Premio", prizeText(proposed.prize));
       break;
     case "SERVICE_ADD":
       add("Nombre", text(proposed.name));
       add("Precio", price === null ? null : formatRequestEuros(price));
       add("Categoría", categoryName);
+      add("Premio", prizeText(proposed.prize));
       break;
     case "SERVICE_REMOVE":
       add("Qué pides", "Dar de baja este servicio");
