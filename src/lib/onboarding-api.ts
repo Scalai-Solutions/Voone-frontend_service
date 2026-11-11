@@ -139,6 +139,12 @@ export interface PresentedItem {
   name: string;
 }
 
+/**
+ * What a reward is: a catalogue treatment, a catalogue product, double points, a surprise that
+ * reception picks when it is redeemed, or a free text the admin wrote with its price.
+ */
+export type RewardKind = "tratamiento" | "producto" | "doble" | "sorpresa" | "libre";
+
 export interface PresentedMilestone {
   n: number;
   /** The tier band, 1 to 4. */
@@ -156,9 +162,18 @@ export interface PresentedMilestone {
    * shown.
    */
   rewardValueEuro?: number;
+  /**
+   * The whole euros of spend this reward may be moved to, both ends included. Admin responses
+   * only, on reward rows with room to move; absent elsewhere and from an older backend.
+   */
+  spendRange?: { min: number; max: number };
   tier?: { key: TierKey; label: string };
   reward?: {
     name: string;
+    /** What the reward is, for its icon. Absent from an older backend: read as a treatment. */
+    kind?: RewardKind;
+    /** What double points or a surprise is. Absent for a catalogue reward or a free text. */
+    description?: string;
     items: PresentedItem[];
     alternatives: Array<{ name: string; items: PresentedItem[] }>;
   };
@@ -381,8 +396,16 @@ export const publishProgram = (clinicId: string, programId: string) =>
     },
   );
 
-/** One of the engine's two alternatives, or any catalogue item by its id. */
-export type SwapChoice = { alternative: number } | { itemId: string };
+/**
+ * What a milestone's reward becomes: one of the engine's alternatives, any catalogue item by its
+ * id (a treatment or a product), double points, a surprise, or a free text with its price.
+ */
+export type SwapChoice =
+  | { alternative: number }
+  | { itemId: string }
+  | { kind: "doble" }
+  | { kind: "sorpresa" }
+  | { kind: "libre"; name: string; priceEuro: number };
 
 export const swapMilestone = (
   clinicId: string,
@@ -394,6 +417,19 @@ export const swapMilestone = (
     clinicId,
     `/programs/${encodeURIComponent(programId)}/milestones/${milestone}`,
     { method: "PATCH", ...json(choice) },
+  );
+
+/** Moves the spend, in whole euros paid, at which a reward milestone unlocks. Drafts only. */
+export const setMilestoneThreshold = (
+  clinicId: string,
+  programId: string,
+  milestone: number,
+  realSpend: number,
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/milestones/${milestone}/threshold`,
+    { method: "PUT", ...json({ realSpend }) },
   );
 
 export const setTierBenefits = (

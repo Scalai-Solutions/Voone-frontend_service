@@ -37,6 +37,7 @@ import {
   setBenefitOverrides,
   setTierBenefits,
   swapMilestone,
+  setMilestoneThreshold,
   updateBonoPlan,
   type BenefitOverrideEntry,
   type CalcInput,
@@ -292,6 +293,30 @@ export function useSwapMilestone(clinicId: string, programId: string) {
       );
       // A new reward costs the centre something else: the five-year chart is asked again, or it
       // would keep showing the programme as it was until the 60 s it is cached for ran out.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
+    },
+  });
+}
+
+export function useMilestoneThreshold(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      milestone,
+      realSpend,
+    }: {
+      milestone: number;
+      realSpend: number;
+    }) => setMilestoneThreshold(clinicId, programId, milestone, realSpend),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      // The spend to each reward feeds the five-year chart, as a new reward does.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
       });

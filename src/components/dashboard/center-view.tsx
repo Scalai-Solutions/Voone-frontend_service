@@ -56,7 +56,12 @@ function programRewardRows(program: PresentedProgram): SetupItem[] {
     .filter((step) => step.type !== "nivel")
     .map((step) => {
       const name = step.reward?.name ?? step.perk?.name ?? `Paso ${step.n}`;
-      const detail = step.perk?.description || step.reward?.items.map((item) => item.name).join(", ") || "Sin descripción guardada";
+      // Double points and a surprise describe themselves; a free text is its own title.
+      const detail =
+        step.perk?.description ||
+        step.reward?.description ||
+        step.reward?.items.map((item) => item.name).join(", ") ||
+        (step.reward?.kind === "libre" ? "Regalo elegido por el centro" : "Sin descripción guardada");
 
       return {
         id: `program-step-${step.n}`,

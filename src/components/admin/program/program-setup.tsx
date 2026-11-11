@@ -23,6 +23,7 @@ import {
   useSetBenefitOverrides,
   useSetTierBenefits,
   useSwapMilestone,
+  useMilestoneThreshold,
 } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -172,6 +173,7 @@ function ProgramSetupLoaded({
   const createDraft = useCreateDraft(clinicId);
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
+  const threshold = useMilestoneThreshold(clinicId, shownId ?? "");
   const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
   const benefitOverrides = useSetBenefitOverrides(clinicId, shownId ?? "");
   const programTexts = useSetProgramTexts(clinicId, shownId ?? "");
@@ -486,6 +488,12 @@ function ProgramSetupLoaded({
                   isDraft
                     ? (milestone, choice) =>
                         swap.mutateAsync({ milestone, choice })
+                    : undefined
+                }
+                onSetThreshold={
+                  isDraft
+                    ? (milestone, realSpend) =>
+                        threshold.mutateAsync({ milestone, realSpend })
                     : undefined
                 }
                 catalogItems={catalogRows}
