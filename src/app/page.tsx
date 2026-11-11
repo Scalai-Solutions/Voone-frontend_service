@@ -201,7 +201,7 @@ export default function Home() {
               </>
             }
             primaryImageSrc="/mockup-pass.png"
-            secondaryImageSrc="/mockup-alta.png"
+            secondaryImageSrc="/mockup-alta.jpg"
             footer={
               <>
                 <WalletBadges />
