@@ -95,16 +95,22 @@ const INJECTED_STYLES = `
 
 export interface CinematicHeroProps extends React.HTMLAttributes<HTMLDivElement> {
   brandName?: string;
+  eyebrow?: string;
   tagline1?: string;
   tagline2?: string;
   cardHeading?: string;
   cardDescription?: React.ReactNode;
+  ctaHeading?: string;
+  ctaContent?: React.ReactNode;
 }
 
 export function CinematicHero({
   brandName = "VOONE",
-  tagline1 = "Convierte tus clientes",
-  tagline2 = "en socios",
+  eyebrow = "Fidelización para centros de estética",
+  tagline1 = "Haz que tus clientes vuelvan,",
+  tagline2 = "en el momento justo.",
+  ctaHeading = "El valor de un cliente que repite",
+  ctaContent,
   cardHeading = "El club digital de tu clínica.",
   cardDescription = (
     <>
@@ -150,6 +156,8 @@ export function CinematicHero({
       gsap.set(".text-days", { autoAlpha: 1, clipPath: "inset(0 100% 0 0)" });
       gsap.set(".main-card", { y: window.innerHeight + 200, autoAlpha: 1 });
       gsap.set([".card-left-text", ".card-right-text", ".mockup-scroll-wrapper", ".floating-badge"], { autoAlpha: 0 });
+      gsap.set(".cta-wrapper", { autoAlpha: 0, scale: 0.92 });
+      gsap.set(".cta-mark", { scaleX: 0, transformOrigin: "left center" });
 
       const introTl = gsap.timeline({ delay: 0.3 });
       introTl
@@ -160,7 +168,7 @@ export function CinematicHero({
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: isMobile ? "+=500" : "+=800",
+          end: isMobile ? "+=1500" : "+=1900",
           pin: true,
           scrub: 1,
           anticipatePin: 1,
@@ -168,7 +176,7 @@ export function CinematicHero({
       });
 
       scrollTl
-        .to([".hero-text-wrapper", ".bg-grid-theme"], { scale: 1.15, filter: "blur(20px)", opacity: 0.15, ease: "power2.inOut", duration: 2 }, 0)
+        .to([".hero-text-wrapper", ".bg-grid-theme"], { scale: 1.08, ease: "power2.inOut", duration: 2 }, 0)
         .to(".main-card", { y: 0, ease: "power3.inOut", duration: 2 }, 0)
         .to(".main-card", { width: "100%", height: "100%", borderRadius: "0px", ease: "power3.inOut", duration: 1.5 })
         .fromTo(".mockup-scroll-wrapper",
@@ -178,7 +186,21 @@ export function CinematicHero({
         .fromTo(".floating-badge", { y: 100, autoAlpha: 0, scale: 0.7, rotationZ: -10 }, { y: 0, autoAlpha: 1, scale: 1, rotationZ: 0, ease: "back.out(1.5)", duration: 1.5, stagger: 0.2 }, "-=2.0")
         .fromTo(".card-left-text", { x: -50, autoAlpha: 0 }, { x: 0, autoAlpha: 1, ease: "power4.out", duration: 1.5 }, "-=1.6")
         .fromTo(".card-right-text", { x: 50, autoAlpha: 0, scale: 0.8 }, { x: 0, autoAlpha: 1, scale: 1, ease: "expo.out", duration: 1.5 }, "<")
-        .to({}, { duration: 1.2 });
+        // brief hold on "Tu centro"
+        .to({}, { duration: 1.3 })
+        // reveal the "El valor" beat behind the card
+        .set(".hero-text-wrapper", { autoAlpha: 0 })
+        .set(".cta-wrapper", { autoAlpha: 1 })
+        // card content leaves quickly
+        .to([".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"],
+          { scale: 0.9, y: -40, autoAlpha: 0, ease: "power3.in", duration: 0.9, stagger: 0.04 })
+        .to(".cta-wrapper", { scale: 1, ease: "expo.out", duration: 0.9 }, "<")
+        // the card closes fast (flies up and away), fully revealing "El valor"
+        .to(".main-card", { yPercent: -135, autoAlpha: 0, ease: "power3.in", duration: 1.2 })
+        // now the highlight fills progressively as you keep scrolling
+        .to(".cta-mark", { scaleX: 1, ease: "none", duration: 2.5 })
+        // dwell so "El valor de un cliente que repite" can be read
+        .to({}, { duration: 2.5 });
     }, containerRef);
 
     return () => ctx.revert();
@@ -200,12 +222,26 @@ export function CinematicHero({
         <span aria-hidden="true" className="pointer-events-none select-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 font-serif font-black tracking-tighter leading-none text-foreground/[0.05] text-[30vw] whitespace-nowrap">
           VOONE
         </span>
-        <h1 className="text-track gsap-reveal text-3d-matte font-serif text-5xl md:text-7xl lg:text-[6rem] font-semibold tracking-tight mb-2">
-          {tagline1}
+        <p className="text-track gsap-reveal text-gold uppercase tracking-[0.25em] text-xs md:text-sm font-semibold mb-5">
+          {eyebrow}
+        </p>
+        <h1 className="font-serif text-5xl md:text-7xl lg:text-[6rem] tracking-tight">
+          <span className="text-track gsap-reveal text-3d-matte block font-semibold mb-2">
+            {tagline1}
+          </span>
+          <span className="text-days gsap-reveal text-silver-matte block font-bold">
+            {tagline2}
+          </span>
         </h1>
-        <h1 className="text-days gsap-reveal text-silver-matte font-serif text-5xl md:text-7xl lg:text-[6rem] font-bold tracking-tight">
-          {tagline2}
-        </h1>
+      </div>
+
+      {/* CTA beat — dark panel revealed as the card pulls back and flies away */}
+      <div className="cta-wrapper gsap-reveal absolute inset-0 z-10 flex items-center justify-center bg-background text-foreground will-change-transform">
+        {ctaContent ?? (
+          <h2 className="font-serif text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground max-w-4xl mx-auto text-center px-6">
+            {ctaHeading}
+          </h2>
+        )}
       </div>
 
       {/* The physical card */}

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { Calendar, MessageCircle, Gift, ChevronRight, ExternalLink, Check } from "lucide-react";
-import { QrCode } from "@/components/shared/qr-code";
 
 const CLINIC = "AURÉA";
 
@@ -16,15 +15,15 @@ function MiniPass() {
         <div className="flex items-center justify-between mb-3">
           <div className="leading-none">
             <p className="font-serif text-base text-[#8a5b48] tracking-wide">△ {CLINIC}</p>
-            <p className="text-[8px] tracking-[0.25em] text-[#a9793f] mt-0.5">CLUB CLÍNICA</p>
+            <p className="text-[8px] tracking-[0.25em] text-[#a9793f] mt-0.5">CLUB</p>
           </div>
           <div className="text-right">
             <p className="text-[#c6a15b] text-sm leading-none">♛</p>
-            <p className="text-[8px] tracking-[0.18em] text-[#a9793f]">MIEMBRO GOLD</p>
+            <p className="text-[8px] tracking-[0.18em] text-[#a9793f]">NIVEL GOLD</p>
           </div>
         </div>
         <h3 className="font-serif text-xl text-[#3d2b28] mb-1">Verónica Navarro</h3>
-        <p className="text-[8px] tracking-[0.2em] text-[#a9793f]">MIEMBRO DESDE 2026</p>
+        <p className="text-[8px] tracking-[0.2em] text-[#a9793f]">CLIENTE DESDE 2026</p>
       </div>
     </div>
   );
@@ -37,11 +36,11 @@ function FullPass() {
       <div className="absolute -left-10 bottom-0 w-40 h-40 rounded-full bg-[#e7b7a6]/50 blur-2xl" />
       <div className="relative z-10 px-5 pt-5 pb-6 text-center">
         <p className="font-serif text-lg tracking-wide text-[#8a5b48]">△ {CLINIC}</p>
-        <p className="text-[9px] tracking-[0.25em] text-[#a9793f] mb-3">CLUB CLÍNICA</p>
+        <p className="text-[9px] tracking-[0.25em] text-[#a9793f] mb-3">CLUB</p>
         <div className="text-[#c6a15b] text-base mb-1">♛</div>
-        <span className="inline-block text-[9px] tracking-[0.2em] text-[#a9793f] border border-[#c6a15b]/50 rounded px-3 py-1 mb-3">MIEMBRO GOLD</span>
+        <span className="inline-block text-[9px] tracking-[0.2em] text-[#a9793f] border border-[#c6a15b]/50 rounded px-3 py-1 mb-3">NIVEL GOLD</span>
         <h3 className="font-serif text-2xl text-[#3d2b28] mb-3">Verónica Navarro</h3>
-        <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">BEAUTY BALANCE</p>
+        <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">SALDO</p>
         <p className="font-serif text-3xl text-[#b06a5a] mb-4">€240</p>
         <div className="flex justify-center gap-6 text-left mb-4">
           <div>
@@ -53,11 +52,15 @@ function FullPass() {
             <p className="text-[10px] text-[#5a4038] leading-tight">Acceso exclusivo a tratamientos, eventos y ofertas de socio</p>
           </div>
         </div>
-        {/* A real code, so the mockup shows what a member actually sees. Encodes a marked
-            sample: this component has no member behind it. */}
-        <QrCode value="VOONE-EJEMPLO" size={68} className="mx-auto mb-2 p-1.5" title="Pase de ejemplo" />
-        <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">PASE CLUB</p>
-        <p className="text-[9px] text-[#8a726c]">Miembro desde 2026</p>
+        <div className="mx-auto w-[86px] h-[86px] bg-white rounded-md p-1.5 shadow-inner mb-2">
+          <div className="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px]">
+            {Array.from({ length: 36 }).map((_, i) => (
+              <div key={i} className={(i * 7 + (i % 5) + (i % 3)) % 3 === 0 ? "bg-neutral-900 rounded-[1px]" : "bg-transparent"} />
+            ))}
+          </div>
+        </div>
+        <p className="text-[9px] tracking-[0.2em] text-[#a9793f]">TARJETA DEL CLUB</p>
+        <p className="text-[9px] text-[#8a726c]">Cliente desde 2026</p>
       </div>
     </div>
   );
