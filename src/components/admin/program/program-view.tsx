@@ -1049,8 +1049,17 @@ function MilestoneRow({
       return;
     }
 
-    // Opens on what the reward is now, with a free text ready to edit when it is one.
-    setMode(kind);
+    // Opens on what the row is now, with a free text ready to edit when it is one. A perk opens on
+    // double points or the surprise when it is one, otherwise on a treatment.
+    const perkKind = milestone.perk?.kind;
+
+    setMode(
+      reward
+        ? kind
+        : perkKind === "doble" || perkKind === "sorpresa"
+          ? perkKind
+          : "tratamiento",
+    );
     setFreeName(kind === "libre" && reward ? reward.name : "");
     setFreePrice("");
     setProblem(null);
@@ -1248,6 +1257,7 @@ function MilestoneRow({
           ) : null}
           {offersSwap({
             hasReward: Boolean(reward),
+            hasPerk: Boolean(milestone.perk),
             canSwap: Boolean(onSwap),
           }) ? (
             <Button
