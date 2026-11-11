@@ -1031,7 +1031,8 @@ function MilestoneRow({
       ? (PERK_ICON[milestone.perk.kind] ?? Gift)
       : Gift;
   const range = milestone.spendRange;
-  const canMoveSpend = Boolean(reward && onSetThreshold && range);
+  // Rewards and perks may move; the backend sends no range for a tier step.
+  const canMoveSpend = Boolean(onSetThreshold && range);
 
   // Only what the backend would accept; the rest is counted, not listed.
   const giftable = giftableItems(catalogItems);
@@ -1195,9 +1196,15 @@ function MilestoneRow({
             </p>
             {reward ? (
               <>
+                {/*
+                  Every piece of text that can change or disappear is its own element, never a
+                  bare text node: Chrome's page translation swaps text nodes for <font> wrappers,
+                  and React then fails with "removeChild: not a child" when one goes away (the
+                  value line does when a reward becomes double points), taking the page down.
+                */}
                 <p className="text-xs text-muted-foreground">
-                  Premio · mes {milestone.month}
-                  {valueLabel ? ` · ${valueLabel}` : ""}
+                  <span>{`Premio · mes ${milestone.month}`}</span>
+                  {valueLabel ? <span>{` · ${valueLabel}`}</span> : null}
                 </p>
                 {reward.description ? (
                   <p className="text-xs leading-5 text-muted-foreground">
@@ -1221,7 +1228,7 @@ function MilestoneRow({
 
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-right font-semibold">
-            {formatProgress(milestone.realSpend)}
+            <span>{formatProgress(milestone.realSpend)}</span>
           </span>
           {canMoveSpend ? (
             <Button
@@ -1229,7 +1236,7 @@ function MilestoneRow({
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              aria-label="Cambiar el gasto con el que se consigue este premio"
+              aria-label="Cambiar el gasto con el que se consigue"
               aria-expanded={editingSpend}
               disabled={spendBusy}
               onClick={() =>
@@ -1290,12 +1297,11 @@ function MilestoneRow({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            {spendRangeLabel(range)}: el premio tiene que quedar entre las filas
-            de arriba y de abajo.
+            <span>{`${spendRangeLabel(range)}: tiene que quedar entre las filas de arriba y de abajo.`}</span>
           </p>
           {spendProblem ? (
             <p role="alert" className="text-xs text-destructive">
-              {spendProblem}
+              <span>{spendProblem}</span>
             </p>
           ) : null}
         </form>
@@ -1365,7 +1371,9 @@ function MilestoneRow({
                 disabled={busy || kind === "doble"}
                 onClick={() => void choose({ kind: "doble" })}
               >
-                {kind === "doble" ? "Ya son puntos dobles" : "Usar puntos dobles"}
+                <span key={kind === "doble" ? "ya" : "usar"}>
+                  {kind === "doble" ? "Ya son puntos dobles" : "Usar puntos dobles"}
+                </span>
               </Button>
             </div>
           ) : null}
@@ -1382,9 +1390,11 @@ function MilestoneRow({
                 disabled={busy}
                 onClick={() => void choose({ kind: "sorpresa" })}
               >
-                {kind === "sorpresa"
-                  ? "Actualizar con el catálogo de hoy"
-                  : "Usar premio sorpresa"}
+                <span key={kind === "sorpresa" ? "actualizar" : "usar"}>
+                  {kind === "sorpresa"
+                    ? "Actualizar con el catálogo de hoy"
+                    : "Usar premio sorpresa"}
+                </span>
               </Button>
             </div>
           ) : null}
@@ -1428,7 +1438,7 @@ function MilestoneRow({
           ) : null}
           {problem ? (
             <p role="alert" className="text-xs text-destructive">
-              {problem}
+              <span>{problem}</span>
             </p>
           ) : null}
         </div>

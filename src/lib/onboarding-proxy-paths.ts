@@ -24,6 +24,8 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["programs", "redraft"], methods: ["POST"] },
   { pattern: ["programs", "*", "publish"], methods: ["POST"] },
   { pattern: ["programs", "*", "milestones", "*"], methods: ["PATCH"] },
+  // The spend at which a milestone unlocks (whole euros paid).
+  { pattern: ["programs", "*", "milestones", "*", "threshold"], methods: ["PUT"] },
   { pattern: ["programs", "*", "draft"], methods: ["POST"] },
   { pattern: ["programs", "*", "texts"], methods: ["PATCH"] },
   { pattern: ["programs", "*", "calculator"], methods: ["POST"] },
