@@ -9,16 +9,20 @@ import {
   Crown,
   Gift,
   Info,
+  PenLine,
   Pencil,
   Plus,
+  ShoppingBag,
   Sparkles,
   Stethoscope,
   TrendingUp,
   X,
+  Zap,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { SearchPicker } from "@/components/ui/search-picker";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -29,6 +33,7 @@ import type {
   PresentedMilestone,
   PresentedProgram,
   PresentedTier,
+  RewardKind,
   TierKey,
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
@@ -49,6 +54,15 @@ import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuros, formatProgress } from "@/lib/euros";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
 import { catalogPickerItems } from "./picker-items";
+import {
+  FREE_REWARD_MAX_NAME,
+  REWARD_KINDS,
+  isProductRow,
+  parseFreeReward,
+  parseSpend,
+  rewardKindOf,
+  spendRangeLabel,
+} from "./reward-kinds";
 import { infoNotes, rewardValueLabel } from "./reward-value";
 import { offersSwap } from "./swap-offer";
 import { swapRefusalMessage } from "./swap-refusal";
@@ -70,11 +84,26 @@ import {
  * internal. Voone's own figures are not on this screen at all.
  */
 
-const PERK_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  doble: Sparkles,
+type Icon = React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+
+/**
+ * One icon per kind of reward, on the row and in the "Cambiar" panel alike, so a reward always
+ * shows what it is. Double points and a surprise look the same whether the engine placed them as
+ * a perk or the admin chose them for a reward.
+ */
+const REWARD_ICON: Record<RewardKind, Icon> = {
+  tratamiento: Sparkles,
+  producto: ShoppingBag,
+  doble: Zap,
+  sorpresa: Gift,
+  libre: PenLine,
+};
+
+const PERK_ICON: Record<string, Icon> = {
+  doble: REWARD_ICON.doble,
+  sorpresa: REWARD_ICON.sorpresa,
   diag: Stethoscope,
   mejora: TrendingUp,
-  sorpresa: Gift,
 };
 
 const ordinal = (n: number): string =>
@@ -93,6 +122,7 @@ type CatalogItemOption = {
 export function ProgramView({
   program,
   onSwap,
+  onSetThreshold,
   onSetBenefits,
   onSetBenefitOverrides,
   onSetTexts,
@@ -103,6 +133,8 @@ export function ProgramView({
   catalogItems?: CatalogItemOption[];
   /** Present only while the programme is a draft: an active one cannot be edited. */
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
+  /** Present only while the programme is a draft: moves the spend at which a reward unlocks. */
+  onSetThreshold?: (milestone: number, realSpend: number) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
   /**
@@ -192,8 +224,9 @@ export function ProgramView({
       {texts ? (
         <p className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">
           Puedes cambiar los textos de los premios, las ventajas y los premios
-          por referido con el lápiz. Los umbrales y los artículos no se pueden
-          editar aquí. Los cambios en los textos se aplican a los premios que se
+          por referido con el lápiz. En cada premio, «Cambiar» elige qué se
+          regala y el lápiz junto al importe cambia el gasto con el que se
+          consigue. Los cambios en los textos se aplican a los premios que se
           emitan a partir de la publicación; los ya emitidos conservan su texto.
         </p>
       ) : null}
@@ -276,6 +309,7 @@ export function ProgramView({
                   key={milestone.n}
                   milestone={milestone}
                   onSwap={onSwap}
+                  onSetThreshold={onSetThreshold}
                   texts={texts}
                   catalogItems={catalogItems}
                 />
@@ -950,17 +984,26 @@ function Fact({ label, value }: { label: string; value: string }) {
 function MilestoneRow({
   milestone,
   onSwap,
+  onSetThreshold,
   texts,
   catalogItems,
 }: {
   catalogItems: CatalogItemOption[];
   milestone: PresentedMilestone;
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
+  onSetThreshold?: (milestone: number, realSpend: number) => Promise<unknown>;
   texts?: TextsEditing;
 }) {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [problem, setProblem] = React.useState<string | null>(null);
+  const [mode, setMode] = React.useState<RewardKind>("tratamiento");
+  const [freeName, setFreeName] = React.useState("");
+  const [freePrice, setFreePrice] = React.useState("");
+  const [editingSpend, setEditingSpend] = React.useState(false);
+  const [spendText, setSpendText] = React.useState("");
+  const [spendBusy, setSpendBusy] = React.useState(false);
+  const [spendProblem, setSpendProblem] = React.useState<string | null>(null);
 
   if (milestone.type === "nivel") {
     return (
@@ -980,16 +1023,40 @@ function MilestoneRow({
   }
 
   const reward = milestone.reward;
+  const kind = rewardKindOf(reward);
   const valueLabel = reward ? rewardValueLabel(milestone) : null;
-  const alternatives = reward?.alternatives ?? [];
-  const PerkIcon = milestone.perk
-    ? (PERK_ICON[milestone.perk.kind] ?? Sparkles)
-    : Gift;
+  const RowIcon: Icon = reward
+    ? REWARD_ICON[kind]
+    : milestone.perk
+      ? (PERK_ICON[milestone.perk.kind] ?? Gift)
+      : Gift;
+  const range = milestone.spendRange;
+  // Rewards and perks may move; the backend sends no range for a tier step.
+  const canMoveSpend = Boolean(onSetThreshold && range);
 
   // Only what the backend would accept; the rest is counted, not listed.
   const giftable = giftableItems(catalogItems);
-  const giftableOptions = catalogPickerItems(giftable);
+  const treatmentOptions = catalogPickerItems(
+    giftable.filter((row) => !isProductRow(row)),
+  );
+  const productOptions = catalogPickerItems(giftable.filter(isProductRow));
   const hiddenNote = hiddenItemsNote(catalogItems);
+
+  const togglePanel = () => {
+    if (open) {
+      setOpen(false);
+
+      return;
+    }
+
+    // Opens on what the reward is now, with a free text ready to edit when it is one.
+    setMode(kind);
+    setFreeName(kind === "libre" && reward ? reward.name : "");
+    setFreePrice("");
+    setProblem(null);
+    setEditingSpend(false);
+    setOpen(true);
+  };
 
   const choose = async (choice: SwapChoice) => {
     if (!onSwap) return;
@@ -1009,11 +1076,98 @@ function MilestoneRow({
     }
   };
 
+  const saveFree = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const parsed = parseFreeReward(freeName, freePrice);
+
+    if (!parsed.ok) {
+      setProblem(parsed.problem);
+
+      return;
+    }
+
+    void choose({
+      kind: "libre",
+      name: parsed.name,
+      priceEuro: parsed.priceEuro,
+    });
+  };
+
+  const startSpend = () => {
+    setSpendText(String(milestone.realSpend));
+    setSpendProblem(null);
+    setOpen(false);
+    setEditingSpend(true);
+  };
+
+  const saveSpend = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!onSetThreshold) return;
+
+    const parsed = parseSpend(spendText, range);
+
+    if (!parsed.ok) {
+      setSpendProblem(parsed.problem);
+
+      return;
+    }
+
+    if (parsed.realSpend === milestone.realSpend) {
+      setEditingSpend(false);
+
+      return;
+    }
+
+    setSpendBusy(true);
+    setSpendProblem(null);
+
+    try {
+      await onSetThreshold(milestone.n, parsed.realSpend);
+      setEditingSpend(false);
+    } catch (error) {
+      setSpendProblem(
+        swapRefusalMessage(error, "No se ha podido cambiar el gasto."),
+      );
+    } finally {
+      setSpendBusy(false);
+    }
+  };
+
+  const catalogPicker = (
+    options: ReturnType<typeof catalogPickerItems>,
+    none: string,
+  ) =>
+    catalogItems.length === 0 ? (
+      <p className="text-xs text-muted-foreground">
+        El catálogo del centro todavía no tiene artículos.
+      </p>
+    ) : options.length > 0 ? (
+      <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+        Elige del catálogo
+        <SearchPicker
+          // Always empty: choosing swaps the reward at once and the list stays as it was.
+          value=""
+          disabled={busy}
+          onChange={(value) => {
+            if (value) void choose({ itemId: value });
+          }}
+          items={options}
+          placeholder="Elegir…"
+          className="font-normal text-foreground"
+        />
+      </label>
+    ) : (
+      <p className="text-xs text-muted-foreground">{none}</p>
+    );
+
   return (
     <li className="border-t border-border px-4 py-3 text-sm first:border-t-0">
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
-          <PerkIcon
+          <RowIcon
+            aria-hidden
             className={cn(
               "mt-0.5 h-4 w-4 shrink-0",
               reward ? "text-gold" : "text-muted-foreground",
@@ -1041,10 +1195,23 @@ function MilestoneRow({
               ) : null}
             </p>
             {reward ? (
-              <p className="text-xs text-muted-foreground">
-                Premio · mes {milestone.month}
-                {valueLabel ? ` · ${valueLabel}` : ""}
-              </p>
+              <>
+                {/*
+                  Every piece of text that can change or disappear is its own element, never a
+                  bare text node: Chrome's page translation swaps text nodes for <font> wrappers,
+                  and React then fails with "removeChild: not a child" when one goes away (the
+                  value line does when a reward becomes double points), taking the page down.
+                */}
+                <p className="text-xs text-muted-foreground">
+                  <span>{`Premio · mes ${milestone.month}`}</span>
+                  {valueLabel ? <span>{` · ${valueLabel}`}</span> : null}
+                </p>
+                {reward.description ? (
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {reward.description}
+                  </p>
+                ) : null}
+              </>
             ) : milestone.perk ? (
               <p className="text-xs leading-5 text-muted-foreground">
                 <EditableText
@@ -1059,22 +1226,36 @@ function MilestoneRow({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <span className="text-right font-semibold">
-            {formatProgress(milestone.realSpend)}
+            <span>{formatProgress(milestone.realSpend)}</span>
           </span>
+          {canMoveSpend ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              aria-label="Cambiar el gasto con el que se consigue"
+              aria-expanded={editingSpend}
+              disabled={spendBusy}
+              onClick={() =>
+                editingSpend ? setEditingSpend(false) : startSpend()
+              }
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+            </Button>
+          ) : null}
           {offersSwap({
             hasReward: Boolean(reward),
             canSwap: Boolean(onSwap),
-            alternatives: alternatives.length,
-            catalogItems: catalogItems.length,
           }) ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               aria-expanded={open}
-              onClick={() => setOpen((current) => !current)}
+              onClick={togglePanel}
             >
               <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" />{" "}
               <span>Cambiar</span>
@@ -1083,55 +1264,181 @@ function MilestoneRow({
         </div>
       </div>
 
-      {open ? (
-        <div className="mt-3 grid gap-2 rounded-md bg-secondary/50 p-3">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Alternativas sugeridas
-          </p>
-          {alternatives.map((alternative, index) => (
-            <div
-              key={alternative.name}
-              className="flex items-center justify-between gap-3"
+      {editingSpend && range ? (
+        <form
+          onSubmit={(event) => void saveSpend(event)}
+          className="mt-3 grid gap-2 rounded-md bg-secondary/50 p-3"
+        >
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+              El cliente ha gastado (€)
+              <Input
+                inputMode="numeric"
+                autoFocus
+                value={spendText}
+                disabled={spendBusy}
+                onChange={(event) => setSpendText(event.target.value)}
+                className="h-9 w-32 font-normal text-foreground"
+              />
+            </label>
+            <Button type="submit" size="sm" disabled={spendBusy}>
+              <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              <span>Guardar</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={spendBusy}
+              onClick={() => setEditingSpend(false)}
             >
-              <span>{alternative.name}</span>
+              <X className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              <span>Cancelar</span>
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <span>{`${spendRangeLabel(range)}: tiene que quedar entre las filas de arriba y de abajo.`}</span>
+          </p>
+          {spendProblem ? (
+            <p role="alert" className="text-xs text-destructive">
+              <span>{spendProblem}</span>
+            </p>
+          ) : null}
+        </form>
+      ) : null}
+
+      {open ? (
+        <div className="mt-3 grid gap-3 rounded-md bg-secondary/50 p-3">
+          <div
+            role="group"
+            aria-label="Qué se regala"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-5"
+          >
+            {REWARD_KINDS.map((option) => {
+              const OptionIcon = REWARD_ICON[option.kind];
+              const selected = mode === option.kind;
+
+              return (
+                <button
+                  key={option.kind}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={busy}
+                  onClick={() => {
+                    setMode(option.kind);
+                    setProblem(null);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-md border bg-card px-2 py-2 text-center text-xs font-semibold leading-tight transition-colors disabled:opacity-50",
+                    selected
+                      ? "border-primary text-foreground ring-1 ring-primary"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <OptionIcon
+                    aria-hidden
+                    className={cn("h-4 w-4", selected ? "text-gold" : "")}
+                  />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {mode === "tratamiento"
+            ? catalogPicker(
+                treatmentOptions,
+                "Ningún tratamiento del catálogo puede ser premio todavía.",
+              )
+            : null}
+
+          {mode === "producto"
+            ? catalogPicker(
+                productOptions,
+                "Ningún producto del catálogo puede ser premio todavía.",
+              )
+            : null}
+
+          {mode === "doble" ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-md text-xs leading-5 text-muted-foreground">
+                El cliente suma el doble de puntos en su siguiente visita de
+                pago. Se aplica sola: no hay que canjearla en recepción.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy || kind === "doble"}
+                onClick={() => void choose({ kind: "doble" })}
+              >
+                <span key={kind === "doble" ? "ya" : "usar"}>
+                  {kind === "doble" ? "Ya son puntos dobles" : "Usar puntos dobles"}
+                </span>
+              </Button>
+            </div>
+          ) : null}
+
+          {mode === "sorpresa" ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-md text-xs leading-5 text-muted-foreground">
+                Al canjearlo, recepción elige el regalo entre cualquier artículo
+                del catálogo que pueda ser premio.
+              </p>
               <Button
                 type="button"
                 size="sm"
                 disabled={busy}
-                onClick={() => void choose({ alternative: index })}
+                onClick={() => void choose({ kind: "sorpresa" })}
               >
-                Usar este
+                <span key={kind === "sorpresa" ? "actualizar" : "usar"}>
+                  {kind === "sorpresa"
+                    ? "Actualizar con el catálogo de hoy"
+                    : "Usar premio sorpresa"}
+                </span>
               </Button>
             </div>
-          ))}
-          {catalogItems.length > 0 ? (
-            giftable.length > 0 ? (
-              <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-                O cualquier artículo del catálogo
-                <SearchPicker
-                  // Always empty: choosing swaps the reward at once and the list stays as it was.
-                  value=""
-                  disabled={busy}
-                  onChange={(value) => {
-                    if (value) void choose({ itemId: value });
-                  }}
-                  items={giftableOptions}
-                  placeholder="Elegir…"
-                  className="font-normal text-foreground"
-                />
-              </label>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Ningún artículo del catálogo puede ser premio todavía.
-              </p>
-            )
           ) : null}
-          {hiddenNote ? (
+
+          {mode === "libre" ? (
+            <form onSubmit={saveFree} className="grid gap-2">
+              <div className="grid gap-2 sm:grid-cols-[1fr_9rem]">
+                <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                  Qué se regala
+                  <Input
+                    value={freeName}
+                    maxLength={FREE_REWARD_MAX_NAME}
+                    disabled={busy}
+                    placeholder="Ej.: Manicura de regalo"
+                    onChange={(event) => setFreeName(event.target.value)}
+                    className="h-9 font-normal text-foreground"
+                  />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                  Precio (€)
+                  <Input
+                    inputMode="decimal"
+                    value={freePrice}
+                    disabled={busy}
+                    placeholder="0,00"
+                    onChange={(event) => setFreePrice(event.target.value)}
+                    className="h-9 font-normal text-foreground"
+                  />
+                </label>
+              </div>
+              <div>
+                <Button type="submit" size="sm" disabled={busy}>
+                  Guardar
+                </Button>
+              </div>
+            </form>
+          ) : null}
+
+          {hiddenNote && (mode === "tratamiento" || mode === "producto") ? (
             <p className="text-xs text-muted-foreground">{hiddenNote}</p>
           ) : null}
           {problem ? (
             <p role="alert" className="text-xs text-destructive">
-              {problem}
+              <span>{problem}</span>
             </p>
           ) : null}
         </div>
