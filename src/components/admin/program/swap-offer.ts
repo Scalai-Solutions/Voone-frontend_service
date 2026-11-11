@@ -1,15 +1,16 @@
 /**
  * Whether a milestone row offers "Cambiar".
  *
- * Only a reward can be swapped: the backend refuses a perk milestone ("Ese hito no tiene un premio
- * que se pueda cambiar"), so the button is never offered there. A reward offers it whenever the
- * screen can swap at all: double points and a free text need nothing from the catalogue, so there
- * is always something to change it to.
+ * Every reward and every perk can be changed (a perk becomes a reward holding the choice); a tier
+ * step never can. Offered whenever the screen can swap at all: double points and a free text need
+ * nothing from the catalogue, so there is always something to change it to.
  */
 export const offersSwap = ({
   hasReward,
+  hasPerk = false,
   canSwap,
 }: {
   hasReward: boolean;
+  hasPerk?: boolean;
   canSwap: boolean;
-}): boolean => hasReward && canSwap;
+}): boolean => (hasReward || hasPerk) && canSwap;
