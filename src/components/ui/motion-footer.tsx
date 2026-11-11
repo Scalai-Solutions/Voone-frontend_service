@@ -125,8 +125,8 @@ const MarqueeItem = () => (
     <span>Sin apps</span> <span className="text-gold/60">✦</span>
     <span>Apple Wallet</span> <span className="text-gold/60">✦</span>
     <span>Google Wallet</span> <span className="text-gold/60">✦</span>
-    <span>Más recurrencia</span> <span className="text-gold/60">✦</span>
-    <span>Puesta en marcha en 1 día</span> <span className="text-gold/60">✦</span>
+    <span>Tu marca, y solo la tuya</span> <span className="text-gold/60">✦</span>
+    <span>Fidelización para centros de estética</span> <span className="text-gold/60">✦</span>
   </div>
 );
 
@@ -176,24 +176,33 @@ export function CinematicFooter() {
           </div>
 
           {/* Center content */}
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 mt-20 w-full max-w-5xl mx-auto">
-            <h2 ref={headingRef} className="font-serif text-5xl md:text-8xl font-bold footer-text-glow tracking-tight mb-12 text-center">
-              ¿Empezamos?
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 mt-20 w-full max-w-4xl mx-auto text-center">
+            <h2 ref={headingRef} className="font-serif text-4xl md:text-7xl font-bold footer-text-glow tracking-tight mb-6">
+              Tu centro, con su propio club.
             </h2>
 
             <div ref={linksRef} className="flex flex-col items-center gap-6 w-full">
-              <div className="flex flex-wrap justify-center gap-4 w-full">
-                <MagneticButton as="a" href="https://calendly.com/business-voone/call" target="_blank" rel="noopener noreferrer" className="footer-glass-pill px-10 py-5 rounded-full text-foreground font-bold text-sm md:text-base flex items-center gap-3">
-                  Solicitar demo
-                </MagneticButton>
-                <MagneticButton as="a" href="https://calendly.com/business-voone/call" target="_blank" rel="noopener noreferrer" className="footer-glass-pill px-10 py-5 rounded-full text-foreground font-bold text-sm md:text-base flex items-center gap-3">
-                  Hablar con ventas
-                </MagneticButton>
-              </div>
-              <div className="flex flex-wrap justify-center gap-3 md:gap-6 w-full mt-2">
-                <MagneticButton as="a" href="#" className="footer-glass-pill px-6 py-3 rounded-full text-muted-foreground font-medium text-xs md:text-sm hover:text-foreground">Privacidad</MagneticButton>
-                <MagneticButton as="a" href="#" className="footer-glass-pill px-6 py-3 rounded-full text-muted-foreground font-medium text-xs md:text-sm hover:text-foreground">Términos</MagneticButton>
-                <MagneticButton as="a" href="#producto" className="footer-glass-pill px-6 py-3 rounded-full text-muted-foreground font-medium text-xs md:text-sm hover:text-foreground">Producto</MagneticButton>
+              <p className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-xl">
+                Preparamos la tarjeta de tu centro y te la presentamos en una demostración privada de veinte minutos.
+              </p>
+              <MagneticButton as="a" href="https://calendly.com/business-voone/call" target="_blank" rel="noopener noreferrer" className="footer-glass-pill px-10 py-5 rounded-full text-foreground font-bold text-sm md:text-base flex items-center gap-3">
+                Prueba 60 días sin coste.
+              </MagneticButton>
+              <p className="text-muted-foreground/80 text-xs md:text-sm uppercase tracking-[0.2em] font-semibold">
+                Incorporamos un número reducido de centros.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3 md:gap-4 w-full mt-4">
+                {[
+                  { label: "Compromisos", href: "#compromisos" },
+                  { label: "Nosotros", href: "/nosotros" },
+                  { label: "Contacto", href: "https://calendly.com/business-voone/call" },
+                  { label: "Privacidad", href: "/privacidad-web" },
+                  { label: "Aviso legal", href: "/aviso-legal" },
+                ].map((l) => (
+                  <MagneticButton key={l.label} as="a" href={l.href} className="footer-glass-pill px-5 py-2.5 rounded-full text-muted-foreground font-medium text-xs md:text-sm hover:text-foreground">
+                    {l.label}
+                  </MagneticButton>
+                ))}
               </div>
             </div>
           </div>

@@ -4,21 +4,26 @@ import React from "react";
 import { motion } from "motion/react";
 
 interface SectionWithMockupProps {
+  eyebrow?: string;
   title: string | React.ReactNode;
   description: string | React.ReactNode;
   primaryImageSrc: string;
   secondaryImageSrc: string;
   reverseLayout?: boolean;
   footer?: React.ReactNode;
+  /** Strip own background/padding/entrance so it can live inside another panel (story-scroll). */
+  bare?: boolean;
 }
 
 const SectionWithMockup: React.FC<SectionWithMockupProps> = ({
+  eyebrow = "El producto",
   title,
   description,
   primaryImageSrc,
   secondaryImageSrc,
   reverseLayout = false,
   footer,
+  bare = false,
 }) => {
   const containerVariants = {
     hidden: {},
@@ -34,21 +39,21 @@ const SectionWithMockup: React.FC<SectionWithMockupProps> = ({
   const imageOrderClass = reverseLayout ? "md:col-start-1" : "";
 
   return (
-    <section className="relative py-24 md:py-40 bg-rose/30 border-y border-border overflow-hidden">
-      <div className="container max-w-[1220px] w-full px-6 md:px-10 relative z-10 mx-auto">
+    <section className={bare ? "relative w-full overflow-hidden" : "relative py-24 md:py-40 bg-rose/30 border-y border-border overflow-hidden"}>
+      <div className={`container max-w-6xl w-full relative z-10 mx-auto ${bare ? "" : "px-6 md:px-10"}`}>
         <motion.div
           className={`grid grid-cols-1 gap-16 md:gap-24 w-full items-center ${layoutClasses}`}
           variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
+          initial={bare ? "visible" : "hidden"}
+          whileInView={bare ? undefined : "visible"}
           viewport={{ once: true, amount: 0.2 }}
         >
           <motion.div
             className={`flex flex-col items-start gap-5 mt-10 md:mt-0 max-w-[546px] mx-auto md:mx-0 ${textOrderClass}`}
             variants={itemVariants}
           >
-            <p className="text-gold uppercase tracking-[0.2em] text-sm font-semibold">El producto</p>
-            <h2 className="font-serif text-foreground text-3xl md:text-[42px] font-semibold leading-tight md:leading-[1.15]">
+            <p className="text-gold uppercase tracking-[0.2em] text-sm font-semibold">{eyebrow}</p>
+            <h2 className="font-serif text-foreground text-4xl md:text-5xl font-semibold tracking-tight leading-tight md:leading-[1.15]">
               {title}
             </h2>
             <p className="text-muted-foreground text-base md:text-[16px] leading-7">{description}</p>
@@ -88,17 +93,19 @@ const SectionWithMockup: React.FC<SectionWithMockupProps> = ({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={primaryImageSrc}
-                alt="Membership Pass de Voone en el Wallet"
+                alt="Membership Pass de Voone en el Wallet" loading="lazy" decoding="async"
                 className="w-full h-auto max-h-[405px] md:max-h-[640px] object-contain drop-shadow-[0_50px_100px_rgba(0,0,0,0.6)]"
               />
             </motion.div>
           </motion.div>
         </motion.div>
       </div>
-      <div
-        className="absolute w-full h-px bottom-0 left-0 z-0"
-        style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(217,180,119,0.3) 0%, rgba(255,255,255,0) 100%)" }}
-      />
+      {!bare && (
+        <div
+          className="absolute w-full h-px bottom-0 left-0 z-0"
+          style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(217,180,119,0.3) 0%, rgba(255,255,255,0) 100%)" }}
+        />
+      )}
     </section>
   );
 };

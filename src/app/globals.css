@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark variant, used by the marketing site's dark sections (TactileHighlight, the hero). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #fbfaf7;
   --foreground: #231f1c;
@@ -196,4 +199,57 @@ textarea {
   .content-in {
     animation: none;
   }
+}
+
+
+/*
+ * The marketing site: blush, brown and gold, with its own type. Everything is scoped to `.landing`,
+ * so the dashboard and admin keep the app's palette. Tokens are redefined here rather than in :root
+ * for that reason; `--card-dark` is new and only the landing uses it.
+ */
+@theme inline {
+  --color-card-dark: var(--card-dark);
+}
+
+.landing {
+  --background: #faf2ee;
+  --foreground: #43302b;
+  --muted: #f0e2db;
+  --muted-foreground: #8a746c;
+  --gold: #b98a4f;
+  --gold-light: #d9b477;
+  --rose: #efdcd5;
+  --card-dark: #3a2723;
+  --border: rgba(67, 48, 43, 0.12);
+  --card: #ffffff;
+  --card-foreground: #43302b;
+  --primary: #b98a4f;
+  --primary-foreground: #fffaf3;
+  --secondary: #f0e2db;
+  --secondary-foreground: #43302b;
+  --ring: #b98a4f;
+  --radius: 0.75rem;
+  --font-geist-sans: var(--landing-font-sans);
+  --font-serif: var(--landing-font-serif);
+
+  font-family: var(--landing-font-sans), system-ui, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Anchor jumps clear the fixed header. */
+html:has(.landing) {
+  scroll-padding-top: 6rem;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Controls: instant taps, and no text selection on labels. */
+.landing :is(button, a, [role="button"], summary) {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* FAQ: hide the native disclosure marker. */
+.landing summary::-webkit-details-marker {
+  display: none;
 }
