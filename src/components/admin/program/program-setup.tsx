@@ -24,6 +24,8 @@ import {
   useSetTierBenefits,
   useSwapMilestone,
   useMilestoneThreshold,
+  useAddMilestone,
+  useRemoveMilestone,
 } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -174,6 +176,8 @@ function ProgramSetupLoaded({
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
   const threshold = useMilestoneThreshold(clinicId, shownId ?? "");
+  const addMilestone = useAddMilestone(clinicId, shownId ?? "");
+  const removeMilestone = useRemoveMilestone(clinicId, shownId ?? "");
   const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
   const benefitOverrides = useSetBenefitOverrides(clinicId, shownId ?? "");
   const programTexts = useSetProgramTexts(clinicId, shownId ?? "");
@@ -494,6 +498,17 @@ function ProgramSetupLoaded({
                   isDraft
                     ? (milestone, realSpend) =>
                         threshold.mutateAsync({ milestone, realSpend })
+                    : undefined
+                }
+                onAddMilestone={
+                  isDraft
+                    ? (band, realSpend, choice) =>
+                        addMilestone.mutateAsync({ band, realSpend, choice })
+                    : undefined
+                }
+                onRemoveMilestone={
+                  isDraft
+                    ? (milestone) => removeMilestone.mutateAsync(milestone)
                     : undefined
                 }
                 catalogItems={catalogRows}

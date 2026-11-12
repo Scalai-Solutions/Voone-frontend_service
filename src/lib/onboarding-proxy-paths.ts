@@ -23,7 +23,9 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   // `*` above, which is GET only: "redraft" is an action, not a programme id.
   { pattern: ["programs", "redraft"], methods: ["POST"] },
   { pattern: ["programs", "*", "publish"], methods: ["POST"] },
-  { pattern: ["programs", "*", "milestones", "*"], methods: ["PATCH"] },
+  // Add a reward to a tier band; change or remove one milestone.
+  { pattern: ["programs", "*", "milestones"], methods: ["POST"] },
+  { pattern: ["programs", "*", "milestones", "*"], methods: ["PATCH", "DELETE"] },
   // The spend at which a milestone unlocks (whole euros paid).
   { pattern: ["programs", "*", "milestones", "*", "threshold"], methods: ["PUT"] },
   { pattern: ["programs", "*", "draft"], methods: ["POST"] },

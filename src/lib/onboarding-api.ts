@@ -206,6 +206,11 @@ export interface PresentedTier {
   customBenefits: string[];
   /** Every line with its key. Absent from an older backend: the screen then falls back to `benefits`. */
   benefitLines?: BenefitLine[];
+  /**
+   * The whole euros of spend a reward added to the band this tier holds may sit at. Admin
+   * responses only; absent for Diamante and from an older backend.
+   */
+  addRange?: { min: number; max: number };
 }
 
 export interface PresentedProgram {
@@ -417,6 +422,32 @@ export const swapMilestone = (
     clinicId,
     `/programs/${encodeURIComponent(programId)}/milestones/${milestone}`,
     { method: "PATCH", ...json(choice) },
+  );
+
+/** Adds a reward to tier band `band` (1 Bronce to 4 Platino) at `realSpend` euros paid. Drafts only. */
+export const addMilestone = (
+  clinicId: string,
+  programId: string,
+  band: number,
+  realSpend: number,
+  choice: Exclude<SwapChoice, { alternative: number }>,
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/milestones`,
+    { method: "POST", ...json({ band, realSpend, choice }) },
+  );
+
+/** Removes a reward or perk from the ladder. Drafts only. */
+export const removeMilestone = (
+  clinicId: string,
+  programId: string,
+  milestone: number,
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/milestones/${milestone}`,
+    { method: "DELETE" },
   );
 
 /** Moves the spend, in whole euros paid, at which a reward milestone unlocks. Drafts only. */
