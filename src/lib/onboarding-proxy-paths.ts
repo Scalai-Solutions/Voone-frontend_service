@@ -30,6 +30,8 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["programs", "*", "milestones", "*", "threshold"], methods: ["PUT"] },
   // What the reward after Diamante is.
   { pattern: ["programs", "*", "recurring"], methods: ["PATCH"] },
+  // How often it comes round (whole euros paid).
+  { pattern: ["programs", "*", "recurring", "every"], methods: ["PUT"] },
   { pattern: ["programs", "*", "draft"], methods: ["POST"] },
   { pattern: ["programs", "*", "texts"], methods: ["PATCH"] },
   { pattern: ["programs", "*", "calculator"], methods: ["POST"] },

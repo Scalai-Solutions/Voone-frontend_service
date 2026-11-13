@@ -24,6 +24,7 @@ import {
   useSetTierBenefits,
   useSwapMilestone,
   useSwapRecurring,
+  useRecurringEvery,
   useMilestoneThreshold,
   useAddMilestone,
   useRemoveMilestone,
@@ -177,6 +178,7 @@ function ProgramSetupLoaded({
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
   const swapRecurring = useSwapRecurring(clinicId, shownId ?? "");
+  const recurringEvery = useRecurringEvery(clinicId, shownId ?? "");
   const threshold = useMilestoneThreshold(clinicId, shownId ?? "");
   const addMilestone = useAddMilestone(clinicId, shownId ?? "");
   const removeMilestone = useRemoveMilestone(clinicId, shownId ?? "");
@@ -516,6 +518,11 @@ function ProgramSetupLoaded({
                 onSwapRecurring={
                   isDraft
                     ? (choice) => swapRecurring.mutateAsync(choice)
+                    : undefined
+                }
+                onSetRecurringEvery={
+                  isDraft
+                    ? (realSpend) => recurringEvery.mutateAsync(realSpend)
                     : undefined
                 }
                 catalogItems={catalogRows}

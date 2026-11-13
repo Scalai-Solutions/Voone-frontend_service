@@ -127,6 +127,7 @@ export function ProgramView({
   onAddMilestone,
   onRemoveMilestone,
   onSwapRecurring,
+  onSetRecurringEvery,
   onSetBenefits,
   onSetBenefitOverrides,
   onSetTexts,
@@ -145,6 +146,8 @@ export function ProgramView({
   onRemoveMilestone?: (milestone: number) => Promise<unknown>;
   /** Present only while the programme is a draft: changes what the reward after Diamante is. */
   onSwapRecurring?: (choice: PanelChoice) => Promise<unknown>;
+  /** Present only while the programme is a draft: how often the reward after Diamante comes round. */
+  onSetRecurringEvery?: (realSpend: number) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
   /**
@@ -322,6 +325,7 @@ export function ProgramView({
         <RecurringReward
           recurring={program.recurring}
           onSwap={onSwapRecurring}
+          onSetEvery={onSetRecurringEvery}
           texts={texts}
           catalogItems={catalogItems}
         />
@@ -1324,19 +1328,64 @@ function RewardChoicePanel({
 function RecurringReward({
   recurring,
   onSwap,
+  onSetEvery,
   texts,
   catalogItems,
 }: {
   recurring: PresentedProgram["recurring"];
   onSwap?: (choice: PanelChoice) => Promise<unknown>;
+  onSetEvery?: (realSpend: number) => Promise<unknown>;
   texts?: TextsEditing;
   catalogItems: CatalogItemOption[];
 }) {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [problem, setProblem] = React.useState<string | null>(null);
+  const [editingEvery, setEditingEvery] = React.useState(false);
+  const [everyText, setEveryText] = React.useState("");
+  const [everyBusy, setEveryBusy] = React.useState(false);
+  const [everyProblem, setEveryProblem] = React.useState<string | null>(null);
   const kind = rewardKindOf(recurring);
   const KindIcon = REWARD_ICON[kind];
+
+  const startEvery = () => {
+    setEveryText(String(recurring.every));
+    setEveryProblem(null);
+    setOpen(false);
+    setEditingEvery(true);
+  };
+
+  const saveEvery = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!onSetEvery) return;
+
+    const parsed = parseSpend(everyText, undefined);
+
+    if (!parsed.ok) {
+      setEveryProblem(parsed.problem);
+
+      return;
+    }
+
+    if (parsed.realSpend === recurring.every) {
+      setEditingEvery(false);
+
+      return;
+    }
+
+    setEveryBusy(true);
+    setEveryProblem(null);
+
+    try {
+      await onSetEvery(parsed.realSpend);
+      setEditingEvery(false);
+    } catch (error) {
+      setEveryProblem(swapRefusalMessage(error, "No se ha podido cambiar el gasto."));
+    } finally {
+      setEveryBusy(false);
+    }
+  };
 
   const choose = async (choice: PanelChoice) => {
     if (!onSwap) return;
@@ -1362,8 +1411,22 @@ function RecurringReward({
         <div className="min-w-0">
           <p className="font-semibold">Después de Diamante</p>
           <div className="mt-1 grid gap-1 text-muted-foreground">
-            <p>
+            <p className="flex items-center gap-1">
               <span>{`Por cada ${formatProgress(recurring.every)} que gasta el cliente:`}</span>
+              {onSetEvery ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Cambiar cada cuánto gasto se consigue el premio de después de Diamante"
+                  aria-expanded={editingEvery}
+                  disabled={everyBusy}
+                  onClick={() => (editingEvery ? setEditingEvery(false) : startEvery())}
+                >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
+                </Button>
+              ) : null}
             </p>
             <p className="flex items-start gap-2">
               <KindIcon
@@ -1396,6 +1459,7 @@ function RecurringReward({
             aria-expanded={open}
             onClick={() => {
               setProblem(null);
+              setEditingEvery(false);
               setOpen((current) => !current);
             }}
           >
@@ -1404,6 +1468,46 @@ function RecurringReward({
           </Button>
         ) : null}
       </div>
+
+      {editingEvery ? (
+        <form
+          onSubmit={(event) => void saveEvery(event)}
+          className="mt-3 grid gap-2 rounded-md bg-secondary/50 p-3"
+        >
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+              Por cada (€) que gasta el cliente
+              <Input
+                inputMode="numeric"
+                autoFocus
+                value={everyText}
+                disabled={everyBusy}
+                onChange={(event) => setEveryText(event.target.value)}
+                className="h-9 w-32 font-normal text-foreground"
+              />
+            </label>
+            <Button type="submit" size="sm" disabled={everyBusy}>
+              <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              <span>Guardar</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={everyBusy}
+              onClick={() => setEditingEvery(false)}
+            >
+              <X className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              <span>Cancelar</span>
+            </Button>
+          </div>
+          {everyProblem ? (
+            <p role="alert" className="text-xs text-destructive">
+              <span>{everyProblem}</span>
+            </p>
+          ) : null}
+        </form>
+      ) : null}
 
       {open ? (
         <div className="mt-3">
