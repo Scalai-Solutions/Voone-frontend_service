@@ -26,6 +26,7 @@ const USED_BY_ONBOARDING_API: Array<[method: string, path: string]> = [
   ["PUT", "programs/prog_1/milestones/3/threshold"],
   ["POST", "programs/prog_1/milestones"],
   ["DELETE", "programs/prog_1/milestones/3"],
+  ["PATCH", "programs/prog_1/recurring"],
   ["PUT", "programs/prog_1/tiers/oro/benefits"],
   ["PUT", "programs/prog_1/tiers/oro/benefit-overrides"],
   ["PATCH", "programs/prog_1/texts"],

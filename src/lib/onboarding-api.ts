@@ -163,8 +163,9 @@ export interface PresentedMilestone {
    */
   rewardValueEuro?: number;
   /**
-   * The whole euros of spend this reward may be moved to, both ends included. Admin responses
-   * only, on reward rows with room to move; absent elsewhere and from an older backend.
+   * The whole euros of spend this row may be moved to, both ends included: a reward, a perk or a
+   * tier step. Admin responses only, on rows with room to move; absent from an older backend,
+   * which sends none for a tier step.
    */
   spendRange?: { min: number; max: number };
   tier?: { key: TierKey; label: string };
@@ -222,8 +223,16 @@ export interface PresentedProgram {
   };
   tiers: PresentedTier[];
   ladder: PresentedMilestone[];
-  /** After Diamante: one reward for every `every` euros a client pays. */
-  recurring: { every: number; name: string };
+  /**
+   * After Diamante: one reward for every `every` euros a client pays. `kind` and `description` as
+   * on a ladder reward; absent from an older backend.
+   */
+  recurring: {
+    every: number;
+    name: string;
+    kind?: RewardKind;
+    description?: string;
+  };
   /** `minRevenue`: the least the centre has earned from the people referred by this step. */
   referrals: Array<{ n: number; name: string; minRevenue: number }>;
   welcomeProgress: number;
@@ -438,6 +447,18 @@ export const addMilestone = (
     { method: "POST", ...json({ band, realSpend, choice }) },
   );
 
+/** Sets the reward after Diamante to one of the "Cambiar" panel's choices. Drafts only. */
+export const swapRecurring = (
+  clinicId: string,
+  programId: string,
+  choice: Exclude<SwapChoice, { alternative: number }>,
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/recurring`,
+    { method: "PATCH", ...json(choice) },
+  );
+
 /** Removes a reward or perk from the ladder. Drafts only. */
 export const removeMilestone = (
   clinicId: string,
@@ -450,7 +471,7 @@ export const removeMilestone = (
     { method: "DELETE" },
   );
 
-/** Moves the spend, in whole euros paid, at which a reward milestone unlocks. Drafts only. */
+/** Moves the spend, in whole euros paid, at which a reward, a perk or a tier step is reached. Drafts only. */
 export const setMilestoneThreshold = (
   clinicId: string,
   programId: string,

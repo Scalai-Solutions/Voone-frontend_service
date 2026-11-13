@@ -126,6 +126,7 @@ export function ProgramView({
   onSetThreshold,
   onAddMilestone,
   onRemoveMilestone,
+  onSwapRecurring,
   onSetBenefits,
   onSetBenefitOverrides,
   onSetTexts,
@@ -136,12 +137,14 @@ export function ProgramView({
   catalogItems?: CatalogItemOption[];
   /** Present only while the programme is a draft: an active one cannot be edited. */
   onSwap?: (milestone: number, choice: SwapChoice) => Promise<unknown>;
-  /** Present only while the programme is a draft: moves the spend at which a reward unlocks. */
+  /** Present only while the programme is a draft: moves the spend of a reward, perk or tier step. */
   onSetThreshold?: (milestone: number, realSpend: number) => Promise<unknown>;
   /** Present only while the programme is a draft: adds a reward to a tier band at a spend. */
   onAddMilestone?: (band: number, realSpend: number, choice: PanelChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: removes a reward or perk from the ladder. */
   onRemoveMilestone?: (milestone: number) => Promise<unknown>;
+  /** Present only while the programme is a draft: changes what the reward after Diamante is. */
+  onSwapRecurring?: (choice: PanelChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
   onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
   /**
@@ -233,8 +236,10 @@ export function ProgramView({
           Puedes cambiar los textos de los premios, las ventajas y los premios
           por referido con el lápiz. En cada premio, «Cambiar» elige qué se
           regala, el lápiz junto al importe cambia el gasto con el que se
-          consigue y la papelera lo quita; «Añadir» suma un premio al nivel. Los cambios en los textos se aplican a los premios que se
-          emitan a partir de la publicación; los ya emitidos conservan su texto.
+          consigue (también el de cada subida de nivel) y la papelera lo quita;
+          «Añadir» suma un premio al nivel. Los cambios en los textos se aplican
+          a los premios que se emitan a partir de la publicación; los ya
+          emitidos conservan su texto.
         </p>
       ) : null}
 
@@ -314,31 +319,12 @@ export function ProgramView({
           />
         ))}
 
-        <div className="rounded-lg border border-dashed border-border p-4 text-sm leading-6">
-          <p className="font-semibold">Después de Diamante</p>
-          {texts ? (
-            <div className="mt-1 grid gap-1 text-muted-foreground">
-              <p>
-                Por cada {formatProgress(program.recurring.every)} que gasta el
-                cliente:
-              </p>
-              <EditableText
-                value={program.recurring.name}
-                label="el premio de después de Diamante"
-                maxLength={MAX_TEXT_LENGTH}
-                build={recurringLabelEdit}
-                editing={texts}
-                restorable
-                className="font-semibold text-foreground"
-              />
-            </div>
-          ) : (
-            <p className="mt-1 text-muted-foreground">
-              Por cada {formatProgress(program.recurring.every)} que gasta el
-              cliente: {program.recurring.name}.
-            </p>
-          )}
-        </div>
+        <RecurringReward
+          recurring={program.recurring}
+          onSwap={onSwapRecurring}
+          texts={texts}
+          catalogItems={catalogItems}
+        />
       </section>
 
       <section aria-labelledby="referrals-heading" className="grid gap-4">
@@ -1331,6 +1317,111 @@ function RewardChoicePanel({
   );
 }
 
+/**
+ * The reward that repeats after Diamante: its name (the text pencil), and on a draft "Cambiar", the
+ * same five options as a ladder reward.
+ */
+function RecurringReward({
+  recurring,
+  onSwap,
+  texts,
+  catalogItems,
+}: {
+  recurring: PresentedProgram["recurring"];
+  onSwap?: (choice: PanelChoice) => Promise<unknown>;
+  texts?: TextsEditing;
+  catalogItems: CatalogItemOption[];
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [problem, setProblem] = React.useState<string | null>(null);
+  const kind = rewardKindOf(recurring);
+  const KindIcon = REWARD_ICON[kind];
+
+  const choose = async (choice: PanelChoice) => {
+    if (!onSwap) return;
+
+    setBusy(true);
+    setProblem(null);
+
+    try {
+      await onSwap(choice);
+      setOpen(false);
+    } catch (error) {
+      setProblem(
+        swapRefusalMessage(error, "No se ha podido cambiar el premio."),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-dashed border-border p-4 text-sm leading-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-semibold">Después de Diamante</p>
+          <div className="mt-1 grid gap-1 text-muted-foreground">
+            <p>
+              <span>{`Por cada ${formatProgress(recurring.every)} que gasta el cliente:`}</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <KindIcon
+                aria-hidden
+                className="mt-1 h-4 w-4 shrink-0 text-gold"
+              />
+              <EditableText
+                value={recurring.name}
+                label="el premio de después de Diamante"
+                maxLength={MAX_TEXT_LENGTH}
+                build={recurringLabelEdit}
+                editing={texts}
+                restorable
+                className="font-semibold text-foreground"
+              />
+            </p>
+            {recurring.description ? (
+              <p className="text-xs leading-5">
+                <span>{recurring.description}</span>
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {onSwap ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            aria-expanded={open}
+            onClick={() => {
+              setProblem(null);
+              setOpen((current) => !current);
+            }}
+          >
+            <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" />{" "}
+            <span>Cambiar</span>
+          </Button>
+        ) : null}
+      </div>
+
+      {open ? (
+        <div className="mt-3">
+          <RewardChoicePanel
+            catalogItems={catalogItems}
+            initialMode={kind}
+            currentKind={recurring.kind ? kind : undefined}
+            initialFreeName={kind === "libre" ? recurring.name : ""}
+            busy={busy}
+            problem={problem}
+            onChoose={(choice) => void choose(choice)}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function MilestoneRow({
   milestone,
   onSwap,
@@ -1354,23 +1445,6 @@ function MilestoneRow({
   const [spendBusy, setSpendBusy] = React.useState(false);
   const [spendProblem, setSpendProblem] = React.useState<string | null>(null);
 
-  if (milestone.type === "nivel") {
-    return (
-      <li className="flex items-center justify-between gap-4 border-t border-border bg-primary/10 px-4 py-3 text-sm font-semibold first:border-t-0">
-        <span className="flex items-center gap-2">
-          <Crown className="h-4 w-4 text-gold" />{" "}
-          <span>Subes a {milestone.tier?.label}</span>
-        </span>
-        <span className="shrink-0 text-right">
-          <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Mes {milestone.month}
-          </span>
-          {formatProgress(milestone.realSpend)}
-        </span>
-      </li>
-    );
-  }
-
   const reward = milestone.reward;
   const kind = rewardKindOf(reward);
   const valueLabel = reward ? rewardValueLabel(milestone) : null;
@@ -1380,8 +1454,9 @@ function MilestoneRow({
       ? (PERK_ICON[milestone.perk.kind] ?? Gift)
       : Gift;
   const range = milestone.spendRange;
-  // Rewards and perks may move; the backend sends no range for a tier step.
+  // Every row with room may move, tier steps included; an older backend sends no range for one.
   const canMoveSpend = Boolean(onSetThreshold && range);
+  const isStep = milestone.type === "nivel";
   const perkKind = milestone.perk?.kind;
   // Opens on what the row is now. A perk opens on double points or the surprise when it is one.
   const initialMode: RewardKind = reward
@@ -1473,6 +1548,96 @@ function MilestoneRow({
     }
   };
 
+  const spendButton = canMoveSpend ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      aria-label={
+        isStep
+          ? `Cambiar el gasto con el que se sube a ${milestone.tier?.label ?? "este nivel"}`
+          : "Cambiar el gasto con el que se consigue"
+      }
+      aria-expanded={editingSpend}
+      disabled={spendBusy}
+      onClick={() => (editingSpend ? setEditingSpend(false) : startSpend())}
+    >
+      <Pencil className="h-3.5 w-3.5" aria-hidden />
+    </Button>
+  ) : null;
+
+  const spendForm =
+    editingSpend && range ? (
+      <form
+        onSubmit={(event) => void saveSpend(event)}
+        className="mt-3 grid gap-2 rounded-md bg-secondary/50 p-3"
+      >
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            El cliente ha gastado (€)
+            <Input
+              inputMode="numeric"
+              autoFocus
+              value={spendText}
+              disabled={spendBusy}
+              onChange={(event) => setSpendText(event.target.value)}
+              className="h-9 w-32 font-normal text-foreground"
+            />
+          </label>
+          <Button type="submit" size="sm" disabled={spendBusy}>
+            <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            <span>Guardar</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={spendBusy}
+            onClick={() => setEditingSpend(false)}
+          >
+            <X className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            <span>Cancelar</span>
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          <span>
+            {isStep
+              ? `${spendRangeLabel(range)}. Las demás filas conservan su gasto.`
+              : `${spendRangeLabel(range)}: tiene que quedar entre las filas de arriba y de abajo.`}
+          </span>
+        </p>
+        {spendProblem ? (
+          <p role="alert" className="text-xs text-destructive">
+            <span>{spendProblem}</span>
+          </p>
+        ) : null}
+      </form>
+    ) : null;
+
+  if (isStep) {
+    return (
+      <li className="border-t border-border bg-primary/10 px-4 py-3 text-sm font-semibold first:border-t-0">
+        <div className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2">
+            <Crown className="h-4 w-4 text-gold" />{" "}
+            <span>Subes a {milestone.tier?.label}</span>
+          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-right">
+              <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Mes {milestone.month}
+              </span>
+              <span>{formatProgress(milestone.realSpend)}</span>
+            </span>
+            {spendButton}
+          </div>
+        </div>
+        <div className="font-normal">{spendForm}</div>
+      </li>
+    );
+  }
+
   return (
     <li className="border-t border-border px-4 py-3 text-sm first:border-t-0">
       <div className="flex items-start justify-between gap-4">
@@ -1541,22 +1706,7 @@ function MilestoneRow({
           <span className="text-right font-semibold">
             <span>{formatProgress(milestone.realSpend)}</span>
           </span>
-          {canMoveSpend ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              aria-label="Cambiar el gasto con el que se consigue"
-              aria-expanded={editingSpend}
-              disabled={spendBusy}
-              onClick={() =>
-                editingSpend ? setEditingSpend(false) : startSpend()
-              }
-            >
-              <Pencil className="h-3.5 w-3.5" aria-hidden />
-            </Button>
-          ) : null}
+          {spendButton}
           {offersSwap({
             hasReward: Boolean(reward),
             hasPerk: Boolean(milestone.perk),
@@ -1589,48 +1739,7 @@ function MilestoneRow({
         </div>
       </div>
 
-      {editingSpend && range ? (
-        <form
-          onSubmit={(event) => void saveSpend(event)}
-          className="mt-3 grid gap-2 rounded-md bg-secondary/50 p-3"
-        >
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-              El cliente ha gastado (€)
-              <Input
-                inputMode="numeric"
-                autoFocus
-                value={spendText}
-                disabled={spendBusy}
-                onChange={(event) => setSpendText(event.target.value)}
-                className="h-9 w-32 font-normal text-foreground"
-              />
-            </label>
-            <Button type="submit" size="sm" disabled={spendBusy}>
-              <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              <span>Guardar</span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={spendBusy}
-              onClick={() => setEditingSpend(false)}
-            >
-              <X className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              <span>Cancelar</span>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            <span>{`${spendRangeLabel(range)}: tiene que quedar entre las filas de arriba y de abajo.`}</span>
-          </p>
-          {spendProblem ? (
-            <p role="alert" className="text-xs text-destructive">
-              <span>{spendProblem}</span>
-            </p>
-          ) : null}
-        </form>
-      ) : null}
+      {spendForm}
 
       {open ? (
         <div className="mt-3">
