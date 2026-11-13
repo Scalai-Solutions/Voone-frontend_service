@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 
+import { useStaffScope } from "@/features/members/staff-scope";
 import { creditMember, type Member } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -22,11 +23,12 @@ type UseCreditMemberOptions = Omit<
 
 export function useCreditMember(options?: UseCreditMemberOptions) {
   const queryClient = useQueryClient();
+  const { apiBase } = useStaffScope();
 
   return useMutation({
     mutationKey: queryKeys.mutations.creditMember(),
     mutationFn: ({ memberId, points, label, referralCode, idempotencyKey }) =>
-      creditMember(memberId, points, label, { idempotencyKey, referralCode }),
+      creditMember(memberId, points, label, { idempotencyKey, referralCode }, apiBase),
     ...options,
     onSuccess: (data, variables, onMutateResult, context) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.members() });

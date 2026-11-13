@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api-client";
+import { ApiError, STAFF_API_BASE } from "@/lib/api-client";
 import {
   normalizeDoublePoints,
   type DoublePoints,
@@ -111,8 +111,13 @@ export interface MemberReward {
   status: "disponible" | "canjeado" | "caducado";
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api/staff${path}`, {
+/** `apiBase` is /api/staff, or the admin's per-clinic base (features/members/staff-scope.tsx). */
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  apiBase: string = STAFF_API_BASE,
+): Promise<T> {
+  const response = await fetch(`${apiBase}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init.headers },
   });
@@ -135,9 +140,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 /** The centre's live programme, or null when it is still on the older points scheme. */
-export const getStaffProgram = async (): Promise<StaffProgram | null> => {
+export const getStaffProgram = async (
+  apiBase?: string,
+): Promise<StaffProgram | null> => {
   try {
-    return await request<StaffProgram>("/program");
+    return await request<StaffProgram>("/program", {}, apiBase);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
 
@@ -156,14 +163,21 @@ export interface StaffCatalogItem {
 }
 
 /** The centre's own catalogue, for choosing what was paid instead of typing it. */
-export const getStaffCatalog = () =>
-  request<{ items: StaffCatalogItem[] }>("/catalog").then((r) => r.items);
+export const getStaffCatalog = (apiBase?: string) =>
+  request<{ items: StaffCatalogItem[] }>("/catalog", {}, apiBase).then(
+    (r) => r.items,
+  );
 
-export const recordVisit = (memberId: string, input: VisitInput) =>
-  request<VisitOutcome>(`/members/${encodeURIComponent(memberId)}/visits`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+export const recordVisit = (
+  memberId: string,
+  input: VisitInput,
+  apiBase?: string,
+) =>
+  request<VisitOutcome>(
+    `/members/${encodeURIComponent(memberId)}/visits`,
+    { method: "POST", body: JSON.stringify(input) },
+    apiBase,
+  );
 
 export interface MemberRewardsOverview {
   rewards: MemberReward[];
@@ -174,9 +188,12 @@ export interface MemberRewardsOverview {
 /** A member's rewards plus whether their next payment earns double points. */
 export const getMemberRewardsOverview = (
   memberId: string,
+  apiBase?: string,
 ): Promise<MemberRewardsOverview> =>
   request<{ rewards?: MemberReward[]; doublePoints?: unknown }>(
     `/members/${encodeURIComponent(memberId)}/rewards`,
+    {},
+    apiBase,
   ).then((r) => ({
     rewards: r.rewards ?? [],
     doublePoints: normalizeDoublePoints(r.doublePoints),
@@ -190,8 +207,10 @@ export const redeemReward = (
   memberId: string,
   rewardId: string,
   input: { visitId: string; surpriseItem?: string },
+  apiBase?: string,
 ) =>
   request<unknown>(
     `/members/${encodeURIComponent(memberId)}/rewards/${encodeURIComponent(rewardId)}/redeem`,
     { method: "POST", body: JSON.stringify(input) },
+    apiBase,
   );

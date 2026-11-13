@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { scopedKey, useStaffScope } from "@/features/members/staff-scope";
 import { queryKeys } from "@/lib/query-keys";
 import { ApiError } from "@/lib/api-client";
 import type { BonoPlansStore } from "@/components/shared/bono-plans-editor";
@@ -21,17 +22,21 @@ import {
  */
 
 export function useBonoPlans() {
+  const scope = useStaffScope();
+
   return useQuery({
-    queryKey: queryKeys.bonoPlans(),
-    queryFn: getBonoPlans,
+    queryKey: scopedKey(queryKeys.bonoPlans(), scope),
+    queryFn: () => getBonoPlans(scope.apiBase),
     staleTime: 60_000,
   });
 }
 
 export function useMemberBonos(memberId: string, enabled: boolean) {
+  const { apiBase } = useStaffScope();
+
   return useQuery({
     queryKey: queryKeys.memberBonos(memberId),
-    queryFn: () => getMemberBonos(memberId),
+    queryFn: () => getMemberBonos(memberId, apiBase),
     enabled,
   });
 }
@@ -72,9 +77,10 @@ export function useDeleteBonoPlan() {
 
 export function useCancelMemberBono(memberId: string) {
   const queryClient = useQueryClient();
+  const { apiBase } = useStaffScope();
 
   return useMutation({
-    mutationFn: (bonoId: string) => cancelMemberBono(memberId, bonoId),
+    mutationFn: (bonoId: string) => cancelMemberBono(memberId, bonoId, apiBase),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.memberBonos(memberId),

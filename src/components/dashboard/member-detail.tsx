@@ -20,6 +20,7 @@ import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useDeleteMember } from "@/features/members/api/useDeleteMember";
 import { useMember } from "@/features/members/api/useMember";
 import { useUpdateMember } from "@/features/members/api/useUpdateMember";
+import { useStaffScope } from "@/features/members/staff-scope";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
 import { useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
@@ -55,6 +56,7 @@ const memberAge = (member: Member) => {
 
 export function MemberDetail({ memberId }: { memberId: string }) {
   const router = useRouter();
+  const { membersHref } = useStaffScope();
   const queryClient = useQueryClient();
   const [manualPoints, setManualPoints] = useState("");
   const [manualReason, setManualReason] = useState("");
@@ -133,7 +135,7 @@ export function MemberDetail({ memberId }: { memberId: string }) {
     deleteMemberMutation.mutate(memberId, {
       onError: () =>
         setNotice("No se pudo eliminar el miembro. Inténtalo de nuevo."),
-      onSuccess: () => router.push("/dashboard/members"),
+      onSuccess: () => router.push(membersHref),
     });
   }
 
@@ -378,6 +380,7 @@ function ReaddCard({
   memberId: string;
   appleUpdatesRegistered?: boolean | null;
 }) {
+  const { apiBase } = useStaffScope();
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -387,7 +390,7 @@ function ReaddCard({
     setProblem(null);
 
     try {
-      setUrl((await getMemberPassLink(memberId)).addToWalletUrl);
+      setUrl((await getMemberPassLink(memberId, apiBase)).addToWalletUrl);
     } catch {
       setProblem("No se ha podido generar el enlace. Inténtalo de nuevo.");
     } finally {
