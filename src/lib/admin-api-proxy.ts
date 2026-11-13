@@ -48,7 +48,7 @@ const tooLarge = (): Response =>
  * The body as text, capped at MAX_BODY_BYTES: refused up front when Content-Length says it is
  * too big, and cut off while reading when there is no (or a wrong) Content-Length.
  */
-const readCappedText = async (
+export const readCappedText = async (
   request: Request,
 ): Promise<{ text: string } | { response: Response }> => {
   if (declaredTooLarge(request.headers.get("content-length")))

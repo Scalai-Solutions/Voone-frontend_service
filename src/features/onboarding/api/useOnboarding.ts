@@ -38,6 +38,8 @@ import {
   setTierBenefits,
   swapMilestone,
   setMilestoneThreshold,
+  addMilestone,
+  removeMilestone,
   updateBonoPlan,
   type BenefitOverrideEntry,
   type CalcInput,
@@ -317,6 +319,50 @@ export function useMilestoneThreshold(clinicId: string, programId: string) {
         draft,
       );
       // The spend to each reward feeds the five-year chart, as a new reward does.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
+    },
+  });
+}
+
+export function useAddMilestone(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      band,
+      realSpend,
+      choice,
+    }: {
+      band: number;
+      realSpend: number;
+      choice: Exclude<SwapChoice, { alternative: number }>;
+    }) => addMilestone(clinicId, programId, band, realSpend, choice),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      // A reward more or less changes the five-year chart, as a swap does.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
+    },
+  });
+}
+
+export function useRemoveMilestone(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (milestone: number) =>
+      removeMilestone(clinicId, programId, milestone),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
       void queryClient.invalidateQueries({
         queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
       });

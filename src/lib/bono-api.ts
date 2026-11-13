@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api-client";
+import { ApiError, STAFF_API_BASE } from "@/lib/api-client";
 
 /**
  * Bono de sesiones, as the centre's own staff call it: the plans the owner defines and the
@@ -43,8 +43,13 @@ export type UpdateBonoPlanInput = Partial<CreateBonoPlanInput> & {
   active?: boolean;
 };
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api/staff${path}`, {
+/** `apiBase` is /api/staff, or the admin's per-clinic base (features/members/staff-scope.tsx). */
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  apiBase: string = STAFF_API_BASE,
+): Promise<T> {
+  const response = await fetch(`${apiBase}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init.headers },
   });
@@ -66,8 +71,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export const getBonoPlans = () =>
-  request<{ plans: BonoPlanRow[] }>("/bonos").then((r) => r.plans);
+export const getBonoPlans = (apiBase?: string) =>
+  request<{ plans: BonoPlanRow[] }>("/bonos", {}, apiBase).then((r) => r.plans);
 
 export const createBonoPlan = (input: CreateBonoPlanInput) =>
   request<BonoPlanRow>("/bonos", {
@@ -90,13 +95,20 @@ export const deleteBonoPlan = (id: string) =>
   );
 
 /** A member's bonos, with how far through each they are. */
-export const getMemberBonos = (memberId: string) =>
+export const getMemberBonos = (memberId: string, apiBase?: string) =>
   request<{ bonos: MemberBonoRow[] }>(
     `/members/${encodeURIComponent(memberId)}/bonos`,
+    {},
+    apiBase,
   ).then((r) => r.bonos);
 
-export const cancelMemberBono = (memberId: string, bonoId: string) =>
+export const cancelMemberBono = (
+  memberId: string,
+  bonoId: string,
+  apiBase?: string,
+) =>
   request<MemberBonoRow>(
     `/members/${encodeURIComponent(memberId)}/bonos/${encodeURIComponent(bonoId)}/cancel`,
     { method: "POST" },
+    apiBase,
   );

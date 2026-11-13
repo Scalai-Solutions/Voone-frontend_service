@@ -24,6 +24,8 @@ import {
   useSetTierBenefits,
   useSwapMilestone,
   useMilestoneThreshold,
+  useAddMilestone,
+  useRemoveMilestone,
 } from "@/features/onboarding/api/useOnboarding";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -174,6 +176,8 @@ function ProgramSetupLoaded({
   const publish = usePublishProgram(clinicId);
   const swap = useSwapMilestone(clinicId, shownId ?? "");
   const threshold = useMilestoneThreshold(clinicId, shownId ?? "");
+  const addMilestone = useAddMilestone(clinicId, shownId ?? "");
+  const removeMilestone = useRemoveMilestone(clinicId, shownId ?? "");
   const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
   const benefitOverrides = useSetBenefitOverrides(clinicId, shownId ?? "");
   const programTexts = useSetProgramTexts(clinicId, shownId ?? "");
@@ -496,6 +500,17 @@ function ProgramSetupLoaded({
                         threshold.mutateAsync({ milestone, realSpend })
                     : undefined
                 }
+                onAddMilestone={
+                  isDraft
+                    ? (band, realSpend, choice) =>
+                        addMilestone.mutateAsync({ band, realSpend, choice })
+                    : undefined
+                }
+                onRemoveMilestone={
+                  isDraft
+                    ? (milestone) => removeMilestone.mutateAsync(milestone)
+                    : undefined
+                }
                 catalogItems={catalogRows}
                 onSetBenefits={
                   isDraft
@@ -577,14 +592,22 @@ function ProgramSetupLoaded({
               ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+                {/* A new version starts as a copy of the live one, edits included; the questions
+                    rebuild the programme from scratch, so they are only offered on a draft. */}
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setStep(1)}
+                  disabled={!isDraft && cloneDraft.isPending}
+                  onClick={isDraft ? () => setStep(1) : editCopy}
                 >
-                  {isDraft
-                    ? "Cambiar las respuestas"
-                    : "Crear una versión nueva"}
+                  {!isDraft && cloneDraft.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  <span key={isDraft ? "answers" : "copy"}>
+                    {isDraft
+                      ? "Cambiar las respuestas"
+                      : "Crear una versión nueva"}
+                  </span>
                 </Button>
 
                 {isDraft ? (

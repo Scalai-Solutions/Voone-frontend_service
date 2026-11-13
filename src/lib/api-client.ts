@@ -395,10 +395,11 @@ export interface ClinicAudience {
 }
 
 /** The centre's saved audiences (Audiencias), newest first. */
-export function getAudiences(clinicId: string) {
+export function getAudiences(clinicId: string, apiBase?: string) {
   return staffProxyFetch<ClinicAudience[]>(
     `/clinics/${encodeURIComponent(clinicId)}/audiences`,
     { method: "GET" },
+    apiBase,
   );
 }
 
@@ -406,18 +407,25 @@ export function getAudiences(clinicId: string) {
 export function createAudience(
   clinicId: string,
   input: { name: string; criteria: NotificationSegmentInput },
+  apiBase?: string,
 ) {
   return staffProxyFetch<ClinicAudience>(
     `/clinics/${encodeURIComponent(clinicId)}/audiences`,
     { method: "POST", body: JSON.stringify(input) },
+    apiBase,
   );
 }
 
 /** Removes a saved audience. Scoped to the clinic by the backend. */
-export function deleteAudience(clinicId: string, audienceId: string) {
+export function deleteAudience(
+  clinicId: string,
+  audienceId: string,
+  apiBase?: string,
+) {
   return staffProxyFetch<{ status: "deleted" }>(
     `/clinics/${encodeURIComponent(clinicId)}/audiences/${encodeURIComponent(audienceId)}`,
     { method: "DELETE" },
+    apiBase,
   );
 }
 
@@ -683,8 +691,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
  * No mock fallback. These are writes, and a write that reports success while persisting
  * nothing is the failure mode worth avoiding most.
  */
-async function proxyFetch<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
+function proxyFetch<T>(path: string, init: RequestInit): Promise<T> {
+  return proxyFetchUrl<T>(`/api${path}`, init);
+}
+
+async function proxyFetchUrl<T>(url: string, init: RequestInit): Promise<T> {
+  const response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -709,9 +721,18 @@ async function proxyFetch<T>(path: string, init: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-/** Staff-scoped calls: /api/staff/<path>. */
-const staffProxyFetch = <T>(path: string, init: RequestInit) =>
-  proxyFetch<T>(`/staff${path}`, init);
+/** The staff routes, where the session picks the clinic. */
+export const STAFF_API_BASE = "/api/staff";
+
+/**
+ * Staff-scoped calls: `${apiBase}/<path>`, /api/staff unless a caller passes the admin's
+ * per-clinic base (see features/members/staff-scope.tsx).
+ */
+const staffProxyFetch = <T>(
+  path: string,
+  init: RequestInit,
+  apiBase: string = STAFF_API_BASE,
+) => proxyFetchUrl<T>(`${apiBase}${path}`, init);
 
 /** Voone-admin calls: /api/admin/<path>. A different surface with a different guard. */
 const adminProxyFetch = <T>(path: string, init: RequestInit = {}) =>
@@ -1041,6 +1062,7 @@ export function saveClinicGeoLocations(
 
 export function getMembers(
   params: { q?: string; limit?: number; offset?: number } = {},
+  apiBase?: string,
 ) {
   const query = new URLSearchParams();
 
@@ -1051,6 +1073,7 @@ export function getMembers(
   return staffProxyFetch<Member[]>(
     `/members${query.toString() ? `?${query}` : ""}`,
     { method: "GET" },
+    apiBase,
   );
 }
 
@@ -1058,16 +1081,19 @@ export function getAdminMembers() {
   return adminProxyFetch<Member[]>("/members");
 }
 
-export function getMember(memberId: string) {
-  return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}`, {
-    method: "GET",
-  });
+export function getMember(memberId: string, apiBase?: string) {
+  return staffProxyFetch<Member>(
+    `/members/${encodeURIComponent(memberId)}`,
+    { method: "GET" },
+    apiBase,
+  );
 }
 
-export function deleteMember(memberId: string) {
+export function deleteMember(memberId: string, apiBase?: string) {
   return staffProxyFetch<{ status: "deleted" }>(
     `/members/${encodeURIComponent(memberId)}`,
     { method: "DELETE" },
+    apiBase,
   );
 }
 
@@ -1084,11 +1110,16 @@ export interface UpdateMemberInput {
   sex?: Member["sex"];
 }
 
-export function updateMember(memberId: string, input: UpdateMemberInput) {
-  return staffProxyFetch<Member>(`/members/${encodeURIComponent(memberId)}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
-  });
+export function updateMember(
+  memberId: string,
+  input: UpdateMemberInput,
+  apiBase?: string,
+) {
+  return staffProxyFetch<Member>(
+    `/members/${encodeURIComponent(memberId)}`,
+    { method: "PATCH", body: JSON.stringify(input) },
+    apiBase,
+  );
 }
 
 export function createMember(input: CreateMemberInput) {
@@ -1237,6 +1268,7 @@ export function creditMember(
   points: number,
   label: string,
   options: { idempotencyKey: string; referralCode?: string },
+  apiBase?: string,
 ) {
   return staffProxyFetch<Member>(
     `/members/${encodeURIComponent(memberId)}/points`,
@@ -1249,6 +1281,7 @@ export function creditMember(
         idempotencyKey: options.idempotencyKey,
       }),
     },
+    apiBase,
   );
 }
 
@@ -1571,10 +1604,11 @@ export interface MemberPassLinkResult {
 }
 
 /** The link a member opens to add their card again, for reception to show as a QR. */
-export function getMemberPassLink(memberId: string) {
+export function getMemberPassLink(memberId: string, apiBase?: string) {
   return staffProxyFetch<MemberPassLinkResult>(
     `/members/${encodeURIComponent(memberId)}/pass`,
     { method: "POST" },
+    apiBase,
   );
 }
 

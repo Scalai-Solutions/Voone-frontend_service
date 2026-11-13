@@ -1049,12 +1049,6 @@ function RewardsList({
   return (
     <section className="rounded-lg border border-border bg-background/70 p-4">
       <p className="text-sm font-semibold">Premios del cliente</p>
-      {!visitId ? (
-        <p className="mt-1 text-xs text-muted-foreground">
-          Un premio se canjea durante una visita de pago: registra primero la
-          visita de hoy.
-        </p>
-      ) : null}
 
       {loading ? (
         <p className="mt-3 text-sm text-muted-foreground">Cargando…</p>
@@ -1124,15 +1118,14 @@ function RewardsList({
                     <Button
                       type="button"
                       size="sm"
-                      disabled={!visitId || redeem.isPending}
+                      disabled={redeem.isPending}
                       onClick={() => {
-                        if (!visitId) return;
-
                         setProblem(null);
                         redeem.mutate(
                           {
                             rewardId: reward.id,
-                            visitId,
+                            // Redeemable any time; linked to today's visit when one was recorded.
+                            visitId: visitId ?? undefined,
                             surpriseItem:
                               pool.length > 0
                                 ? surprise[reward.id] || undefined

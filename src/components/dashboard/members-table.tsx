@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/page-kit";
 import { LuxuryLoading } from "@/components/shared/luxury-loading";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
 import { useInfiniteMembers } from "@/features/members/api/useMembers";
+import { useStaffScope } from "@/features/members/staff-scope";
 import {
   createAudience,
   deleteAudience,
@@ -68,6 +69,7 @@ const formatDate = (value: string | null) =>
     : "Sin visitas";
 
 export function MembersTable() {
+  const { membersHref } = useStaffScope();
   const [tab, setTab] = React.useState<"personas" | "audiencias">("personas");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
@@ -141,7 +143,7 @@ export function MembersTable() {
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#b7874a]">CRM de fidelización</p>
           <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">Miembros</h1>
         </div>
-        <Link href="/dashboard/members/new" className="inline-flex items-center gap-2 rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]">
+        <Link href={`${membersHref}/new`} className="inline-flex items-center gap-2 rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]">
           <Plus size={17} /> Añadir persona
         </Link>
       </div>
@@ -179,7 +181,7 @@ export function MembersTable() {
             <button type="button" onClick={exportMembersCsv} className="rounded-2xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white"><Download size={16} className="mr-2 inline" />Exportar</button>
           </div>
 
-          {filteredMembers.length === 0 && !isSearching ? <EmptyState title="Aún no hay miembros" message="No hay miembros que coincidan con la búsqueda actual." action={{ href: "/dashboard/members/new", label: "Añadir persona" }} /> : null}
+          {filteredMembers.length === 0 && !isSearching ? <EmptyState title="Aún no hay miembros" message="No hay miembros que coincidan con la búsqueda actual." action={{ href: `${membersHref}/new`, label: "Añadir persona" }} /> : null}
 
           {filteredMembers.length > 0 ? <div className="overflow-x-auto rounded-3xl border border-[#e2d5cc] bg-white/80">
             <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left text-sm">
@@ -201,13 +203,14 @@ export function MembersTable() {
 }
 
 function MemberRow({ member }: { member: Member }) {
+  const { membersHref } = useStaffScope();
   const identityIsPhone = member.identity.trim().startsWith("+");
   const spent = formatEuros(Math.max(member.moneySpent, 0));
 
   return (
     <tr className="border-t border-[#eadfd8]">
       <td className="px-5 py-4">
-        <Link href={`/dashboard/members/${member.id}`} className="font-semibold hover:text-[#9b633e]">{member.name}</Link>
+        <Link href={`${membersHref}/${member.id}`} className="font-semibold hover:text-[#9b633e]">{member.name}</Link>
         {/* The number on the member's card. Falls back to the old line for members the
             backfill has not reached — a uuid, which is why the code exists. */}
         <p className="mt-1 text-xs text-[#927e72]">{member.code ?? (identityIsPhone ? member.id : member.identity)}</p>
@@ -219,22 +222,24 @@ function MemberRow({ member }: { member: Member }) {
       <td className="px-5 py-4 font-semibold">{formatPoints(member.points)}</td>
       <td className="px-5 py-4 font-semibold">{spent}</td>
       <td className="px-5 py-4"><CalendarDays size={14} className="mr-1 inline text-[#b8864b]" />{formatDate(member.lastVisitedAt)}</td>
-      <td className="px-5 py-4"><Link href={`/dashboard/members/${member.id}`} className="inline-flex items-center rounded-full border border-[#d9c9bf] px-4 py-2 text-xs font-semibold hover:bg-[#f6eee8]"><Pencil size={14} className="mr-1" />Editar</Link></td>
+      <td className="px-5 py-4"><Link href={`${membersHref}/${member.id}`} className="inline-flex items-center rounded-full border border-[#d9c9bf] px-4 py-2 text-xs font-semibold hover:bg-[#f6eee8]"><Pencil size={14} className="mr-1" />Editar</Link></td>
     </tr>
   );
 }
 
 function AudiencesTable({ members }: { members: Member[] }) {
   const queryClient = useQueryClient();
-  const currentClinic = useCurrentClinic();
-  const clinicId = currentClinic.data?.id;
+  const scope = useStaffScope();
+  // The admin portal names the clinic; /api/staff/clinic only answers a clinic's own session.
+  const currentClinic = useCurrentClinic({ enabled: !scope.clinicId });
+  const clinicId = scope.clinicId ?? currentClinic.data?.id;
 
   // Saved audiences live on the backend, so they survive a reload and the whole team sees the
   // same list; the count arrives with them, resolved by the same code path a send uses.
   const audiencesQuery = useQuery({
     queryKey: ["audiences", clinicId],
     enabled: Boolean(clinicId),
-    queryFn: () => getAudiences(clinicId ?? ""),
+    queryFn: () => getAudiences(clinicId ?? "", scope.apiBase),
   });
 
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -264,7 +269,7 @@ function AudiencesTable({ members }: { members: Member[] }) {
 
   const createMutation = useMutation({
     mutationFn: (input: { name: string; criteria: NotificationSegmentInput }) =>
-      createAudience(clinicId ?? "", input),
+      createAudience(clinicId ?? "", input, scope.apiBase),
     onSuccess: async () => {
       setDraftName("");
       setDraftTier("all");
@@ -281,7 +286,8 @@ function AudiencesTable({ members }: { members: Member[] }) {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (audienceId: string) => deleteAudience(clinicId ?? "", audienceId),
+    mutationFn: (audienceId: string) =>
+      deleteAudience(clinicId ?? "", audienceId, scope.apiBase),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["audiences", clinicId] }),
   });
 
