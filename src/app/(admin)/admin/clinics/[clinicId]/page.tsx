@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { ArrowUpRight, Building2, Gift, Mail, MapPin, MessageSquare, Sparkles, Target, Users, WalletCards } from "lucide-react";
 
 import { ClinicAccountActions, ClinicCredentialsActions } from "@/components/admin/clinic-account-actions";
+import { BillingStep } from "@/components/admin/clinic-setup-flow";
+import { billingDraftFrom } from "@/components/billing/billing-fields";
 import { CopyLinkRow } from "@/components/admin/copy-link-row";
 import { TreatmentsPreview } from "@/components/admin/treatments-preview";
 import { PageHeader } from "@/components/shared/page-kit";
@@ -165,6 +167,7 @@ export default async function ClinicDetailPage({ params }: PageProps<"/admin/cli
           </div>
           <Button asChild variant="outline" className="rounded-full"><Link href={`/admin/clinics/${encodeURIComponent(clinic.id)}/requests`}>Ver solicitudes <ArrowUpRight className="ml-2 h-4 w-4" /></Link></Button>
         </div>
+        <BillingStep clinicId={clinic.id} initial={billingDraftFrom(clinic)} />
         <SetupPanel icon={WalletCards} title="Tratamientos" description="Catálogo de tratamientos del panel del centro y configuración de puntos.">
           <TreatmentsPreview treatments={clinic.treatments ?? []} />
         </SetupPanel>

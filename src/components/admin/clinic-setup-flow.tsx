@@ -195,8 +195,9 @@ function MessagesStep({ clinicId }: { clinicId: string }) {
 /**
  * Billing details for invoicing the centre. Optional, so Continue is never blocked, but saved
  * here they appear in the centre's own Settings › Información del centro, where it can edit them.
+ * Also rendered on the admin clinic page, so billing stays editable after activation.
  */
-function BillingStep({
+export function BillingStep({
   clinicId,
   initial,
 }: {
@@ -243,8 +244,8 @@ function BillingStep({
       <div>
         <h2 className="font-serif text-2xl font-semibold">Datos de facturación</h2>
         <p className="mt-1 text-sm text-[#806d63]">
-          A quién y dónde se envían las facturas de Voone. Es opcional ahora:
-          el centro también puede rellenarlo más tarde desde Ajustes.
+          A quién y dónde se envían las facturas de Voone. Es opcional: el
+          centro también puede editarlo desde Ajustes.
         </p>
       </div>
       <BillingFields
