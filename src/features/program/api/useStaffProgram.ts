@@ -71,7 +71,7 @@ export function useRedeemReward(memberId: string) {
       surpriseItem,
     }: {
       rewardId: string;
-      visitId: string;
+      visitId?: string;
       surpriseItem?: string;
     }) => redeemReward(memberId, rewardId, { visitId, surpriseItem }, apiBase),
     onSuccess: () => {

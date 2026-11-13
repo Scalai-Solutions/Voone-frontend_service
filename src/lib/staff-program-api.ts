@@ -206,7 +206,8 @@ export const getMemberRewards = (memberId: string) =>
 export const redeemReward = (
   memberId: string,
   rewardId: string,
-  input: { visitId: string; surpriseItem?: string },
+  /** `visitId`: today's visit when there is one; a reward can be redeemed without it. */
+  input: { visitId?: string; surpriseItem?: string },
   apiBase?: string,
 ) =>
   request<unknown>(
