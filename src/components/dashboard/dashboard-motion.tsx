@@ -42,7 +42,7 @@ export function DashboardMotion({ overview, clinic, signupUrl }: { overview: Das
           <p className="mt-6 max-w-[540px] text-base leading-7 text-[#c9bbb3]">Gestiona la comunidad de {clinic.name} con una experiencia que se siente tan especial como tu marca.</p>
 
           <div className="mt-7 grid max-w-[500px] grid-cols-1 gap-3 sm:grid-cols-2">
-            <Metric label="Ingresos este mes" value={formatRevenueThisMonth(overview)} detail="Visitas que suman progreso" />
+            <Metric label="Ingresos este mes" value={formatRevenueThisMonth(overview)} detail="Total de visitas pagadas" />
             <Metric label="Puntos emitidos este mes" value={formatPointsIssuedThisMonth(overview)} detail="Puntos abonados a tus miembros" />
           </div>
 

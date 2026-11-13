@@ -550,7 +550,7 @@ export interface PlatformOverview {
 export interface TopClientThisMonth {
   memberId: string;
   name: string;
-  /** Euros that earned progress this month, in cents. */
+  /** What the client paid this month, in cents (PaidVisit.paidCents, medicine included). */
   amountCents: number;
 }
 
@@ -559,8 +559,8 @@ export interface TopClientThisMonth {
  *
  * Every field added by the month-scoped release is optional: an older backend does not send
  * them, and a page must show "—" for a missing figure rather than NaN or a made-up 0. Money
- * fields are cents from PaidVisit.amountCents, i.e. only what earns progress (medicine and
- * medical acts are not in them).
+ * fields are cents. revenueThisMonthCents, moneySpentTotalCents and the top clients are what was
+ * paid (PaidVisit.paidCents, medicine included); revenueAllTimeCents is what earns progress.
  */
 export interface DashboardOverview {
   activeMembers: number;
@@ -572,7 +572,7 @@ export interface DashboardOverview {
   pointsIssuedThisMonth: number;
   walletAdds: number;
   recentActivity: Array<{ id: string; label: string; date: string }>;
-  /** Euros that earned progress this month (Europe/Madrid calendar month), in cents. */
+  /** What clients paid through visits this month (Europe/Madrid calendar month), in cents, medicine included. */
   revenueThisMonthCents?: number;
   /** All-time paid visits, in cents. Its presence marks the new backend. */
   revenueAllTimeCents?: number;
