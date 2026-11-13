@@ -38,6 +38,7 @@ import {
   setTierBenefits,
   swapMilestone,
   swapRecurring,
+  setRecurringEvery,
   setMilestoneThreshold,
   addMilestone,
   removeMilestone,
@@ -316,6 +317,26 @@ export function useSwapRecurring(clinicId: string, programId: string) {
         draft,
       );
       // What it costs feeds the five-year chart, as a ladder reward's does.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
+    },
+  });
+}
+
+/** How often the reward after Diamante comes round, in whole euros paid. */
+export function useRecurringEvery(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (realSpend: number) =>
+      setRecurringEvery(clinicId, programId, realSpend),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      // How often it comes round feeds the five-year chart's cost.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
       });

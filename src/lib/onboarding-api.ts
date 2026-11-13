@@ -459,6 +459,18 @@ export const swapRecurring = (
     { method: "PATCH", ...json(choice) },
   );
 
+/** How often the reward after Diamante comes round, in whole euros paid. Drafts only. */
+export const setRecurringEvery = (
+  clinicId: string,
+  programId: string,
+  realSpend: number,
+) =>
+  request<ProgramEnvelope>(
+    clinicId,
+    `/programs/${encodeURIComponent(programId)}/recurring/every`,
+    { method: "PUT", ...json({ realSpend }) },
+  );
+
 /** Removes a reward or perk from the ladder. Drafts only. */
 export const removeMilestone = (
   clinicId: string,
