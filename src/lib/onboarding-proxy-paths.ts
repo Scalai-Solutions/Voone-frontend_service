@@ -28,6 +28,8 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["programs", "*", "milestones", "*"], methods: ["PATCH", "DELETE"] },
   // The spend at which a milestone unlocks (whole euros paid).
   { pattern: ["programs", "*", "milestones", "*", "threshold"], methods: ["PUT"] },
+  // What the reward after Diamante is.
+  { pattern: ["programs", "*", "recurring"], methods: ["PATCH"] },
   { pattern: ["programs", "*", "draft"], methods: ["POST"] },
   { pattern: ["programs", "*", "texts"], methods: ["PATCH"] },
   { pattern: ["programs", "*", "calculator"], methods: ["POST"] },

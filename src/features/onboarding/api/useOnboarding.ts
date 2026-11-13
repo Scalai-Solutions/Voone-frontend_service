@@ -37,6 +37,7 @@ import {
   setBenefitOverrides,
   setTierBenefits,
   swapMilestone,
+  swapRecurring,
   setMilestoneThreshold,
   addMilestone,
   removeMilestone,
@@ -295,6 +296,26 @@ export function useSwapMilestone(clinicId: string, programId: string) {
       );
       // A new reward costs the centre something else: the five-year chart is asked again, or it
       // would keep showing the programme as it was until the 60 s it is cached for ran out.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
+    },
+  });
+}
+
+/** The reward after Diamante, set to one of the panel's choices. */
+export function useSwapRecurring(clinicId: string, programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (choice: Exclude<SwapChoice, { alternative: number }>) =>
+      swapRecurring(clinicId, programId, choice),
+    onSuccess: (draft) => {
+      queryClient.setQueryData(
+        queryKeys.onboarding.program(clinicId, draft.id),
+        draft,
+      );
+      // What it costs feeds the five-year chart, as a ladder reward's does.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
       });
