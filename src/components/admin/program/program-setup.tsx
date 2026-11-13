@@ -592,14 +592,22 @@ function ProgramSetupLoaded({
               ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+                {/* A new version starts as a copy of the live one, edits included; the questions
+                    rebuild the programme from scratch, so they are only offered on a draft. */}
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setStep(1)}
+                  disabled={!isDraft && cloneDraft.isPending}
+                  onClick={isDraft ? () => setStep(1) : editCopy}
                 >
-                  {isDraft
-                    ? "Cambiar las respuestas"
-                    : "Crear una versión nueva"}
+                  {!isDraft && cloneDraft.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  <span key={isDraft ? "answers" : "copy"}>
+                    {isDraft
+                      ? "Cambiar las respuestas"
+                      : "Crear una versión nueva"}
+                  </span>
                 </Button>
 
                 {isDraft ? (
