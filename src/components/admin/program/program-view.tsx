@@ -11,6 +11,7 @@ import {
   Info,
   PenLine,
   Pencil,
+  Percent,
   Plus,
   ShoppingBag,
   Sparkles,
@@ -27,8 +28,6 @@ import { Input } from "@/components/ui/input";
 import { SearchPicker } from "@/components/ui/search-picker";
 import { ApiError } from "@/lib/api-client";
 import type {
-  BenefitLine,
-  BenefitOverrideEntry,
   SwapChoice,
   TextEdits,
   PresentedMilestone,
@@ -36,21 +35,10 @@ import type {
   PresentedTier,
   RewardKind,
   TierKey,
+  TierRules,
+  TierRulesChange,
 } from "@/lib/onboarding-api";
 import { cn } from "@/lib/utils";
-import {
-  LAST_LINE_NOTE,
-  MAX_OVERRIDE_LENGTH,
-  OVERRIDE_WARNING,
-  customIndexOf,
-  editLineOverride,
-  hideLineOverride,
-  isLastVisible,
-  restoreLineOverride,
-  showLineOverride,
-  tierLines,
-} from "./benefit-overrides";
-import { MAX_BENEFIT_LENGTH, MAX_BENEFITS, replaceBenefit } from "./benefits";
 import { EditableText, type TextsEditing } from "./editable-text";
 import { formatEuros, formatProgress } from "@/lib/euros";
 import { giftableItems, hiddenItemsNote } from "./giftable-items";
@@ -66,6 +54,13 @@ import {
 } from "./reward-kinds";
 import { infoNotes, rewardValueLabel } from "./reward-value";
 import { offersSwap } from "./swap-offer";
+import {
+  MAX_FREE_TEXT,
+  MAX_FREE_TEXT_LENGTH,
+  buildTierSave,
+  dialogDraft,
+  type RuleKey,
+} from "./tier-rules";
 import { swapRefusalMessage } from "./swap-refusal";
 import {
   MAX_DESCRIPTION_LENGTH,
@@ -128,8 +123,7 @@ export function ProgramView({
   onRemoveMilestone,
   onSwapRecurring,
   onSetRecurringEvery,
-  onSetBenefits,
-  onSetBenefitOverrides,
+  onSetTierRules,
   onSetTexts,
   catalogItems = [],
 }: {
@@ -148,16 +142,12 @@ export function ProgramView({
   onSwapRecurring?: (choice: PanelChoice) => Promise<unknown>;
   /** Present only while the programme is a draft: how often the reward after Diamante comes round. */
   onSetRecurringEvery?: (realSpend: number) => Promise<unknown>;
-  /** Present only while the programme is a draft: replaces the benefits the centre wrote for a tier. */
-  onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
   /**
-   * Present only while the programme is a draft: changes the words of, or hides, the lines the
-   * engine generates for a tier. Display only: the real benefit does not change.
+   * Present only while the programme is a draft: saves a tier's benefits from its edit dialog, the
+   * real multiplier, discount and birthday gift and the free text together (visits, the pass and
+   * the messages follow them).
    */
-  onSetBenefitOverrides?: (
-    tier: TierKey,
-    overrides: BenefitOverrideEntry[],
-  ) => Promise<unknown>;
+  onSetTierRules?: (tier: TierKey, change: TierRulesChange) => Promise<unknown>;
   /** Present only while the programme is a draft: edits the words of referrals, perks and rewards. */
   onSetTexts?: (edits: TextEdits) => Promise<unknown>;
 }) {
@@ -270,12 +260,23 @@ export function ProgramView({
             >
               {/* Room for two lines of threshold, so every card's list starts at the same height. */}
               <div className="min-h-[4.5rem]">
-                <p className="flex min-h-7 items-center gap-2 font-serif text-xl font-semibold leading-7">
-                  {tier.key === "diamante" ? (
-                    <Crown className="h-4 w-4 text-gold" />
+                <div className="flex items-start justify-between gap-2">
+                  <p className="flex min-h-7 items-center gap-2 font-serif text-xl font-semibold leading-7">
+                    {tier.key === "diamante" ? (
+                      <Crown className="h-4 w-4 text-gold" />
+                    ) : null}
+                    <span>{tier.label}</span>
+                  </p>
+                  {/* An older backend sends no rules: the card is then read only. */}
+                  {onSetTierRules && tier.rules ? (
+                    <TierEditor
+                      tier={tier}
+                      rules={tier.rules}
+                      catalogItems={catalogItems}
+                      onSave={(change) => onSetTierRules(tier.key, change)}
+                    />
                   ) : null}
-                  <span>{tier.label}</span>
-                </p>
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {tier.threshold === 0
                     ? "Desde el primer día"
@@ -285,11 +286,7 @@ export function ProgramView({
                     : ""}
                 </p>
               </div>
-              <TierBenefits
-                tier={tier}
-                onSetBenefits={onSetBenefits}
-                onSetBenefitOverrides={onSetBenefitOverrides}
-              />
+              <TierBenefits tier={tier} />
             </article>
           ))}
         </TierScroller>
@@ -402,20 +399,6 @@ export function ProgramView({
 }
 
 /**
- * A tier's benefit lines. The lines the engine generates and the ones the centre wrote are edited
- * and removed the same way, with one difference in what a change does:
- *
- * - A line the centre wrote is part of its own list: every change sends the tier's WHOLE list of
- *   custom benefits (the benefits route), so one save at a time.
- * - A generated line is DISPLAY ONLY: the change is an override of its words or of its visibility
- *   (the benefit-overrides route), the real discount, multiplier or perk keep working, and the
- *   screen says so before it saves. A hidden line stays listed, muted, so it can be shown again;
- *   an edited one is marked and can be restored.
- *
- * An older backend sends no `benefitLines`: the card then renders as it always did, with only the
- * centre's own lines changeable.
- */
-/**
  * The tiers side by side in a snapping row, starting at the left edge with Bronce. Five columns at
  * once left each card too narrow for its edit and remove buttons, so the row scrolls; the arrows
  * step one card at a time.
@@ -508,442 +491,427 @@ function TierScroller({
   );
 }
 
-function TierBenefits({
+/** A tier's benefits as clients read them. They change only through the tier's edit dialog. */
+function TierBenefits({ tier }: { tier: PresentedTier }) {
+  return (
+    <ul className="grid gap-1.5 text-xs leading-5">
+      {tier.benefits.map((text, index) => (
+        <li key={`${index}-${text}`} className="flex items-start gap-2">
+          <Check className="mt-1 h-3 w-3 shrink-0 text-success" />
+          <span className="min-w-0 flex-1 break-words pt-0.5">{text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** What a birthday gift may be: the catalogue, or a free text with its price. */
+const BIRTHDAY_KINDS: readonly RewardKind[] = ["tratamiento", "producto", "libre"];
+
+/** The pencil at the top right of a tier card, and the dialog it opens. */
+function TierEditor({
   tier,
-  onSetBenefits,
-  onSetBenefitOverrides,
+  rules,
+  catalogItems,
+  onSave,
 }: {
   tier: PresentedTier;
-  onSetBenefits?: (tier: TierKey, benefits: string[]) => Promise<unknown>;
-  onSetBenefitOverrides?: (
-    tier: TierKey,
-    overrides: BenefitOverrideEntry[],
-  ) => Promise<unknown>;
+  rules: TierRules;
+  catalogItems: CatalogItemOption[];
+  onSave: (change: TierRulesChange) => Promise<unknown>;
 }) {
-  const { lines, overridable } = tierLines(tier);
-  const canOverride = overridable && Boolean(onSetBenefitOverrides);
-  const isDraft = Boolean(onSetBenefits || onSetBenefitOverrides);
-  // On a programme that cannot be edited, only what clients actually read is listed.
-  const listed = isDraft ? lines : lines.filter((line) => !line.hidden);
-  const [active, setActive] = React.useState<{
-    key: string;
-    mode: "edit" | "hide";
-  } | null>(null);
-  const [draft, setDraft] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const button = React.useRef<HTMLButtonElement>(null);
+
+  const close = () => {
+    setOpen(false);
+    button.current?.focus();
+  };
+
+  return (
+    <>
+      <button
+        ref={button}
+        type="button"
+        aria-label={`Editar beneficios de ${tier.label}`}
+        title="Editar beneficios"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+      {/* Mounted on open, so it always starts from the tier as last saved. */}
+      {open ? (
+        <TierBenefitsDialog
+          tier={tier}
+          rules={rules}
+          catalogItems={catalogItems}
+          onSave={onSave}
+          onClose={close}
+        />
+      ) : null}
+    </>
+  );
+}
+
+const HIDDEN_RULE_NOTE =
+  "Estaba oculto en la tarjeta, pero tus clientes lo seguían recibiendo. Al guardar volverá a verse.";
+
+/**
+ * Everything a tier gives, by category, saved as ONE request: the birthday gift, the cosmetics
+ * discount and the points multiplier are one real value each (visits, the pass and the messages
+ * follow them); free text is any number of points that only change what the card says. What is
+ * saved replaces the tier's whole list, so the card shows exactly what this dialog showed.
+ */
+function TierBenefitsDialog({
+  tier,
+  rules,
+  catalogItems,
+  onSave,
+  onClose,
+}: {
+  tier: PresentedTier;
+  rules: TierRules;
+  catalogItems: CatalogItemOption[];
+  onSave: (change: TierRulesChange) => Promise<unknown>;
+  onClose: () => void;
+}) {
+  const [draft] = React.useState(() => dialogDraft(tier, rules));
+  const [multiplier, setMultiplier] = React.useState(draft.multiplier);
+  const [discount, setDiscount] = React.useState(draft.discount);
+  const [freeText, setFreeText] = React.useState(draft.freeText);
+  // Undefined while untouched: an unchanged gift is not sent, so it is never re-priced.
+  const [birthday, setBirthday] = React.useState<TierRulesChange["birthday"]>(undefined);
+  const [birthdayName, setBirthdayName] = React.useState<string | null>(
+    draft.birthday?.name ?? null,
+  );
+  const [picking, setPicking] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [problem, setProblem] = React.useState<string | null>(null);
+  const titleId = React.useId();
+  const panel = React.useRef<HTMLDivElement>(null);
+  const hidden = (key: RuleKey) =>
+    draft.hiddenRules.includes(key) ? HIDDEN_RULE_NOTE : undefined;
 
-  const run = async (action: () => Promise<unknown>, failure: string) => {
+  React.useEffect(() => {
+    panel.current?.querySelector<HTMLElement>("input, button")?.focus();
+  }, []);
+
+  const current = draft.birthday;
+  const typedGift = current?.priceEuro !== undefined;
+  const giftRow = catalogItems.find((item) => item.externalId === current?.itemId);
+
+  const chooseGift = (choice: PanelChoice) => {
+    if ("itemId" in choice) {
+      setBirthday(choice);
+      setBirthdayName(
+        catalogItems.find((item) => item.externalId === choice.itemId)?.name ??
+          "Artículo del catálogo",
+      );
+    } else if (choice.kind === "libre") {
+      setBirthday(choice);
+      setBirthdayName(choice.name);
+    } else {
+      return;
+    }
+
+    setPicking(false);
+  };
+
+  const save = async () => {
+    if (busy) return;
+
+    const built = buildTierSave({ multiplier, discount, freeText, birthday });
+
+    if (!built.ok) {
+      setProblem(built.problem);
+      return;
+    }
+
     setBusy(true);
     setProblem(null);
 
     try {
-      await action();
-      return true;
+      await onSave(built.change);
+      onClose();
     } catch (error) {
+      // Stays open with what was typed: a refusal must not throw the edit away.
       setProblem(
-        error instanceof ApiError && error.detail ? error.detail : failure,
+        error instanceof ApiError && error.detail
+          ? error.detail
+          : "No se han podido guardar los beneficios. Inténtalo de nuevo.",
       );
-      return false;
     } finally {
       setBusy(false);
     }
   };
 
-  const saveCustom = (benefits: string[], failure: string) =>
-    onSetBenefits
-      ? run(() => onSetBenefits(tier.key, benefits), failure)
-      : Promise.resolve(false);
-
-  const saveOverride = (entry: BenefitOverrideEntry, failure: string) =>
-    onSetBenefitOverrides
-      ? run(() => onSetBenefitOverrides(tier.key, [entry]), failure)
-      : Promise.resolve(false);
-
-  const startEditing = (line: BenefitLine) => {
-    setProblem(null);
-    setDraft(line.text);
-    setActive({ key: line.key, mode: "edit" });
-  };
-
-  const startHiding = (line: BenefitLine) => {
-    setProblem(null);
-    setActive({ key: line.key, mode: "hide" });
-  };
-
-  const cancel = () => {
-    setActive(null);
-    setProblem(null);
-  };
-
-  const confirmEditing = async (line: BenefitLine) => {
-    if (busy) return;
-
-    const customIndex = customIndexOf(line.key);
-    let saved = false;
-
-    if (line.kind === "custom") {
-      if (customIndex === null) return;
-
-      const edit = replaceBenefit(tier.customBenefits, customIndex, draft);
-
-      if (!edit.ok) {
-        setProblem(edit.error);
-        return;
-      }
-
-      // Nothing changed: close without a request.
-      if (edit.benefits[customIndex] === tier.customBenefits[customIndex]) {
-        cancel();
-        return;
-      }
-
-      saved = await saveCustom(
-        edit.benefits,
-        "No se ha podido guardar el cambio.",
-      );
-    } else {
-      const edit = editLineOverride(line, draft);
-
-      if (!edit.ok) {
-        setProblem(edit.error);
-        return;
-      }
-
-      // Nothing changed: close without a request.
-      if (draft.trim() === line.text) {
-        cancel();
-        return;
-      }
-
-      saved = await saveOverride(
-        edit.entry,
-        "No se ha podido guardar el cambio.",
-      );
-    }
-
-    if (saved) setActive(null);
-  };
-
-  const removeCustom = (line: BenefitLine) => {
-    const customIndex = customIndexOf(line.key);
-
-    if (busy || customIndex === null) return;
-
-    void saveCustom(
-      tier.customBenefits.filter((_, i) => i !== customIndex),
-      "No se ha podido quitar.",
-    ).then((saved) => {
-      if (saved) setActive(null);
-    });
-  };
-
-  const hideGenerated = async (line: BenefitLine) => {
-    if (busy) return;
-
-    if (await saveOverride(hideLineOverride(line), "No se ha podido quitar.")) {
-      setActive(null);
-    }
-  };
-
-  const undo = (entry: BenefitOverrideEntry) => {
-    if (busy) return;
-
-    void saveOverride(entry, "No se ha podido guardar el cambio.");
-  };
+  const valueInput = (
+    value: string,
+    onChange: (value: string) => void,
+    sign: "×" | "%",
+    label: string,
+  ) => (
+    <div className="flex items-baseline gap-1.5">
+      {sign === "×" ? (
+        <span aria-hidden="true" className="font-serif text-2xl text-muted-foreground">
+          ×
+        </span>
+      ) : null}
+      <input
+        inputMode="decimal"
+        value={value}
+        disabled={busy}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label={label}
+        className="w-24 rounded-xl border border-input bg-background px-3 py-1.5 font-serif text-3xl font-semibold leading-tight outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+      />
+      {sign === "%" ? (
+        <span aria-hidden="true" className="font-serif text-2xl text-muted-foreground">
+          %
+        </span>
+      ) : null}
+    </div>
+  );
 
   return (
-    <div className="flex flex-1 flex-col gap-3">
-      <ul className="grid gap-1.5 text-xs leading-5">
-        {listed.map((line) => {
-          const editable =
-            line.kind === "custom"
-              ? Boolean(onSetBenefits) && customIndexOf(line.key) !== null
-              : canOverride;
-          const isActive = editable && active?.key === line.key;
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[#2d211e]/60 p-4 sm:items-center"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onClose();
+      }}
+    >
+      <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || busy) return;
 
-          if (isActive && active?.mode === "edit") {
-            return (
-              <li key={line.key} className="grid gap-1">
-                <div className="flex items-center gap-1.5">
-                  <input
-                    autoFocus
-                    value={draft}
-                    maxLength={
-                      line.kind === "custom"
-                        ? MAX_BENEFIT_LENGTH
-                        : MAX_OVERRIDE_LENGTH
-                    }
-                    disabled={busy}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void confirmEditing(line);
-                      } else if (event.key === "Escape") {
-                        event.preventDefault();
-                        cancel();
-                      }
-                    }}
-                    aria-label={`Editar ${line.text}`}
-                    className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7 shrink-0"
-                    disabled={busy || !draft.trim()}
-                    onClick={() => void confirmEditing(line)}
-                    aria-label="Guardar cambio"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7 shrink-0"
-                    disabled={busy}
-                    onClick={cancel}
-                    aria-label="Cancelar"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-                {line.kind === "generated" ? (
-                  <p className="text-[11px] leading-4 text-muted-foreground">
-                    {OVERRIDE_WARNING}
-                  </p>
-                ) : null}
-              </li>
-            );
-          }
+          event.preventDefault();
 
-          if (isActive && active?.mode === "hide") {
-            return (
-              <li key={line.key} className="grid gap-1.5">
-                <span>{line.text}</span>
-                <p className="text-[11px] leading-4 text-muted-foreground">
-                  {OVERRIDE_WARNING}
+          if (picking) setPicking(false);
+          else onClose();
+        }}
+        className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl bg-card shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 pb-4 pt-6">
+          <div>
+            <h3 id={titleId} className="font-serif text-2xl font-semibold">
+              Beneficios de {tier.label}
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Los cambios llegan a tus clientes cuando publiques el programa.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            disabled={busy}
+            onClick={onClose}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid gap-6 overflow-y-auto px-6 py-5">
+          <DialogSection
+            icon={Gift}
+            title="Regalo de cumpleaños"
+            hint="Uno por nivel. El mensaje de cumpleaños lo nombra."
+            note={hidden("birthday")}
+          >
+            {picking ? (
+              <RewardChoicePanel
+                catalogItems={catalogItems}
+                kinds={BIRTHDAY_KINDS}
+                initialMode={
+                  typedGift
+                    ? "libre"
+                    : giftRow && isProductRow(giftRow)
+                      ? "producto"
+                      : "tratamiento"
+                }
+                initialFreeName={typedGift ? current.name : ""}
+                busy={busy}
+                problem={null}
+                onChoose={chooseGift}
+                header={
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold">Elige el regalo</p>
+                    <button
+                      type="button"
+                      onClick={() => setPicking(false)}
+                      className="text-xs underline underline-offset-2 hover:text-foreground"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                }
+              />
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <p
+                  className={cn(
+                    "min-w-0 flex-1 text-sm",
+                    !birthdayName && "text-muted-foreground",
+                  )}
+                >
+                  {birthdayName ?? "Sin regalo"}
                 </p>
-                <div className="flex gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    autoFocus
-                    disabled={busy}
-                    onClick={() => void hideGenerated(line)}
-                  >
-                    Quitar
-                  </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setPicking(true)}
+                >
+                  {birthdayName ? "Cambiar regalo" : "Elegir regalo"}
+                </Button>
+                {birthdayName ? (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-xs"
                     disabled={busy}
-                    onClick={cancel}
+                    onClick={() => {
+                      setBirthday(null);
+                      setBirthdayName(null);
+                    }}
                   >
-                    Cancelar
+                    Quitar regalo
                   </Button>
-                </div>
-              </li>
-            );
-          }
+                ) : null}
+              </div>
+            )}
+          </DialogSection>
 
-          return (
-            <li
-              key={line.key}
-              className="flex flex-wrap items-start gap-x-2 gap-y-0.5"
-            >
-              <Check
-                className={cn(
-                  "mt-1 h-3 w-3 shrink-0",
-                  line.hidden ? "text-muted-foreground" : "text-success",
-                )}
-              />
-              <span
-                className={cn(
-                  "min-w-0 flex-1 break-words pt-0.5",
-                  line.hidden && "text-muted-foreground line-through",
-                )}
-              >
-                {line.text}
-                {line.hidden ? (
-                  <span className="sr-only"> (oculto)</span>
-                ) : null}
-                {line.edited ? (
-                  <span className="sr-only"> (editado)</span>
-                ) : null}
-              </span>
-              {editable && !line.hidden ? (
-                <span className="-mr-1 flex shrink-0 gap-0.5">
-                  <button
-                    type="button"
-                    aria-label={`Editar ${line.text}`}
-                    title="Editar"
+          <DialogSection
+            icon={Percent}
+            title="Descuento en cosmética"
+            hint="En los productos de cosmética, con el límite anual del programa. 0 es sin descuento."
+            note={hidden("discount")}
+          >
+            {valueInput(discount, setDiscount, "%", "Descuento en cosmética (%)")}
+          </DialogSection>
+
+          <DialogSection
+            icon={TrendingUp}
+            title="Multiplicador de puntos"
+            hint="Cuánto progreso suma cada euro gastado. ×1 es sin multiplicador."
+            note={hidden("mult")}
+          >
+            {valueInput(multiplier, setMultiplier, "×", "Multiplicador de puntos")}
+          </DialogSection>
+
+          <DialogSection
+            icon={PenLine}
+            title="Texto libre"
+            hint="Se muestra en la tarjeta tal cual. No cambia ninguna regla del programa."
+          >
+            <div className="grid gap-2">
+              {freeText.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Sin puntos de texto libre.
+                </p>
+              ) : null}
+              {freeText.map((text, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    value={text}
+                    maxLength={MAX_FREE_TEXT_LENGTH}
                     disabled={busy}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    onClick={() => startEditing(line)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
+                    onChange={(event) =>
+                      setFreeText((list) =>
+                        list.map((item, i) => (i === index ? event.target.value : item)),
+                      )
+                    }
+                    aria-label={`Punto ${index + 1} de texto libre`}
+                    className="h-9"
+                  />
                   <button
                     type="button"
-                    aria-label={`Quitar ${line.text}`}
-                    disabled={busy || isLastVisible(lines, line)}
-                    title={
-                      isLastVisible(lines, line) ? LAST_LINE_NOTE : "Quitar"
-                    }
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    aria-label={`Quitar el punto ${index + 1}`}
+                    title="Quitar"
+                    disabled={busy}
                     onClick={() =>
-                      line.kind === "custom"
-                        ? removeCustom(line)
-                        : startHiding(line)
+                      setFreeText((list) => list.filter((_, i) => i !== index))
                     }
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
-                </span>
-              ) : null}
-              {line.edited ? (
-                <span className="basis-full pl-5 text-[11px] leading-4 text-muted-foreground">
-                  Original: {line.original}
-                </span>
-              ) : null}
-              {editable && line.kind === "generated" ? (
-                <span className="flex basis-full flex-wrap items-center gap-x-2 pl-5 text-[11px] text-muted-foreground">
-                  {line.edited ? (
-                    <Badge variant="secondary" aria-hidden="true">
-                      editado
-                    </Badge>
-                  ) : null}
-                  {line.edited ? (
-                    <button
-                      type="button"
-                      aria-label={`Restaurar: ${line.original}`}
-                      disabled={busy}
-                      className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
-                      onClick={() => undo(restoreLineOverride(line))}
-                    >
-                      Restaurar
-                    </button>
-                  ) : null}
-                  {line.hidden ? (
-                    <button
-                      type="button"
-                      aria-label={`Mostrar de nuevo: ${line.original}`}
-                      disabled={busy}
-                      className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
-                      onClick={() => undo(showLineOverride(line))}
-                    >
-                      Mostrar de nuevo
-                    </button>
-                  ) : null}
-                </span>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      {isDraft && listed.some((line) => isLastVisible(lines, line)) ? (
-        <p className="text-[11px] leading-4 text-muted-foreground">
-          {LAST_LINE_NOTE} Muestra otra línea o añade una propia para poder
-          quitar esta.
-        </p>
-      ) : null}
-      {problem ? (
-        <p role="alert" className="text-[11px] text-destructive">
-          {problem}
-        </p>
-      ) : null}
-      {onSetBenefits ? (
-        // Pinned to the foot of the card, so the input sits on the same line in every tier.
-        <div className="mt-auto">
-          <AddBenefit
-            tier={tier}
-            onSetBenefits={onSetBenefits}
-            disabled={busy}
-          />
+                </div>
+              ))}
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || freeText.length >= MAX_FREE_TEXT}
+                  onClick={() => setFreeText((list) => [...list, ""])}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {freeText.length >= MAX_FREE_TEXT
+                    ? `Máximo ${MAX_FREE_TEXT} puntos`
+                    : "Añadir punto"}
+                </Button>
+              </div>
+            </div>
+          </DialogSection>
         </div>
-      ) : null}
+
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
+          {problem ? (
+            <p role="alert" className="mr-auto basis-full text-sm text-destructive sm:basis-auto">
+              {problem}
+            </p>
+          ) : null}
+          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="button" disabled={busy} onClick={() => void save()}>
+            {busy ? "Guardando…" : "Guardar beneficios"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
 
-/** Adds one benefit the centre wrote itself to a tier. Text only: it changes nothing at runtime. */
-function AddBenefit({
-  tier,
-  onSetBenefits,
-  disabled = false,
+/** One category of the tier dialog: its icon and name, what it does, then its control. */
+function DialogSection({
+  icon: SectionIcon,
+  title,
+  hint,
+  note,
+  children,
 }: {
-  tier: PresentedTier;
-  onSetBenefits: (tier: TierKey, benefits: string[]) => Promise<unknown>;
-  /** While another change to this tier is being saved. */
-  disabled?: boolean;
+  icon: Icon;
+  title: string;
+  hint: string;
+  /** Something the admin must know about the value as it stands, e.g. it was hidden. */
+  note?: string;
+  children: React.ReactNode;
 }) {
-  const [text, setText] = React.useState("");
-  const [problem, setProblem] = React.useState<string | null>(null);
-  const full = tier.customBenefits.length >= MAX_BENEFITS;
-
-  const add = async () => {
-    const value = text.trim();
-
-    if (!value || disabled) return;
-
-    setProblem(null);
-
-    try {
-      await onSetBenefits(tier.key, [...tier.customBenefits, value]);
-      setText("");
-    } catch (error) {
-      setProblem(
-        error instanceof ApiError && error.detail
-          ? error.detail
-          : "No se ha podido añadir.",
-      );
-    }
-  };
-
   return (
-    <div className="grid gap-1">
-      <div className="flex gap-1.5">
-        <input
-          value={text}
-          maxLength={80}
-          disabled={full || disabled}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              void add();
-            }
-          }}
-          placeholder={full ? "Máximo 6 propios" : "Añadir un beneficio"}
-          aria-label={`Añadir un beneficio a ${tier.label}`}
-          className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
-        />
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="h-7 w-7"
-          disabled={full || disabled || !text.trim()}
-          onClick={() => void add()}
-          aria-label="Añadir"
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
+    <section className="grid gap-3">
+      <div className="flex items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-gold">
+          <SectionIcon className="h-4 w-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-semibold">{title}</h4>
+          <p className="text-xs leading-5 text-muted-foreground">{hint}</p>
+          {note ? (
+            <p className="mt-1 text-xs leading-5 text-[#a47845]">{note}</p>
+          ) : null}
+        </div>
       </div>
-      {problem ? (
-        <p role="alert" className="text-[11px] text-destructive">
-          {problem}
-        </p>
-      ) : null}
-    </div>
+      <div className="pl-11">{children}</div>
+    </section>
   );
 }
 
@@ -1109,8 +1077,14 @@ function RewardChoicePanel({
   problem,
   onChoose,
   header,
+  kinds,
 }: {
   catalogItems: CatalogItemOption[];
+  /**
+   * Only these options, in a layout narrow enough for a tier card (the birthday gift). Absent: all
+   * five, laid out for a ladder row.
+   */
+  kinds?: readonly RewardKind[];
   initialMode: RewardKind;
   /** What the row is now; absent when adding. Says "already" instead of offering it again. */
   currentKind?: RewardKind;
@@ -1186,9 +1160,14 @@ function RewardChoicePanel({
       <div
         role="group"
         aria-label="Qué se regala"
-        className="grid grid-cols-2 gap-2 sm:grid-cols-5"
+        className={cn(
+          "grid gap-2",
+          kinds ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-5",
+        )}
       >
-        {REWARD_KINDS.map((option) => {
+        {REWARD_KINDS.filter(
+          (option) => !kinds || kinds.includes(option.kind),
+        ).map((option) => {
           const OptionIcon = REWARD_ICON[option.kind];
           const selected = mode === option.kind;
 
@@ -1277,7 +1256,9 @@ function RewardChoicePanel({
 
       {mode === "libre" ? (
         <form onSubmit={saveFree} className="grid gap-2">
-          <div className="grid gap-2 sm:grid-cols-[1fr_9rem]">
+          <div
+            className={cn("grid gap-2", !kinds && "sm:grid-cols-[1fr_9rem]")}
+          >
             <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
               Qué se regala
               <Input

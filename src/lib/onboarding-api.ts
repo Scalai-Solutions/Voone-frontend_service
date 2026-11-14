@@ -212,6 +212,33 @@ export interface PresentedTier {
    * responses only; absent for Diamante and from an older backend.
    */
   addRange?: { min: number; max: number };
+  /** The tier's real rules, for prefilling the editor. Admin responses only; absent from an older backend. */
+  rules?: TierRules;
+}
+
+/**
+ * What a tier really gives, as opposed to the words of its lines. `birthday.itemId` only for a
+ * one-item catalogue gift, `priceEuro` only for a typed one; null when the tier has no gift.
+ */
+export interface TierRules {
+  multiplier: number;
+  discountPercent: number;
+  birthday: { name: string; itemId?: string; priceEuro?: number } | null;
+}
+
+/**
+ * One change to a tier's real rules. Anything left out stays as it is; `birthday: null` removes
+ * the gift. Unlike a benefit override this changes what visits apply, the pass and the messages.
+ */
+export interface TierRulesChange {
+  multiplier?: number;
+  discountPercent?: number;
+  birthday?:
+    | { itemId: string }
+    | { kind: "libre"; name: string; priceEuro: number }
+    | null;
+  /** The tier's whole free-text list: it replaces every line that is text only. */
+  freeText?: string[];
 }
 
 export interface PresentedProgram {
@@ -496,39 +523,16 @@ export const setMilestoneThreshold = (
     { method: "PUT", ...json({ realSpend }) },
   );
 
-export const setTierBenefits = (
+export const setTierRules = (
   clinicId: string,
   programId: string,
   tier: TierKey,
-  benefits: string[],
+  change: TierRulesChange,
 ) =>
   request<ProgramEnvelope>(
     clinicId,
-    `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/benefits`,
-    { method: "PUT", ...json({ benefits }) },
-  );
-
-/**
- * One change to a line the engine generated. Each entry REPLACES that line's override as a whole:
- * `text` null/absent clears the edit, `hidden` null/false/absent shows the line, and an entry with
- * neither clears the override. Display only: the real benefit never changes.
- */
-export interface BenefitOverrideEntry {
-  key: string;
-  text?: string | null;
-  hidden?: boolean | null;
-}
-
-export const setBenefitOverrides = (
-  clinicId: string,
-  programId: string,
-  tier: TierKey,
-  overrides: BenefitOverrideEntry[],
-) =>
-  request<ProgramEnvelope>(
-    clinicId,
-    `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/benefit-overrides`,
-    { method: "PUT", ...json({ overrides }) },
+    `/programs/${encodeURIComponent(programId)}/tiers/${encodeURIComponent(tier)}/rules`,
+    { method: "PUT", ...json(change) },
   );
 
 /**

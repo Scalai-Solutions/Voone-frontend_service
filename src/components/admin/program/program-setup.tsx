@@ -20,8 +20,7 @@ import {
   usePublishProgram,
   useRecalibration,
   useSetProgramTexts,
-  useSetBenefitOverrides,
-  useSetTierBenefits,
+  useSetTierRules,
   useSwapMilestone,
   useSwapRecurring,
   useRecurringEvery,
@@ -182,8 +181,7 @@ function ProgramSetupLoaded({
   const threshold = useMilestoneThreshold(clinicId, shownId ?? "");
   const addMilestone = useAddMilestone(clinicId, shownId ?? "");
   const removeMilestone = useRemoveMilestone(clinicId, shownId ?? "");
-  const tierBenefits = useSetTierBenefits(clinicId, shownId ?? "");
-  const benefitOverrides = useSetBenefitOverrides(clinicId, shownId ?? "");
+  const tierRules = useSetTierRules(clinicId, shownId ?? "");
   const programTexts = useSetProgramTexts(clinicId, shownId ?? "");
   const cloneDraft = useCloneDraft(clinicId);
 
@@ -526,15 +524,9 @@ function ProgramSetupLoaded({
                     : undefined
                 }
                 catalogItems={catalogRows}
-                onSetBenefits={
+                onSetTierRules={
                   isDraft
-                    ? (tier, benefits) => tierBenefits.mutateAsync({ tier, benefits })
-                    : undefined
-                }
-                onSetBenefitOverrides={
-                  isDraft
-                    ? (tier, overrides) =>
-                        benefitOverrides.mutateAsync({ tier, overrides })
+                    ? (tier, change) => tierRules.mutateAsync({ tier, change })
                     : undefined
                 }
                 onSetTexts={

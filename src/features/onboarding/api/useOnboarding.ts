@@ -34,8 +34,7 @@ import {
   savePerkValues,
   replaceCatalog,
   setProgramTexts,
-  setBenefitOverrides,
-  setTierBenefits,
+  setTierRules,
   swapMilestone,
   swapRecurring,
   setRecurringEvery,
@@ -43,12 +42,12 @@ import {
   addMilestone,
   removeMilestone,
   updateBonoPlan,
-  type BenefitOverrideEntry,
   type CalcInput,
   type CatalogInputRow,
   type OnboardingAnswers,
   type SwapChoice,
   type TextEdits,
+  type TierRulesChange,
 } from "@/lib/onboarding-api";
 
 /**
@@ -427,38 +426,26 @@ const refreshOnConflict =
     }
   };
 
-export function useSetTierBenefits(clinicId: string, programId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ tier, benefits }: { tier: TierKey; benefits: string[] }) =>
-      setTierBenefits(clinicId, programId, tier, benefits),
-    onSuccess: (draft) => {
-      queryClient.setQueryData(
-        queryKeys.onboarding.program(clinicId, draft.id),
-        draft,
-      );
-    },
-    onError: refreshOnConflict(queryClient, clinicId, programId),
-  });
-}
-
-export function useSetBenefitOverrides(clinicId: string, programId: string) {
+/** A tier's real multiplier, discount or birthday gift. Its cost feeds the five-year chart. */
+export function useSetTierRules(clinicId: string, programId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       tier,
-      overrides,
+      change,
     }: {
       tier: TierKey;
-      overrides: BenefitOverrideEntry[];
-    }) => setBenefitOverrides(clinicId, programId, tier, overrides),
+      change: TierRulesChange;
+    }) => setTierRules(clinicId, programId, tier, change),
     onSuccess: (draft) => {
       queryClient.setQueryData(
         queryKeys.onboarding.program(clinicId, draft.id),
         draft,
       );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.onboarding.calculators(clinicId, draft.id),
+      });
     },
     onError: refreshOnConflict(queryClient, clinicId, programId),
   });
