@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 import { BarChart3, Crown, Gift, PiggyBank, ReceiptText, Sparkles, Trophy, UsersRound } from "lucide-react";
 
-import { ApiError, type DashboardOverview, type Member } from "@/lib/api-client";
+import { ApiError, type Member } from "@/lib/api-client";
 import { fetchDashboardOverview } from "@/lib/dashboard-overview-server";
 import {
   formatMoneySpentTotal,
-  formatRevenueThisMonth,
   formatRewardsRedeemedThisMonth,
   topClientRows,
 } from "@/lib/dashboard-overview";
@@ -91,7 +90,7 @@ export default async function MetricsPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={UsersRound} eyebrow="Miembros" value={formatCount(metrics.totalMembers)} detail={`${metrics.activeWalletMembers} con Wallet activo`} tone="dark" />
         <MetricCard icon={Crown} eyebrow="Niveles" value={metrics.totalTiers.toString()} detail={`${metrics.leadingTier?.tier ?? "Sin nivel"} lidera la base`} />
-        <MetricCard icon={PiggyBank} eyebrow="Dinero gastado" value={formatMoneySpentTotal(overview)} detail={moneySpentDetail(overview)} />
+        <MetricCard icon={PiggyBank} eyebrow="Dinero gastado" value={formatMoneySpentTotal(overview)} detail="Total pagado por tus clientes" />
         <MetricCard icon={Gift} eyebrow="Canjes este mes" value={formatRewardsRedeemedThisMonth(overview)} detail="Recompensas entregadas en el mes" />
       </div>
 
@@ -194,12 +193,6 @@ function buildMetrics(members: Member[]) {
     // Ranked by current points balance (what the members list carries), shown in points.
     topClientsAllTime: rankMembers(members, (member) => member.points),
   };
-}
-
-function moneySpentDetail(overview: DashboardOverview | null) {
-  const month = formatRevenueThisMonth(overview);
-
-  return month === "—" ? "Total de visitas pagadas" : `Total de visitas pagadas · ${month} este mes`;
 }
 
 function countBy(values: string[]) {
