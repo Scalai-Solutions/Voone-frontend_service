@@ -5,7 +5,7 @@ import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import { PageHeader } from "@/components/shared/page-kit";
 import { getAdminClinic } from "@/lib/admin-api";
 import { ApiError } from "@/lib/api-client";
-import { getClinicSignupUrl } from "@/lib/app-url";
+import { getClinicClubUrl, getClinicSignupUrl } from "@/lib/app-url";
 
 /**
  * "Añadir persona" from the admin's members list: as on the clinic dashboard, a member signs up
@@ -23,6 +23,7 @@ export default async function ClinicNewMemberPage({
     throw error;
   });
   const signupUrl = await getClinicSignupUrl(clinic.slug);
+  const clubUrl = await getClinicClubUrl(clinic.id);
 
   return (
     <div className="space-y-6">
@@ -36,7 +37,7 @@ export default async function ClinicNewMemberPage({
         }}
       />
       <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
-        <SignupQrPanel signupUrl={signupUrl} />
+        <SignupQrPanel signupUrl={signupUrl} clubUrl={clubUrl} />
         <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-6 text-[#2e2421]">
           <h2 className="font-serif text-3xl font-semibold">No introduzcas datos por el cliente</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#806d63]">

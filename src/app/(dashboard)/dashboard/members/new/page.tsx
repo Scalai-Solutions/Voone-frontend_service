@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { SignupQrPanel } from "@/components/dashboard/signup-qr-panel";
 import { PageHeader } from "@/components/shared/page-kit";
-import { getClinicSignupUrl } from "@/lib/app-url";
+import { getClinicClubUrl, getClinicSignupUrl } from "@/lib/app-url";
 import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
 
@@ -20,13 +20,14 @@ export default async function NewMemberPage() {
 
   const clinic = await getCurrentStaffClinic();
   const signupUrl = await getClinicSignupUrl(clinic.id);
+  const clubUrl = await getClinicClubUrl(clinic.id);
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Miembros" title="Alta por QR" description="El cliente completa sus datos desde su móvil y recibe los botones para Apple Wallet y Google Wallet al terminar." />
 
       <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
-        {signupUrl ? <SignupQrPanel signupUrl={signupUrl} /> : null}
+        {signupUrl ? <SignupQrPanel signupUrl={signupUrl} clubUrl={clubUrl} /> : null}
         <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-6 text-[#2e2421]">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Recepción</p>
           <h2 className="mt-2 font-serif text-3xl font-semibold">No introduzcas datos por el cliente</h2>
