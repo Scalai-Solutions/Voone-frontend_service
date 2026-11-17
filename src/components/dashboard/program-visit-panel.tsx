@@ -1022,7 +1022,7 @@ function VisitResult({ outcome }: { outcome: VisitOutcome }) {
         </ul>
       ) : null}
       <p className="mt-2 text-xs text-muted-foreground">
-        Productos con descuento que le quedan este año:{" "}
+        Productos con descuento que le quedan este mes:{" "}
         {outcome.discountRemaining}.
       </p>
     </div>
