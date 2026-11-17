@@ -260,6 +260,18 @@ function WalletReady({
         </Link>
       ) : null}
 
+      <Link
+        href={`/club/${encodeURIComponent(clinic.slug)}`}
+        className="mx-auto mt-6 flex max-w-[260px] flex-col items-center text-center text-[#2d2824] transition hover:text-[#8a6f4f] focus-visible:rounded-2xl focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#c5a26e]"
+      >
+        <span className="text-[0.86rem] font-semibold underline underline-offset-4">
+          Ver las ventajas de {clinic.template.programName}
+        </span>
+        <span className="mt-1 text-[0.6rem] leading-4 text-[#9a9086]">
+          Tus niveles, premios y recomendaciones
+        </span>
+      </Link>
+
       <p className="mt-9 flex items-center justify-center gap-2 text-[0.82rem] font-semibold text-[#3e3934]">
         <ShieldCheck className="h-4 w-4 text-[#9f8b69]" aria-hidden />
         Acceso privado y seguro

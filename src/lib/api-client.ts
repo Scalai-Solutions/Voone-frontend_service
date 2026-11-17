@@ -1535,6 +1535,47 @@ export async function getPublicClinic(slug: string) {
   return clinic;
 }
 
+/** One line of a tier on the club page; `badge` says it is new or better than the tier below. */
+export interface PublicClubBenefit {
+  text: string;
+  badge?: "new" | "up";
+}
+
+export interface PublicClubTier {
+  key: string;
+  label: string;
+  benefits: PublicClubBenefit[];
+}
+
+export interface PublicClubStep {
+  title: string;
+  detail: string;
+  label: string;
+  mark: string | null;
+}
+
+export interface PublicClubLadderGroup {
+  tierKey: string;
+  tierLabel: string;
+  steps: PublicClubStep[];
+}
+
+/** What a clinic's live programme gives a client, as the public club page reads it. */
+export interface PublicClub {
+  tiers: PublicClubTier[];
+  ladder: PublicClubLadderGroup[];
+  recurring: { every: number; name: string };
+  referrals: Array<{ n: number; name: string }>;
+  welcome: number;
+}
+
+/** The club page's data. A 404 means no such clinic, or one with no live programme yet. */
+export async function getPublicClub(slug: string) {
+  return apiFetch<{ clinic: PublicClinic; club: PublicClub }>(
+    `/v1/clinics/${encodeURIComponent(slug)}/club`,
+  );
+}
+
 /**
  * Registers a member of a clinic.
  *
