@@ -240,6 +240,13 @@ function WalletReady({
         </div>
       </div>
 
+      <Link
+        href={`/club/${encodeURIComponent(clinic.slug)}`}
+        className="mx-auto mt-8 flex h-11 w-full max-w-[260px] items-center justify-center rounded-full bg-[#23211f] text-[0.86rem] font-semibold text-[#fbf7ef] transition hover:bg-[#3a342e] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#c5a26e]"
+      >
+        Descubre tus ventajas
+      </Link>
+
       {walletPageUrl ? (
         <Link
           href={walletPageUrl}
