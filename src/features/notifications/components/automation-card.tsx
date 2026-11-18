@@ -8,9 +8,12 @@ import type {
   AutomationCatalogEntry,
   AutomationEvent,
   AutomationSetting,
+  AutomationTiming,
   ClinicVariableKey,
   NotificationSettings,
   NotificationSettingsPatch,
+  TimingField,
+  TimingKey,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +57,48 @@ const AUTO_VALUE_NOTE: Partial<Record<AutomationEvent, string>> = {
     "El premio lo elige el sistema para cada cliente: el que ganará con su próximo referido, según su programa.",
   BIRTHDAY:
     "El regalo lo elige el sistema: el regalo de cumpleaños que tu programa asigna al nivel de cada cliente.",
+};
+
+/** The one-line timing summary shown on the collapsed card. */
+const TIMING_SUMMARY: Record<TimingKey, (value: number) => string> = {
+  inactiveDays: (value) => `Tras ${value} días sin usar el bono`,
+  minVisits: (value) => `Desde la visita nº ${value}`,
+  activeDays: (value) => `Clientes activos en los últimos ${value} días`,
+};
+
+/** Each declared threshold: the clinic's value, or the catalog default. */
+const resolvedTiming = (
+  entry: AutomationCatalogEntry,
+  timing: AutomationTiming | undefined,
+): Record<string, number> =>
+  Object.fromEntries(
+    (entry.timing ?? []).map((field) => [
+      field.key,
+      timing?.[field.key] ?? field.default,
+    ]),
+  );
+
+/** The input text per threshold; strings so a field can be empty while typing. */
+type TimingDraft = Record<string, string>;
+
+const timingDraftFrom = (
+  entry: AutomationCatalogEntry,
+  timing: AutomationTiming | undefined,
+): TimingDraft =>
+  Object.fromEntries(
+    Object.entries(resolvedTiming(entry, timing)).map(([key, value]) => [
+      key,
+      String(value),
+    ]),
+  );
+
+/** The whole number typed, or null when it is not one inside the field's range. */
+const parseTiming = (field: TimingField, text: string): number | null => {
+  if (!/^\d+$/.test(text.trim())) return null;
+
+  const value = Number(text.trim());
+
+  return value >= field.min && value <= field.max ? value : null;
 };
 
 const statusTag = (active: boolean) =>
@@ -155,6 +200,73 @@ function ClinicValueField({
       <div className="mt-1">
         <NoticeLine notice={notice} />
       </div>
+    </div>
+  );
+}
+
+/** Number inputs for the event's timing thresholds (e.g. days without using the bono). */
+function TimingEditor({
+  fields,
+  draft,
+  onChange,
+}: {
+  fields: TimingField[];
+  draft: TimingDraft;
+  onChange: (next: TimingDraft) => void;
+}) {
+  const baseId = React.useId();
+
+  return (
+    <div className="grid min-w-0 gap-3">
+      <p className={sectionTitle}>Cuándo se envía</p>
+      {fields.map((field) => {
+        const id = `${baseId}-${field.key}`;
+        const hintId = `${id}-hint`;
+        const text = draft[field.key] ?? "";
+        const invalid = parseTiming(field, text) === null;
+
+        return (
+          <div key={field.key} className="min-w-0">
+            <label htmlFor={id} className={labelClass}>
+              {field.label}
+            </label>
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                id={id}
+                type="number"
+                inputMode="numeric"
+                min={field.min}
+                max={field.max}
+                step={1}
+                value={text}
+                aria-invalid={invalid || undefined}
+                aria-describedby={hintId}
+                onChange={(event) =>
+                  onChange({ ...draft, [field.key]: event.target.value })
+                }
+                className={cn(
+                  inputClass,
+                  "w-24",
+                  invalid &&
+                    "border-[#e8b9b1] focus:border-[#b94135] focus:ring-[#b94135]/20",
+                )}
+              />
+              <span className="text-sm text-[#5c4a42]">{field.unit}</span>
+            </div>
+            <p
+              id={hintId}
+              className={cn(
+                "mt-1 text-xs",
+                invalid ? "text-[#b94135]" : "text-[#806d63]",
+              )}
+            >
+              {invalid
+                ? `Escribe un número entre ${field.min} y ${field.max}.`
+                : `Por defecto: ${field.default} ${field.unit}.`}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -304,21 +416,61 @@ export function AutomationCard({
   const [confirmOff, setConfirmOff] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice>(null);
 
+  const [timingDraft, setTimingDraft] = React.useState(() =>
+    timingDraftFrom(entry, setting.timing),
+  );
+
   const [seen, setSeen] = React.useState(setting);
 
   if (seen !== setting) {
     setSeen(setting);
     setDraft(setting);
+    setTimingDraft(timingDraftFrom(entry, setting.timing));
   }
+
+  // Timing is editable only when the backend returns it (older backends do not).
+  const timingFields = setting.timing ? (entry.timing ?? []) : [];
+  const savedTiming = resolvedTiming(entry, setting.timing);
+  const timingValues = timingFields.map((field) => ({
+    field,
+    value: parseTiming(field, timingDraft[field.key] ?? ""),
+  }));
+  const timingChanges: AutomationTiming = Object.fromEntries(
+    timingValues
+      .filter(
+        ({ field, value }) =>
+          value !== null && value !== savedTiming[field.key],
+      )
+      .map(({ field, value }) => [field.key, value]),
+  );
+  const timingInvalid = timingValues.some(({ value }) => value === null);
+  const timingAtDefaults = timingFields.every(
+    (field) => timingDraft[field.key] === String(field.default),
+  );
+  const timingSummary = timingFields
+    .map((field) => TIMING_SUMMARY[field.key]?.(savedTiming[field.key]))
+    .filter(Boolean)
+    .join(" · ");
+  // The default bono copy says "hace un mes"; flag it once the clinic picks another threshold.
+  const bonoDays =
+    timingValues.find(({ field }) => field.key === "inactiveDays")?.value ??
+    null;
+  const copyMentionsMonth =
+    entry.event === "BONO_INACTIVE" &&
+    bonoDays !== null &&
+    bonoDays !== 30 &&
+    /\bun mes\b/i.test(draft.body);
 
   const dirty =
     draft.header !== setting.header ||
     draft.body !== setting.body ||
-    draft.notify !== setting.notify;
+    draft.notify !== setting.notify ||
+    Object.keys(timingChanges).length > 0;
   const invalid =
     !draft.header.trim() ||
     !draft.body.trim() ||
-    unknownVariables(draft.header + draft.body, entry.variables).length > 0;
+    unknownVariables(draft.header + draft.body, entry.variables).length > 0 ||
+    timingInvalid;
   const needsValue = missingClinicValue(entry, clinic);
   const values = sampleValues(clinicName, clinic);
 
@@ -358,6 +510,11 @@ export function AutomationCard({
           <span className="mt-0.5 block text-sm leading-5 text-[#8a766b]">
             {entry.description}
           </span>
+          {timingSummary ? (
+            <span className="mt-0.5 block text-xs font-semibold leading-5 text-[#a47845]">
+              {timingSummary}
+            </span>
+          ) : null}
         </span>
         <span className={statusTag(setting.enabled)}>
           <span
@@ -405,6 +562,34 @@ export function AutomationCard({
               </p>
             ) : null}
 
+            {timingFields.length > 0 ? (
+              <div className="grid gap-2">
+                <TimingEditor
+                  fields={timingFields}
+                  draft={timingDraft}
+                  onChange={setTimingDraft}
+                />
+                {!timingAtDefaults ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTimingDraft(timingDraftFrom(entry, undefined))
+                    }
+                    disabled={busy}
+                    className="justify-self-start text-xs font-semibold text-[#8a766b] transition hover:text-[#2d211e] disabled:opacity-40"
+                  >
+                    Restaurar plazos por defecto
+                  </button>
+                ) : null}
+                {copyMentionsMonth ? (
+                  <p className="rounded-xl border border-[#ead9bd] bg-[#fff8ec] p-3 text-xs leading-5 text-[#806d63]">
+                    El mensaje dice «un mes». Revísalo para que coincida con
+                    el nuevo plazo.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="grid min-w-0 gap-6 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
               <CopyEditor entry={entry} draft={draft} onChange={setDraft} />
               <div className="grid min-w-0 content-start gap-3">
@@ -427,6 +612,9 @@ export function AutomationCard({
                       header: draft.header.trim(),
                       body: draft.body.trim(),
                       notify: draft.notify,
+                      ...(Object.keys(timingChanges).length > 0
+                        ? { timing: timingChanges }
+                        : {}),
                     },
                     "Cambios guardados.",
                   )
