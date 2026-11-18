@@ -43,9 +43,17 @@ export type RequestContext =
       usesCatalogue: boolean;
       /** The centre marks which treatments can be a prize, so the form asks. */
       usesPrize?: boolean;
+      /** A retail product, not a treatment: only its name and price are edited. */
+      product?: boolean;
     }
-  | { kind: "service-add"; usesCatalogue: boolean; usesPrize?: boolean }
-  | { kind: "service-remove"; treatment: TreatmentRef }
+  | {
+      kind: "service-add";
+      usesCatalogue: boolean;
+      usesPrize?: boolean;
+      /** Adds a retail product (name and price) instead of a treatment. */
+      product?: boolean;
+    }
+  | { kind: "service-remove"; treatment: TreatmentRef; product?: boolean }
   | { kind: "bono-add" }
   | { kind: "bono-edit"; plan: BonoRef }
   | { kind: "bono-remove"; plan: BonoRef }
@@ -229,6 +237,9 @@ const checkShortText = (raw: string, errors: FormErrors): string | undefined => 
 
 const CONFIRM_REMOVAL = "Marca la casilla para confirmar la baja.";
 const NOTHING_CHANGED_SERVICE = "Cambia al menos un dato: nombre, precio o categoría.";
+const NOTHING_CHANGED_PRODUCT = "Cambia al menos un dato: nombre o precio.";
+const nameMissing = (product: boolean | undefined) =>
+  product ? "Escribe el nombre del producto." : "Escribe el nombre del tratamiento.";
 const NOTHING_CHANGED_BONO = "Cambia al menos un dato: nombre, precio o sesiones.";
 
 /**
@@ -246,9 +257,9 @@ export const buildChangeRequest = (
 
   switch (context.kind) {
     case "service-edit": {
-      const { treatment, usesCatalogue } = context;
+      const { treatment, usesCatalogue, product } = context;
       const proposed: Record<string, unknown> = {};
-      const name = checkName(values.name, "Escribe el nombre del tratamiento.", errors);
+      const name = checkName(values.name, nameMissing(product), errors);
 
       if (name !== null && name !== treatment.name) proposed.name = name;
 
@@ -261,18 +272,19 @@ export const buildChangeRequest = (
 
       if (
         usesCatalogue &&
+        !product &&
         values.categoryId &&
         values.categoryId !== treatment.categoryId
       ) {
         proposed.categoryId = values.categoryId;
       }
 
-      if (context.usesPrize && values.prize !== (treatment.prize === true)) {
+      if (!product && context.usesPrize && values.prize !== (treatment.prize === true)) {
         proposed.prize = values.prize;
       }
 
       if (Object.keys(errors).length === 0 && Object.keys(proposed).length === 0) {
-        errors.form = NOTHING_CHANGED_SERVICE;
+        errors.form = product ? NOTHING_CHANGED_PRODUCT : NOTHING_CHANGED_SERVICE;
       }
 
       raw = {
@@ -285,25 +297,33 @@ export const buildChangeRequest = (
     }
 
     case "service-add": {
-      const name = checkName(values.name, "Escribe el nombre del tratamiento.", errors);
-      const price = readPrice(values.price, context.usesCatalogue);
+      const { product } = context;
+      const name = checkName(values.name, nameMissing(product), errors);
+      // A product is a catalogue row, so its price may have cents wherever it is added.
+      const price = readPrice(values.price, context.usesCatalogue || product === true);
 
       if ("error" in price) errors.price = price.error;
-      if (context.usesCatalogue && !values.categoryId) {
+      if (!product && context.usesCatalogue && !values.categoryId) {
         errors.categoryId = "Elige una categoría.";
       }
 
       raw = {
         type: "SERVICE_ADD",
-        title: clip(`Nuevo servicio: ${name ?? ""}`),
-        proposed: {
-          name: name ?? "",
-          priceEuro: "error" in price ? 0 : price.value,
-          ...(context.usesCatalogue && values.categoryId
-            ? { categoryId: values.categoryId }
-            : {}),
-          ...(context.usesPrize ? { prize: values.prize } : {}),
-        },
+        title: clip(`${product ? "Nuevo producto" : "Nuevo servicio"}: ${name ?? ""}`),
+        proposed: product
+          ? {
+              name: name ?? "",
+              priceEuro: "error" in price ? 0 : price.value,
+              isProduct: true,
+            }
+          : {
+              name: name ?? "",
+              priceEuro: "error" in price ? 0 : price.value,
+              ...(context.usesCatalogue && values.categoryId
+                ? { categoryId: values.categoryId }
+                : {}),
+              ...(context.usesPrize ? { prize: values.prize } : {}),
+            },
       };
       break;
     }

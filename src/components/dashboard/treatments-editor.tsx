@@ -25,17 +25,17 @@ const bonoRef = (plan: BonoPlanRow): BonoRef => ({
   totalSessions: plan.totalSessions,
 });
 
-/** Which request panel is open: one at a time across treatments and bonos. */
+/** Which request panel is open: one at a time across treatments, products and bonos. */
 interface ActivePanel {
-  /** "new" for a new service or bono, otherwise the id of the row it belongs to. */
+  /** "new" for a new service, product or bono, otherwise the id of the row it belongs to. */
   id: string;
-  area: "treatment" | "bono";
+  area: "treatment" | "product" | "bono";
   context: RequestContext;
 }
 
 /**
- * The centre's services. The owner or manager (`canRequest`) adds, edits and removes treatments
- * and bono plans themselves: a change is applied when saved and the backend keeps it as a
+ * The centre's services. The owner or manager (`canRequest`) adds, edits and removes treatments,
+ * retail products and bono plans themselves: a change is applied when saved and the backend keeps it as a
  * resolved ticket in Mis solicitudes. Anyone else sees the list without the buttons. With the
  * catalogue a category is part of a service; without it prices are whole euros and there is no
  * category.
@@ -69,6 +69,11 @@ export function TreatmentsEditor({
   };
 
   const items = catalogue.data?.items ?? [];
+  const products = catalogue.data?.products ?? [];
+  // Products are catalogue rows, so they belong to a centre that prices from the catalogue; one
+  // that has some anyway still sees them. An older backend sends none.
+  const showProducts =
+    Boolean(catalogue.data?.products) && (usesCatalogue || products.length > 0);
 
   const panel = active ? (
     <ChangeRequestPanel
@@ -92,7 +97,7 @@ export function TreatmentsEditor({
           </h2>
           <p className="mt-1 text-sm text-[#927e72]">
             {canRequest
-              ? "Servicios disponibles para tu equipo y tu programa de fidelización. Puedes añadir, editar y eliminar tratamientos y bonos: el cambio se aplica al momento y queda registrado en Mis solicitudes."
+              ? "Servicios y productos disponibles para tu equipo y tu programa de fidelización. Puedes añadir, editar y eliminar tratamientos, productos y bonos: el cambio se aplica al momento y queda registrado en Mis solicitudes."
               : "Servicios disponibles para tu equipo y tu programa de fidelización."}
           </p>
         </div>
@@ -223,6 +228,121 @@ export function TreatmentsEditor({
           </div>
         );
       })}
+
+      {showProducts ? (
+        <div className="border-t border-[#eadfd8]">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <div>
+              <h3 className="font-serif text-xl font-semibold">Productos</h3>
+              <p className="mt-1 text-sm text-[#927e72]">
+                Productos de venta. No aparecen al registrar una visita, pero el
+                programa puede darlos como premio.
+              </p>
+            </div>
+            {canRequest ? (
+              <button
+                type="button"
+                onClick={(event) =>
+                  openPanel(
+                    {
+                      id: "new",
+                      area: "product",
+                      context: {
+                        kind: "service-add",
+                        usesCatalogue: true,
+                        product: true,
+                      },
+                    },
+                    event.currentTarget,
+                  )
+                }
+                className="rounded-full border border-[#b8864b] px-4 py-2 text-sm font-semibold text-[#8a5f33]"
+              >
+                <Plus size={15} className="mr-1 inline" />
+                Añadir producto
+              </button>
+            ) : null}
+          </div>
+
+          {active?.area === "product" && active.id === "new" ? (
+            <div className="border-t border-[#eadfd8]">{panel}</div>
+          ) : null}
+
+          {products.length === 0 ? (
+            <p className="border-t border-[#eadfd8] px-5 py-4 text-sm text-[#927e72]">
+              Todavía no hay productos.
+            </p>
+          ) : null}
+
+          {products.map((product) => {
+            const ref = {
+              id: product.id,
+              name: product.name,
+              priceEuro: product.priceEuro,
+              categoryId: product.categoryId,
+            };
+
+            return (
+              <div key={product.id} className="border-t border-[#eadfd8]">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div>
+                    <p className="font-semibold">{product.name}</p>
+                    <p className="mt-1 text-xs text-[#927e72]">
+                      {typeof product.priceEuro === "number"
+                        ? `Precio: ${formatEuros(product.priceEuro)}`
+                        : "sin precio"}
+                    </p>
+                  </div>
+                  {canRequest ? (
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <RequestIconButton
+                        kind="edit"
+                        subject={product.name}
+                        onClick={(event) =>
+                          openPanel(
+                            {
+                              id: product.id,
+                              area: "product",
+                              context: {
+                                kind: "service-edit",
+                                treatment: ref,
+                                usesCatalogue: true,
+                                product: true,
+                              },
+                            },
+                            event.currentTarget,
+                          )
+                        }
+                      />
+                      <RequestIconButton
+                        kind="remove"
+                        subject={product.name}
+                        onClick={(event) =>
+                          openPanel(
+                            {
+                              id: product.id,
+                              area: "product",
+                              context: {
+                                kind: "service-remove",
+                                treatment: ref,
+                                product: true,
+                              },
+                            },
+                            event.currentTarget,
+                          )
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                {active?.area === "product" && active.id === product.id ? (
+                  <div className="border-t border-[#eadfd8]">{panel}</div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {canEdit ? (
         <div className="border-t border-[#eadfd8] p-5">

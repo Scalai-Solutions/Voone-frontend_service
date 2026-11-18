@@ -47,7 +47,7 @@ const headingFor = (context: RequestContext): string => {
     case "service-edit":
       return `Editar ${quoted(context.treatment.name)}`;
     case "service-add":
-      return "Añadir un tratamiento";
+      return context.product ? "Añadir un producto" : "Añadir un tratamiento";
     case "service-remove":
       return `Eliminar ${quoted(context.treatment.name)}`;
     case "bono-add":
@@ -105,7 +105,7 @@ function CurrentValues({ context }: { context: RequestContext }) {
           ? formatEuros(treatment.priceEuro)
           : "sin precio",
       ],
-      ...(context.kind === "service-edit" && context.usesPrize
+      ...(context.kind === "service-edit" && context.usesPrize && !context.product
         ? [["Premio", treatment.prize === true ? "Sí" : "No"] as [string, string]]
         : []),
     ];
@@ -248,9 +248,16 @@ export function ChangeRequestPanel({
     });
   }
 
+  const isProduct =
+    (context.kind === "service-edit" ||
+      context.kind === "service-add" ||
+      context.kind === "service-remove") &&
+    context.product === true;
+  // Products have no category: it is always the retail one.
   const usesCatalogue =
     (context.kind === "service-edit" || context.kind === "service-add") &&
-    context.usesCatalogue;
+    context.usesCatalogue &&
+    !isProduct;
   const isRemoval =
     context.kind === "service-remove" || context.kind === "bono-remove";
   const showName =
@@ -387,7 +394,7 @@ export function ChangeRequestPanel({
                 value={values.name}
                 maxLength={120}
                 onChange={(event) => set("name", event.target.value)}
-                placeholder={isBono ? "Bono facial" : "Hydrafacial"}
+                placeholder={isBono ? "Bono facial" : isProduct ? "Sérum facial" : "Hydrafacial"}
                 className={inputClass}
               />
             </Field>
@@ -442,7 +449,8 @@ export function ChangeRequestPanel({
           ) : null}
 
           {(context.kind === "service-add" || context.kind === "service-edit") &&
-          context.usesPrize ? (
+          context.usesPrize &&
+          !isProduct ? (
             <div className="md:col-span-2">
               <label className="flex items-start gap-2 text-sm font-semibold">
                 <input
