@@ -947,6 +947,7 @@ export function broadcastNotification(
   clinicId: string,
   input: NotificationMessageInput,
   idempotencyKey?: string,
+  apiBase?: string,
 ) {
   return staffProxyFetch<NotificationCreatedResponse>(
     `/clinics/${encodeURIComponent(clinicId)}/notifications/broadcast`,
@@ -957,6 +958,7 @@ export function broadcastNotification(
         ? { "Idempotency-Key": idempotencyKey }
         : undefined,
     },
+    apiBase,
   );
 }
 
@@ -964,6 +966,7 @@ export function sendSegmentNotification(
   clinicId: string,
   input: SegmentNotificationInput,
   idempotencyKey?: string,
+  apiBase?: string,
 ) {
   return staffProxyFetch<NotificationCreatedResponse>(
     `/clinics/${encodeURIComponent(clinicId)}/notifications/segment`,
@@ -974,6 +977,7 @@ export function sendSegmentNotification(
         ? { "Idempotency-Key": idempotencyKey }
         : undefined,
     },
+    apiBase,
   );
 }
 
@@ -1016,10 +1020,11 @@ export function getNotifications(
   );
 }
 
-export function getNotification(notificationId: string) {
+export function getNotification(notificationId: string, apiBase?: string) {
   return staffProxyFetch<NotificationStatusResponse>(
     `/notifications/${encodeURIComponent(notificationId)}`,
     { method: "GET" },
+    apiBase,
   );
 }
 

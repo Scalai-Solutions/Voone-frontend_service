@@ -31,11 +31,24 @@ const USED_BY_MEMBER_SCREENS: Array<[method: string, path: string]> = [
   ["DELETE", "clinics/c_1/audiences/a_1"],
 ];
 
+/** The communications screen's manual sends and their status polling (communications-page-client). */
+const USED_BY_COMMUNICATIONS: Array<[method: string, path: string]> = [
+  ["POST", "clinics/c_1/notifications/broadcast"],
+  ["POST", "clinics/c_1/notifications/segment"],
+  ["GET", "notifications/n_1"],
+];
+
 const split = (path: string) => path.split("/");
 
 describe("admin members proxy allowlist", () => {
   it("forwards every call the members screens make", () => {
     for (const [method, path] of USED_BY_MEMBER_SCREENS) {
+      assert.equal(isForwardableClinicStaffPath(split(path), method), true, `${method} ${path}`);
+    }
+  });
+
+  it("forwards every call the communications screen makes", () => {
+    for (const [method, path] of USED_BY_COMMUNICATIONS) {
       assert.equal(isForwardableClinicStaffPath(split(path), method), true, `${method} ${path}`);
     }
   });
@@ -49,7 +62,9 @@ describe("admin members proxy allowlist", () => {
       ["GET", "members/lookup/extra"],
       ["POST", "members/m_1/pass/email"],
       ["GET", "notifications"],
-      ["POST", "clinics/c_1/notifications/broadcast"],
+      ["DELETE", "notifications/n_1"],
+      ["GET", "clinics/c_1/notifications"],
+      ["GET", "clinics/c_1/notifications/broadcast"],
       ["GET", "clinics/c_1/users"],
       ["GET", "members//rewards"],
     ];

@@ -1,13 +1,18 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
+import { useStaffScope } from "@/features/members/staff-scope";
 import { AutomationsPanel } from "@/features/notifications/components/automations-panel";
-import { staffSettingsApi } from "@/features/notifications/settings-api";
+import {
+  adminSettingsApi,
+  staffSettingsApi,
+} from "@/features/notifications/settings-api";
 import { personalise, usesName } from "@/features/notifications/personalise";
 import { useNotificationSettings } from "@/features/notifications/use-notification-settings";
 import {
@@ -16,7 +21,6 @@ import {
   getAudiences,
   getNotification,
   sendSegmentNotification,
-  type ClinicAudience,
   type NotificationStatus,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -35,14 +39,42 @@ const finalNotificationStatuses = new Set<NotificationStatus>([
   "FAILED",
   "CANCELLED",
 ]);
-export function CommunicationsPageClient() {
-  const currentClinic = useCurrentClinic();
+/** The clinic an admin acts for, read on the server from the admin API. */
+export interface AdminCommunicationsClinic {
+  id: string;
+  name: string;
+  notificationsUsedThisMonth: number;
+}
+
+/**
+ * The centre's communications: manual messages and automations. The clinic dashboard renders it
+ * with no props, for the signed-in centre. The admin portal passes `adminClinic` inside a
+ * `StaffScopeProvider` for that clinic: every call then goes through the admin proxy, and what
+ * is sent goes out on the centre's behalf under the same rules (limits, marketing switch,
+ * monthly count) as the centre's own sends.
+ */
+export function CommunicationsPageClient({
+  adminClinic,
+}: {
+  adminClinic?: AdminCommunicationsClinic;
+} = {}) {
+  const scope = useStaffScope();
+  const router = useRouter();
+  // Inside the admin page, which has its own h1.
+  const Heading = adminClinic ? "h2" : "h1";
+  const currentClinic = useCurrentClinic({ enabled: !adminClinic });
+  const clinic = adminClinic ?? currentClinic.data;
+  // After a send the monthly count changes: the admin page reads it on the server.
+  const refreshClinic = () => {
+    if (adminClinic) router.refresh();
+    else void currentClinic.refetch();
+  };
   // The centre's saved audiences (Audiencias): what the Segmento dropdown offers beyond the
   // two automatic options, and what a send targets through its own criteria.
   const audiencesQuery = useQuery({
-    queryKey: ["audiences", currentClinic.data?.id],
-    enabled: Boolean(currentClinic.data?.id),
-    queryFn: () => getAudiences(currentClinic.data?.id ?? ""),
+    queryKey: ["audiences", clinic?.id],
+    enabled: Boolean(clinic?.id),
+    queryFn: () => getAudiences(clinic?.id ?? "", scope.apiBase),
   });
   const savedAudiences = audiencesQuery.data ?? [];
   const [composeOpen, setComposeOpen] = React.useState(false);
@@ -63,15 +95,17 @@ export function CommunicationsPageClient() {
   const modalBodyRef = React.useRef<HTMLTextAreaElement>(null);
   // No message quota is shown anywhere: the plan does not limit how many messages a centre
   // sends, only how many it has actually sent this month.
-  const manualSentThisMonth =
-    currentClinic.data?.notificationsUsedThisMonth ?? 0;
+  const manualSentThisMonth = clinic?.notificationsUsedThisMonth ?? 0;
   // The same settings the panel edits (one cache entry), for the count on the tab.
   const settingsApi = React.useMemo(
-    () => staffSettingsApi(currentClinic.data?.id ?? ""),
-    [currentClinic.data?.id],
+    () =>
+      adminClinic
+        ? adminSettingsApi(adminClinic.id)
+        : staffSettingsApi(currentClinic.data?.id ?? ""),
+    [adminClinic, currentClinic.data?.id],
   );
   const automationSettings = useNotificationSettings(settingsApi, {
-    enabled: Boolean(currentClinic.data?.id),
+    enabled: Boolean(clinic?.id),
   }).settings.data;
   const activeAutomationsCount = automationSettings
     ? Object.values(automationSettings.automations).filter((a) => a.enabled)
@@ -88,7 +122,7 @@ export function CommunicationsPageClient() {
 
   const waitForFinalStatus = async (notificationId: string) => {
     for (let attempt = 0; attempt < 15; attempt += 1) {
-      const status = await getNotification(notificationId);
+      const status = await getNotification(notificationId, scope.apiBase);
 
       if (finalNotificationStatuses.has(status.notification.status)) {
         return status.notification.status;
@@ -101,7 +135,7 @@ export function CommunicationsPageClient() {
   };
 
   const sendCommunication = async () => {
-    if (!currentClinic.data) {
+    if (!clinic) {
       setSendState("error");
       setSendMessage("No se pudo resolver la clínica actual.");
       return;
@@ -135,9 +169,10 @@ export function CommunicationsPageClient() {
 
       if (audience === allMembersAudience) {
         response = await broadcastNotification(
-          currentClinic.data.id,
+          clinic.id,
           input,
           idempotencyKey,
+          scope.apiBase,
         );
       } else {
         const criteria =
@@ -152,9 +187,10 @@ export function CommunicationsPageClient() {
         }
 
         response = await sendSegmentNotification(
-          currentClinic.data.id,
+          clinic.id,
           { ...input, segment: criteria },
           idempotencyKey,
+          scope.apiBase,
         );
       }
 
@@ -164,7 +200,7 @@ export function CommunicationsPageClient() {
           `Comunicación programada para ${scheduledDate.toLocaleString("es-ES")}.`,
         );
         setComposeOpen(false);
-        void currentClinic.refetch();
+        refreshClinic();
         return;
       }
 
@@ -181,7 +217,7 @@ export function CommunicationsPageClient() {
           : `Comunicación finalizada. Estado: ${finalStatus}.`,
       );
       setComposeOpen(false);
-      void currentClinic.refetch();
+      refreshClinic();
     } catch (error) {
       setSendState("error");
       setSendMessage(
@@ -197,14 +233,17 @@ export function CommunicationsPageClient() {
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#b7874a]">
-            Comunicación con tu comunidad
+            {adminClinic
+              ? `En nombre de ${adminClinic.name}`
+              : "Comunicación con tu comunidad"}
           </p>
-          <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">
+          <Heading className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">
             Comunicaciones
-          </h1>
+          </Heading>
           <p className="mt-2 text-sm text-[#927e72]">
-            Crea mensajes claros y envíalos cuando tenga sentido para tus
-            clientes.
+            {adminClinic
+              ? "Lo que envíes o cambies aquí se aplica al centro, con las mismas reglas que sus propios envíos."
+              : "Crea mensajes claros y envíalos cuando tenga sentido para tus clientes."}
           </p>
         </div>
         <button
@@ -221,10 +260,12 @@ export function CommunicationsPageClient() {
             Mensajes manuales
           </p>
           <p className="mt-3 font-serif text-4xl font-semibold">
-            {currentClinic.isLoading ? "..." : manualSentThisMonth}
+            {clinic ? manualSentThisMonth : "..."}
           </p>
           <p className="mt-2 text-xs text-[#c9b7ad]">
-            Enviados este mes · tu plan no limita los envíos
+            {adminClinic
+              ? "Enviados este mes por el centro y por Voone"
+              : "Enviados este mes · tu plan no limita los envíos"}
           </p>
         </div>
         <div className="rounded-3xl border border-[#e2d5cc] bg-white/75 p-5">
@@ -242,7 +283,9 @@ export function CommunicationsPageClient() {
             </span>
           </p>
           <p className="mt-2 text-sm text-[#927e72]">
-            Las mismas que configuraste durante el alta
+            {adminClinic
+              ? "Los cambios se aplican al centro al momento"
+              : "Las mismas que configuraste durante el alta"}
           </p>
         </div>
       </div>
@@ -365,17 +408,14 @@ export function CommunicationsPageClient() {
                   Configurar envío
                 </button>
               </>
-            ) : currentClinic.data ? (
+            ) : clinic ? (
               <div className="mt-5">
                 <p className="mb-4 text-sm leading-6 text-[#927e72]">
                   Mensajes que se envían solos. Edita el texto, añade datos del
                   cliente con los botones y comprueba cómo se verá en el iPhone
                   antes de guardar.
                 </p>
-                <AutomationsPanel
-                  api={settingsApi}
-                  clinicName={currentClinic.data.name}
-                />
+                <AutomationsPanel api={settingsApi} clinicName={clinic.name} />
               </div>
             ) : null}
           </div>
@@ -392,11 +432,7 @@ export function CommunicationsPageClient() {
           )}
         >
           <div className="pt-5 lg:w-[380px] lg:pl-5 lg:pt-0">
-            <Preview
-              title={title}
-              body={body}
-              clinicName={currentClinic.data?.name}
-            />
+            <Preview title={title} body={body} clinicName={clinic?.name} />
           </div>
         </div>
       </div>
@@ -549,7 +585,7 @@ export function CommunicationsPageClient() {
             <Preview
               title={title}
               body={body}
-              clinicName={currentClinic.data?.name}
+              clinicName={clinic?.name}
               compact
             />
           </div>

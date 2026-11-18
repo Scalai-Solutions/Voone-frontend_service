@@ -44,6 +44,13 @@ const forward = async (request: Request, context: Context) => {
   }
 
   const search = new URL(request.url).search;
+  const adminHeaders = {
+    "x-voone-role": "VOONE_ADMIN",
+    "x-voone-user-id": guard.session.userId,
+    "x-voone-clinic-id": clinicId,
+  };
+  // A manual send's key, so a retried click does not send twice.
+  const idempotencyKey = request.headers.get("Idempotency-Key");
 
   // Audiences are keyed by clinic id and check the caller's role; VOONE_ADMIN may act on any
   // clinic. Only this clinic's audiences, whatever id the browser put in the path.
@@ -55,12 +62,31 @@ const forward = async (request: Request, context: Context) => {
         method: request.method,
         body,
         headers: {
-          "x-voone-role": "VOONE_ADMIN",
-          "x-voone-user-id": guard.session.userId,
-          "x-voone-clinic-id": clinicId,
+          ...adminHeaders,
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
         },
       }),
     );
+  }
+
+  // A send's status, keyed by notification id alone. The backend lets VOONE_ADMIN read any
+  // clinic's notification, so answer only for one that belongs to the clinic in the URL.
+  if (path[0] === "notifications") {
+    const response = await adminApiFetch(`/v1/notifications/${encodeURIComponent(path[1])}`, {
+      method: "GET",
+      headers: adminHeaders,
+    });
+
+    if (!response.ok) return forwardResponse(response);
+
+    const data = (await response
+      .clone()
+      .json()
+      .catch(() => null)) as { notification?: { clinicId?: string } } | null;
+
+    if (data?.notification?.clinicId !== clinicId) return notFound();
+
+    return forwardResponse(response);
   }
 
   const clinic = await resolveClinicSlug(clinicId);
