@@ -57,10 +57,13 @@ html:has(.club) { interpolate-size: allow-keywords; }
 
   /* drop-down menu */
   .menu { padding-bottom: 0; }
-  .join { display: inline-flex; align-items: center; gap: 10px; margin-top: 28px; color: var(--gold); font-weight: 500; font-size: 17px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; transition: color .2s; }
+  .join-row { display: flex; justify-content: center; }
+  .join { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-top: 36px; padding: 18px 34px; border-radius: 999px; background: var(--dark); color: #fff; font-weight: 500; font-size: 17px; letter-spacing: .01em; text-decoration: none; transition: background .2s, transform .2s var(--ease); }
   .join span { transition: transform .3s var(--ease); }
-  .join:hover { color: var(--ink); }
+  .join:hover { background: var(--gold); }
   .join:hover span { transform: translateX(4px); }
+  .join:active { transform: scale(.98); }
+  .join:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
   .acc-h { font: inherit; letter-spacing: 0; }
   .acc .row { display: flex; align-items: center; gap: 16px; width: 100%; text-align: left; padding: 24px 0; border-bottom: 1px solid var(--line); font: 400 clamp(26px, 6.6vw, 38px)/1.1 var(--display); transition: color .25s; }
   .acc:first-child .row { border-top: 1px solid var(--line); }

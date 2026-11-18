@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   badgeText,
+  clubName,
   nextTierOf,
   numberLadder,
   recurringText,
@@ -58,6 +59,14 @@ describe("club style", () => {
         ["03", "1 de 1"],
       ],
     );
+  });
+
+  it("calls the programme a club once, whatever the centre named it", () => {
+    assert.equal(clubName("Privé"), "Club Privé");
+    assert.equal(clubName(" Manzano "), "Club Manzano");
+    assert.equal(clubName("Club Privé"), "Club Privé");
+    assert.equal(clubName("club vip"), "club vip");
+    assert.equal(clubName("Clubbing"), "Club Clubbing");
   });
 
   it("describes the welcome progress and the recurring reward", () => {

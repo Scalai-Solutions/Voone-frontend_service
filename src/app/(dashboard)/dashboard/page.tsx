@@ -1,5 +1,5 @@
 import { DashboardMotion } from "@/components/dashboard/dashboard-motion";
-import { getClinicSignupUrl } from "@/lib/app-url";
+import { getClinicClubUrl, getClinicSignupUrl } from "@/lib/app-url";
 import { type DashboardOverview } from "@/lib/api-client";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
 import { fetchDashboardOverview } from "@/lib/dashboard-overview-server";
@@ -20,12 +20,13 @@ async function getDashboardOverview(clinicId: string, fallbackMembers: number): 
 
 export default async function DashboardOverviewPage() {
   const clinic = await getCurrentStaffClinic();
-  const [signupUrl, overview] = await Promise.all([
+  const [signupUrl, clubUrl, overview] = await Promise.all([
     getClinicSignupUrl(clinic.id),
+    getClinicClubUrl(clinic.id),
     getDashboardOverview(clinic.id, clinic.members),
   ]);
 
   return (
-    <DashboardMotion overview={overview} clinic={clinic} signupUrl={signupUrl} />
+    <DashboardMotion overview={overview} clinic={clinic} signupUrl={signupUrl} clubUrl={clubUrl} />
   );
 }

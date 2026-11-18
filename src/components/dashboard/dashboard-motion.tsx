@@ -22,7 +22,7 @@ function getTimeGreeting() {
   return "Buenas noches";
 }
 
-export function DashboardMotion({ overview, clinic, signupUrl }: { overview: DashboardOverview; clinic: Clinic; signupUrl?: string | null }) {
+export function DashboardMotion({ overview, clinic, signupUrl, clubUrl }: { overview: DashboardOverview; clinic: Clinic; signupUrl?: string | null; clubUrl?: string | null }) {
   const reducedMotion = useReducedMotion();
   const transition = reducedMotion ? { duration: 0 } : { duration: 0.62, ease: [0.16, 1, 0.3, 1] as const };
   const greeting = React.useMemo(() => getTimeGreeting(), []);
@@ -50,7 +50,7 @@ export function DashboardMotion({ overview, clinic, signupUrl }: { overview: Das
             <Link href="/dashboard/scan" className="inline-flex items-center gap-3 rounded-full border border-[#a2765d] bg-[#6f4d3f]/40 px-5 py-3 text-sm font-semibold text-[#fff6ed] transition hover:bg-[#8a604b]">
               <ScanLine size={17} /> Escanear QR
             </Link>
-            {signupUrl ? <SignupQrPanel signupUrl={signupUrl} /> : null}
+            {signupUrl ? <SignupQrPanel signupUrl={signupUrl} clubUrl={clubUrl} /> : null}
           </div>
         </div>
 

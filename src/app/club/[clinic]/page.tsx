@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ClubPage } from "@/components/club/club-page";
+import { clubName } from "@/components/club/club-style";
 import { ApiError, getPublicClub } from "@/lib/api-client";
 
 import { clubDisplay, clubSans } from "../club-fonts";
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: PageProps<"/club/[clinic]">):
     const { clinic } = await getPublicClub(slug);
 
     return {
-      title: `${clinic.template.programName} · ${clinic.name}`,
+      title: `${clubName(clinic.template.programName)} · ${clinic.name}`,
       description: `Ventajas por nivel, escalera de premios y programa de recomendación de ${clinic.name}.`,
       // Reached from a flyer or a card, not from search; indexing one page per clinic would list
       // the clients' clinics.

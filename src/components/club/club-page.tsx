@@ -5,6 +5,7 @@ import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNod
 import type { PublicClinic, PublicClub } from "@/lib/api-client";
 import {
   badgeText,
+  clubName,
   nextTierOf,
   numberLadder,
   recurringText,
@@ -159,7 +160,7 @@ export function ClubPage({ clinic, club }: { clinic: PublicClinic; club: PublicC
                 <i />
               </>
             ) : null}
-            <span>{programName}</span>
+            <span>{clubName(programName)}</span>
           </div>
         </div>
         <div className="wrap hero">
@@ -235,7 +236,7 @@ export function ClubPage({ clinic, club }: { clinic: PublicClinic; club: PublicC
                       style={cssVars({ "--fin": tierStyle.fin, "--fg": tierStyle.fg })}
                     >
                       <div className="top">
-                        <span className="club-name">{programName}</span>
+                        <span className="club-name">{clubName(programName)}</span>
                         {logoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -400,7 +401,7 @@ export function ClubPage({ clinic, club }: { clinic: PublicClinic; club: PublicC
                       +1
                     </span>
                     <b>Se une con ventaja</b>
-                    <p>{welcomeText(programName, club.welcome)}</p>
+                    <p>{welcomeText(clubName(programName), club.welcome)}</p>
                   </li>
                   <li>
                     <span className="who you">Tú</span>
@@ -431,7 +432,7 @@ export function ClubPage({ clinic, club }: { clinic: PublicClinic; club: PublicC
           </Accordion>
         ) : null}
 
-        <div className="wrap">
+        <div className="wrap join-row">
           <a className="join" href={`/alta/${encodeURIComponent(clinic.slug)}`}>
             ¿Todavía no eres miembro? <span aria-hidden="true">→</span>
           </a>
