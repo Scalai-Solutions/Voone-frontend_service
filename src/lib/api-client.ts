@@ -485,12 +485,30 @@ export type AutomationEvent =
 /** A clinic's own value an automation needs before it can be switched on. */
 export type ClinicVariableKey = "googleReviewUrl";
 
+/** A timing threshold a clinic can tune per automation (mirrors the backend catalog). */
+export type TimingKey = "inactiveDays" | "minVisits" | "activeDays";
+
+export interface TimingField {
+  key: TimingKey;
+  label: string;
+  /** Shown after the number ("días", "visitas"). */
+  unit: string;
+  min: number;
+  max: number;
+  default: number;
+}
+
+export type AutomationTiming = Partial<Record<TimingKey, number>>;
+
 export interface AutomationSetting {
   enabled: boolean;
   header: string;
   body: string;
   /** true = a real push, false = a silent card message. */
   notify: boolean;
+  /** Resolved thresholds: every key the event's catalog `timing` declares. Absent from catalog
+   *  defaults and from backends that predate per-clinic timing. */
+  timing?: AutomationTiming;
 }
 
 export interface AutomationCatalogEntry {
@@ -501,6 +519,8 @@ export interface AutomationCatalogEntry {
   variables: string[];
   marketing: boolean;
   requires?: ClinicVariableKey;
+  /** Thresholds the clinic may change; absent for events that have none. */
+  timing?: TimingField[];
   defaults: AutomationSetting;
 }
 
@@ -927,6 +947,7 @@ export function broadcastNotification(
   clinicId: string,
   input: NotificationMessageInput,
   idempotencyKey?: string,
+  apiBase?: string,
 ) {
   return staffProxyFetch<NotificationCreatedResponse>(
     `/clinics/${encodeURIComponent(clinicId)}/notifications/broadcast`,
@@ -937,6 +958,7 @@ export function broadcastNotification(
         ? { "Idempotency-Key": idempotencyKey }
         : undefined,
     },
+    apiBase,
   );
 }
 
@@ -944,6 +966,7 @@ export function sendSegmentNotification(
   clinicId: string,
   input: SegmentNotificationInput,
   idempotencyKey?: string,
+  apiBase?: string,
 ) {
   return staffProxyFetch<NotificationCreatedResponse>(
     `/clinics/${encodeURIComponent(clinicId)}/notifications/segment`,
@@ -954,6 +977,7 @@ export function sendSegmentNotification(
         ? { "Idempotency-Key": idempotencyKey }
         : undefined,
     },
+    apiBase,
   );
 }
 
@@ -996,10 +1020,11 @@ export function getNotifications(
   );
 }
 
-export function getNotification(notificationId: string) {
+export function getNotification(notificationId: string, apiBase?: string) {
   return staffProxyFetch<NotificationStatusResponse>(
     `/notifications/${encodeURIComponent(notificationId)}`,
     { method: "GET" },
+    apiBase,
   );
 }
 
@@ -1197,6 +1222,12 @@ export interface TreatmentCatalogue {
    */
   usesPrize?: boolean;
   items: ManagedTreatment[];
+  /**
+   * The centre's retail products (name and price, retail category). Listed beside the treatments,
+   * never among them (a programme centre's visit panel lists them from its catalogue). Absent
+   * from a backend that predates them.
+   */
+  products?: ManagedTreatment[];
 }
 
 export interface TreatmentCategory {

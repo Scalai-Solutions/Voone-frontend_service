@@ -2,16 +2,36 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Cake, CheckCircle2, Ticket, XCircle } from "lucide-react";
 
+import { CommunicationsPageClient } from "@/components/dashboard/communications-page-client";
 import { EmptyState, PageHeader } from "@/components/shared/page-kit";
 import { Badge } from "@/components/ui/badge";
+import { StaffScopeProvider } from "@/features/members/staff-scope";
 import {
+  getAdminClinic,
   getAdminClinicNotificationReport,
   type AutomationNotificationDetail,
   type BirthdayCandidate,
   type DeliveryBreakdownEntry,
   type NotificationDeliveryDetail,
 } from "@/lib/admin-api";
-import { ApiError } from "@/lib/api-client";
+import { ApiError, type Clinic } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
+
+type Tab = "informacion" | "ajustes";
+
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "informacion", label: "Información" },
+  { id: "ajustes", label: "Ajustes" },
+];
+
+/** A clinic that no longer exists sends the admin back to the list. */
+const backToListOn404 = (error: unknown): never => {
+  if (error instanceof ApiError && error.status === 404) {
+    redirect("/admin/notifications");
+  }
+
+  throw error;
+};
 
 const Panel = ({
   title,
@@ -158,19 +178,100 @@ function BirthdayRow({ candidate }: { candidate: BirthdayCandidate }) {
   );
 }
 
+/**
+ * One clinic in the Notification Manager. "Información" is the read-only report; "Ajustes" is the
+ * clinic dashboard's own Comunicaciones screen, so an admin can change the clinic's automations
+ * and send manual messages on its behalf. The tab lives in the URL (?tab=ajustes), so it can be
+ * linked to and survives a refresh.
+ */
 export default async function ClinicNotificationReportPage({
   params,
+  searchParams,
 }: PageProps<"/admin/notifications/[clinicId]">) {
   const { clinicId } = await params;
-  const report = await getAdminClinicNotificationReport(clinicId).catch((error) => {
-    if (error instanceof ApiError && error.status === 404) {
-      redirect("/admin/notifications");
-    }
+  const tab: Tab = (await searchParams).tab === "ajustes" ? "ajustes" : "informacion";
+  const [report, clinic] = await Promise.all([
+    getAdminClinicNotificationReport(clinicId).catch(backToListOn404),
+    tab === "ajustes" ? getAdminClinic(clinicId).catch(backToListOn404) : null,
+  ]);
 
-    throw error;
-  });
+  return (
+    <div className="space-y-6">
+      <ReportHeader report={report} />
+      <ClinicTabs clinicId={clinicId} active={tab} />
+      {clinic ? <SettingsTab clinic={clinic} /> : <ReportBody report={report} />}
+    </div>
+  );
+}
 
-  return <ReportBody report={report} />;
+function ClinicTabs({ clinicId, active }: { clinicId: string; active: Tab }) {
+  const base = `/admin/notifications/${encodeURIComponent(clinicId)}`;
+
+  return (
+    <nav aria-label="Secciones del centro" className="flex gap-2">
+      {TABS.map((tab) => (
+        <Link
+          key={tab.id}
+          href={tab.id === "ajustes" ? `${base}?tab=ajustes` : base}
+          aria-current={active === tab.id ? "page" : undefined}
+          className={cn(
+            "rounded-full px-4 py-1.5 text-sm font-semibold transition",
+            active === tab.id ? "bg-[#2d211e] text-white" : "text-[#806d63] hover:text-[#2d211e]",
+          )}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** Everything the clinic sees on its Comunicaciones page, acting for this clinic. */
+function SettingsTab({ clinic }: { clinic: Clinic }) {
+  return (
+    <div className="space-y-4">
+      {!clinic.isActive ? (
+        <p className="rounded-lg border border-border bg-secondary/60 p-4 text-sm text-muted-foreground">
+          El centro está inactivo: las automatizaciones no se envían y sus miembros y audiencias no
+          están disponibles. Actívalo antes de mandar mensajes.
+        </p>
+      ) : null}
+      <StaffScopeProvider clinicId={clinic.id}>
+        <CommunicationsPageClient
+          adminClinic={{
+            id: clinic.id,
+            name: clinic.name,
+            notificationsUsedThisMonth: clinic.notificationsUsedThisMonth ?? 0,
+          }}
+        />
+      </StaffScopeProvider>
+    </div>
+  );
+}
+
+function ReportHeader({
+  report,
+}: {
+  report: Awaited<ReturnType<typeof getAdminClinicNotificationReport>>;
+}) {
+  return (
+    <div className="space-y-3">
+      <Link
+        href="/admin/notifications"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#8c7870] transition hover:text-[#2e2421]"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" /> Notification Manager
+      </Link>
+      <PageHeader
+        eyebrow="Notification Manager"
+        title={report.name}
+        description="Información: past sends, delivery outcomes and upcoming candidates. Ajustes: change this clinic's automations and send manual messages on its behalf."
+      />
+      {!report.isActive ? (
+        <Badge variant="secondary">Clinic inactive · automations skip inactive clinics</Badge>
+      ) : null}
+    </div>
+  );
 }
 
 function ReportBody({
@@ -182,22 +283,6 @@ function ReportBody({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <Link
-          href="/admin/notifications"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#8c7870] transition hover:text-[#2e2421]"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Notification Manager
-        </Link>
-        <PageHeader
-          eyebrow="Notification Manager"
-          title={report.name}
-          description="Automation settings, past sends with delivery outcomes, and upcoming candidates for this clinic."
-        />
-        {!report.isActive ? (
-          <Badge variant="secondary">Clinic inactive · automations skip inactive clinics</Badge>
-        ) : null}
-      </div>
 
       <section className="grid gap-4 lg:grid-cols-1">
         <Panel eyebrow="All time" title="Notifications sent">

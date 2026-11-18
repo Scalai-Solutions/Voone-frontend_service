@@ -273,16 +273,31 @@ const serviceEditProposed = object(
   [],
   ["name", "priceEuro", "categoryId", "prize"],
 );
-const serviceAddProposed = object(
-  ["name", "priceEuro", "categoryId", "prize"],
+const serviceAddObject = object(
+  ["name", "priceEuro", "categoryId", "prize", "isProduct"],
   {
     name: (v) => readName(v, "Escribe el nombre del tratamiento."),
     priceEuro: readPrice,
     categoryId: readCategory,
     prize: readPrize,
+    // A retail product rather than a treatment (same yes/no reader as the prize answer).
+    isProduct: readPrize,
   },
   ["name", "priceEuro"],
 );
+/** A product is a name and a price; the backend refuses one that also asks for more. */
+const serviceAddProposed: PartReader = (raw) => {
+  const part = serviceAddObject(raw);
+
+  if (
+    part.isProduct === true &&
+    (part.categoryId !== undefined || part.prize !== undefined)
+  ) {
+    refuse("Un producto solo tiene nombre y precio.");
+  }
+
+  return part;
+};
 const serviceRemoveProposed = object(["treatmentId"], {
   treatmentId: readId,
 });

@@ -501,3 +501,58 @@ describe("the prize choice on a treatment request", () => {
     );
   });
 });
+
+describe("buildChangeRequest: retail products", () => {
+  const product = { id: "p1", name: "Sérum", priceEuro: 24.5, categoryId: "COS" };
+
+  it("adds a product with only its name and price, cents allowed", () => {
+    const context: RequestContext = { kind: "service-add", usesCatalogue: true, product: true };
+
+    const body = okBody(context, { name: "Crema", price: "12,90" });
+
+    assert.equal(body.type, "SERVICE_ADD");
+    assert.equal(body.title, "Nuevo producto: Crema");
+    assert.deepEqual(body.proposed, { name: "Crema", priceEuro: 12.9, isProduct: true });
+  });
+
+  it("never asks a product for a category, nor sends one", () => {
+    const context: RequestContext = { kind: "service-add", usesCatalogue: true, product: true };
+    const body = okBody(context, { name: "Crema", price: "10", categoryId: "FAC" });
+
+    assert.deepEqual(body.proposed, { name: "Crema", priceEuro: 10, isProduct: true });
+  });
+
+  it("edits a product's price, targeting its row, and ignores category and prize", () => {
+    const context: RequestContext = {
+      kind: "service-edit",
+      treatment: product,
+      usesCatalogue: true,
+      usesPrize: true,
+      product: true,
+    };
+    const body = okBody(context, { price: "30", categoryId: "FAC", prize: true });
+
+    assert.deepEqual(body.targetRef, { treatmentId: "p1" });
+    assert.deepEqual(body.proposed, { priceEuro: 30 });
+  });
+
+  it("says what a product edit can change when nothing changed", () => {
+    const context: RequestContext = {
+      kind: "service-edit",
+      treatment: product,
+      usesCatalogue: true,
+      product: true,
+    };
+
+    assert.equal(errorsOf(context, {}).form, "Cambia al menos un dato: nombre o precio.");
+  });
+
+  it("asks for the product's name in its own words", () => {
+    const context: RequestContext = { kind: "service-add", usesCatalogue: true, product: true };
+
+    assert.equal(
+      errorsOf(context, { name: " ", price: "10" }).name,
+      "Escribe el nombre del producto.",
+    );
+  });
+});

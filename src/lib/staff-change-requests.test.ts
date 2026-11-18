@@ -129,6 +129,36 @@ describe("parseCreateRequest: SERVICE_EDIT", () => {
   });
 });
 
+describe("parseCreateRequest: retail products", () => {
+  it("SERVICE_ADD takes isProduct with a name and a price", () => {
+    const body = ok({
+      ...base,
+      type: "SERVICE_ADD",
+      proposed: { name: "Sérum", priceEuro: 24.5, isProduct: true },
+    });
+
+    assert.deepEqual(body.proposed, { name: "Sérum", priceEuro: 24.5, isProduct: true });
+  });
+
+  it("refuses a product that also asks for a category or a prize, or a non-boolean flag", () => {
+    refused({
+      ...base,
+      type: "SERVICE_ADD",
+      proposed: { name: "Sérum", priceEuro: 24.5, isProduct: true, categoryId: "FAC" },
+    });
+    refused({
+      ...base,
+      type: "SERVICE_ADD",
+      proposed: { name: "Sérum", priceEuro: 24.5, isProduct: true, prize: true },
+    });
+    refused({
+      ...base,
+      type: "SERVICE_ADD",
+      proposed: { name: "Sérum", priceEuro: 24.5, isProduct: "yes" },
+    });
+  });
+});
+
 describe("parseCreateRequest: SERVICE_ADD and SERVICE_REMOVE", () => {
   it("SERVICE_ADD needs name and price, takes no reference", () => {
     const body = ok({
