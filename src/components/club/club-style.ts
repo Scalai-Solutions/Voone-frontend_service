@@ -80,6 +80,17 @@ export const numberLadder = (ladder: PublicClubLadderGroup[]): NumberedGroup[] =
   }));
 };
 
+/**
+ * What the page calls the programme. "Club" is generic and the centre's own word is the name:
+ * a programme called "Privé" is the "Club Privé", one called "Manzano" the "Club Manzano". A name
+ * that already starts with the word (the centre typed "Club Privé") is left as it is.
+ */
+export const clubName = (programName: string): string => {
+  const name = programName.trim();
+
+  return /^club\b/i.test(name) ? name : `Club ${name}`;
+};
+
 /** What the referred client starts with, as a sentence. */
 export const welcomeText = (programName: string, welcome: number): string =>
   welcome > 0
