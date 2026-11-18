@@ -19,6 +19,22 @@ describe("parseClinicInfoBody", () => {
     assert.deepEqual(result, { ok: true, value: body });
   });
 
+  it("accepts the centre's contact phone and email, as the form sends them", () => {
+    const body = {
+      name: "Centro",
+      addressLine: "Calle Uno 1",
+      pincode: "28001",
+      contactPhone: "+34657765765",
+      contactEmail: "hola@centro.es",
+    };
+
+    assert.deepEqual(parseClinicInfoBody(JSON.stringify(body)), { ok: true, value: body });
+    assert.deepEqual(parseClinicInfoBody('{"contactPhone":""}'), {
+      ok: true,
+      value: { contactPhone: "" },
+    });
+  });
+
   it("accepts a partial body and empty strings (clearing a billing field)", () => {
     assert.deepEqual(parseClinicInfoBody('{"billingTaxId":""}'), {
       ok: true,

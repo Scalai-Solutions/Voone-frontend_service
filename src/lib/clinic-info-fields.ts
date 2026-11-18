@@ -4,11 +4,14 @@
  * The backend route this save reaches (`PATCH /v1/admin/clinics/:id`) is the Voone admin's
  * clinic editor and also writes the plan, the active flag and the notification quota. The
  * handler therefore never forwards what the browser sent: it forwards this allowlist, and
- * refuses a body that carries anything else. Keep in step with ClinicInfoPatch
- * (api-client.ts), ClinicInfoForm and the backend's clinicDetailsSchema.
+ * refuses a body that carries anything else. Keep in step with the backend's
+ * clinicDetailsSchema; ClinicInfoPatch (api-client.ts), what ClinicInfoForm sends, is checked
+ * against this list at compile time below.
  *
- * Pure (no imports) so the node test runner can load it.
+ * Pure (a type-only import, erased at runtime) so the node test runner can load it.
  */
+import type { ClinicInfoPatch } from "./api-client";
+
 export const CLINIC_INFO_FIELDS = [
   "name",
   "addressLine",
@@ -18,9 +21,23 @@ export const CLINIC_INFO_FIELDS = [
   "billingEmail",
   "billingAddressLine",
   "billingPostalCode",
+  "contactPhone",
+  "contactEmail",
 ] as const;
 
 export type ClinicInfoField = (typeof CLINIC_INFO_FIELDS)[number];
+
+/**
+ * Fails to compile when the form's patch and this allowlist disagree. Without it a field added
+ * to the form (contact phone and email were) is refused here and every save from the form fails
+ * with INVALID_BODY, which only shows once deployed.
+ */
+export const CLINIC_INFO_FIELDS_MATCH_PATCH: [
+  Exclude<keyof ClinicInfoPatch, ClinicInfoField>,
+  Exclude<ClinicInfoField, keyof ClinicInfoPatch>,
+] extends [never, never]
+  ? true
+  : never = true;
 
 export type ClinicInfoBody = Partial<Record<ClinicInfoField, string>>;
 
