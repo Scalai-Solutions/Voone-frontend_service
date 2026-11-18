@@ -362,13 +362,11 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
           <Section title="Imágenes" description="Sube un archivo o pega un enlace.">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Logo" error={errors.logoUrl?.message} htmlFor="template-logo-url">
+              {/* No dark-background logo field: a card that has one keeps it (it stays in the form state and is
+                  saved unchanged, and the preview below still uses it on a dark colour), but it is no longer edited here. */}
+              <Field label="Logo" error={errors.logoUrl?.message} className="sm:col-span-2" htmlFor="template-logo-url">
                 <Input id="template-logo-url" aria-describedby={errors.logoUrl ? "template-logo-url-error" : undefined} aria-invalid={errors.logoUrl ? true : undefined} {...form.register("logoUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="logo" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo" }} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
-              </Field>
-              <Field label="Logo para fondo oscuro (opcional)" error={errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
-                <Input id="template-logo-on-dark-url" aria-describedby={errors.logoOnDarkUrl ? "template-logo-on-dark-url-error" : undefined} aria-invalid={errors.logoOnDarkUrl ? true : undefined} {...form.register("logoOnDarkUrl")} placeholder="https://..." />
-                <ImageUploadButton kind="logoOnDark" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
               <Field label="Imagen principal (opcional)" error={errors.heroImageUrl?.message} className="sm:col-span-2" htmlFor="template-hero-image-url">
                 <Input id="template-hero-image-url" aria-describedby={errors.heroImageUrl ? "template-hero-image-url-error" : undefined} aria-invalid={errors.heroImageUrl ? true : undefined} {...form.register("heroImageUrl")} placeholder="https://..." />
