@@ -1224,7 +1224,8 @@ export interface TreatmentCatalogue {
   items: ManagedTreatment[];
   /**
    * The centre's retail products (name and price, retail category). Listed beside the treatments,
-   * never on the scan screen. Absent from a backend that predates them.
+   * never among them (a programme centre's visit panel lists them from its catalogue). Absent
+   * from a backend that predates them.
    */
   products?: ManagedTreatment[];
 }

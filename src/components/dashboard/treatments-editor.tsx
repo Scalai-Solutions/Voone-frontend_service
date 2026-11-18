@@ -235,8 +235,8 @@ export function TreatmentsEditor({
             <div>
               <h3 className="font-serif text-xl font-semibold">Productos</h3>
               <p className="mt-1 text-sm text-[#927e72]">
-                Productos de venta. No aparecen al registrar una visita, pero el
-                programa puede darlos como premio.
+                Productos de venta. El programa también puede darlos como
+                premio.
               </p>
             </div>
             {canRequest ? (
