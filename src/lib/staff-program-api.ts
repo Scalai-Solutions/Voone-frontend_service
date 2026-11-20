@@ -179,6 +179,17 @@ export const recordVisit = (
     apiBase,
   );
 
+/**
+ * Takes back a visit recorded by mistake. The backend answers 409, in Spanish, when it is too
+ * late or the visit has been used (see `ApiError.detail`).
+ */
+export const voidVisit = (visitId: string, reason?: string, apiBase?: string) =>
+  request<{ visitId: string; duplicate: boolean; pointsTotal: number }>(
+    `/visits/${encodeURIComponent(visitId)}/void`,
+    { method: "POST", body: JSON.stringify(reason ? { reason } : {}) },
+    apiBase,
+  );
+
 export interface MemberRewardsOverview {
   rewards: MemberReward[];
   /** Whether the member's next payment earns double; nothing applies on an older backend. */

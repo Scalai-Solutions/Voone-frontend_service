@@ -8,6 +8,7 @@ import {
   getStaffProgram,
   recordVisit,
   redeemReward,
+  voidVisit,
   type VisitInput,
 } from "@/lib/staff-program-api";
 
@@ -77,6 +78,21 @@ export function useRedeemReward(memberId: string) {
     onSuccess: () => {
       // The redemption appears in the member's history.
       void queryClient.invalidateQueries({ queryKey: queryKeys.member(memberId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.memberRewards(memberId) });
+    },
+  });
+}
+
+/** Takes back a visit recorded by mistake; the member's progress, history and rewards change. */
+export function useVoidVisit(memberId: string) {
+  const queryClient = useQueryClient();
+  const { apiBase } = useStaffScope();
+
+  return useMutation({
+    mutationFn: (visitId: string) => voidVisit(visitId, undefined, apiBase),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.member(memberId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.members() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.memberRewards(memberId) });
     },
   });

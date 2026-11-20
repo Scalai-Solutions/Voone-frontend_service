@@ -22,10 +22,14 @@ import { useMember } from "@/features/members/api/useMember";
 import { useUpdateMember } from "@/features/members/api/useUpdateMember";
 import { useStaffScope } from "@/features/members/staff-scope";
 import { normalizeSpanishMobile } from "@/lib/phone-es";
-import { useStaffProgram } from "@/features/program/api/useStaffProgram";
+import {
+  useStaffProgram,
+  useVoidVisit,
+} from "@/features/program/api/useStaffProgram";
 import { type Member } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPoints, formatSignedPoints } from "@/lib/points";
+import { voidableVisitRowId } from "@/lib/voidable-visit";
 
 const sexLabels: Record<NonNullable<Member["sex"]>, string> = {
   mujer: "Mujer",
@@ -90,6 +94,9 @@ export function MemberDetail({ memberId }: { memberId: string }) {
     },
   });
   const deleteMemberMutation = useDeleteMember();
+  const voidVisitMutation = useVoidVisit(memberId);
+  // The history row whose "Anular" is waiting for its confirmation.
+  const [confirmingVoid, setConfirmingVoid] = useState<string | null>(null);
 
   if (member.isLoading) return <Skeleton className="h-80 w-full" />;
   if (member.error || !member.data)
@@ -123,6 +130,21 @@ export function MemberDetail({ memberId }: { memberId: string }) {
     });
   }
 
+  function voidVisitOf(visitId: string) {
+    voidVisitMutation.mutate(visitId, {
+      onError: (error) =>
+        setNotice(
+          error instanceof ApiError && error.detail
+            ? error.detail
+            : "No se pudo anular la visita. Inténtalo de nuevo.",
+        ),
+      onSuccess: () => {
+        setConfirmingVoid(null);
+        setNotice("Visita anulada. Los puntos y recompensas se han ajustado.");
+      },
+    });
+  }
+
   function deleteCurrentMember() {
     if (
       !window.confirm(
@@ -138,6 +160,12 @@ export function MemberDetail({ memberId }: { memberId: string }) {
       onSuccess: () => router.push(membersHref),
     });
   }
+
+  // Only a centre on a programme records visits that can be taken back; an older points centre's
+  // credits also name a source, so the offer is made for a programme alone.
+  const voidableRowId = hasProgram
+    ? voidableVisitRowId(member.data.history)
+    : null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
@@ -339,6 +367,45 @@ export function MemberDetail({ memberId }: { memberId: string }) {
                     <p className="text-muted-foreground">
                       {item.date} · Movimiento permanente
                     </p>
+                    {item.id === voidableRowId ? (
+                      confirmingVoid === item.id ? (
+                        <p className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="text-muted-foreground">
+                            ¿Anular esta visita? Se quitarán sus puntos.
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={voidVisitMutation.isPending}
+                            onClick={() => voidVisitOf(item.visitId as string)}
+                          >
+                            {voidVisitMutation.isPending
+                              ? "Anulando..."
+                              : "Sí, anular"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={voidVisitMutation.isPending}
+                            onClick={() => setConfirmingVoid(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </p>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          onClick={() => setConfirmingVoid(item.id)}
+                        >
+                          Anular visita
+                        </Button>
+                      )
+                    ) : null}
                   </div>
                   <span
                     className={
