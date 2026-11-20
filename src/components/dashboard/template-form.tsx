@@ -62,7 +62,8 @@ const treatmentSchema = z.object({ name: z.string().trim().min(1, "Añade un tra
 type TreatmentValue = z.infer<typeof treatmentSchema>;
 
 const designFields = {
-  presetId: z.string().min(1, "Selecciona un diseño inicial"),
+  // Not chosen in this form any more (only the card colour is): the save fills it in, see saveInput.
+  presetId: z.string(),
   programName: z.string().trim().min(2, "Añade el nombre del programa").max(120, "Máximo 120 caracteres"),
   hexBackgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Elige un color hexadecimal válido"),
   logoUrl: optionalUrlSchema,
@@ -175,7 +176,9 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   const queryClient = useQueryClient();
   const currentClinic = useCurrentClinic({ enabled: scope === "clinic" });
   const presetsQuery = useTemplatePresets({ initialData: presets });
-  const availablePresets = presetsQuery.data ?? presets;
+  // The backend still stores a preset on every card (a required column), but it only ever seeded the
+  // colour, which the clinic now sets directly. A card keeps the preset it has; a new one gets the first.
+  const defaultPresetId = (presetsQuery.data ?? presets)[0]?.id ?? "";
   const initialPreset = presets.find((preset) => preset.id === (initialTemplate?.presetId ?? selectedPresetId));
   const [previewWallet, setPreviewWallet] = React.useState<PreviewWallet>("google");
   const [heroWarning, setHeroWarning] = React.useState<string | null>(null);
@@ -194,7 +197,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
   // The button fields are always sent: the backend stores a missing optional URL as null, so
   // leaving them out would erase the card's buttons. The description mirrors the text, as onboarding does.
   const saveInput = (input: TemplateFormValues): SaveTemplateInput => {
-    const withButtons = { ...input, appLinkDescription: input.appLinkText };
+    const withButtons = { ...input, presetId: input.presetId || defaultPresetId, appLinkDescription: input.appLinkText };
 
     return initialTemplate ? { ...withButtons, treatments: undefined } : withButtons;
   };
@@ -335,15 +338,6 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     save(saveInput(input));
   }
 
-  function selectPreset(preset: TemplatePreset) {
-    form.setValue("presetId", preset.id, { shouldDirty: true, shouldValidate: true });
-    form.setValue("hexBackgroundColor", preset.hexBackgroundColor, { shouldDirty: true, shouldValidate: true });
-
-    if (!form.getValues("programName")) {
-      form.setValue("programName", `${preset.name} Club`, { shouldDirty: true, shouldValidate: true });
-    }
-  }
-
   const errors = form.formState.errors;
   const previewLogo = chooseLogoUrl({ logoUrl: values.logoUrl, logoOnDarkUrl: values.logoOnDarkUrl, color: values.hexBackgroundColor });
 
@@ -351,28 +345,7 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
     <form onSubmit={form.handleSubmit(submit)} className="mx-auto max-w-[1180px]">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <div className="space-y-5">
-          <Section title="Estilo" description="Elige un punto de partida y ajusta el color.">
-            <div className="flex flex-wrap gap-2">
-              {availablePresets.map((preset) => {
-                const selected = preset.id === values.presetId;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => selectPreset(preset)}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-4 text-sm font-medium transition",
-                      selected ? "border-[#2d211e] bg-[#2d211e] text-white shadow-sm" : "border-[#e2d5cc] bg-white text-[#4a3a33] hover:border-[#c8a36a]",
-                    )}
-                  >
-                    <span className="h-6 w-6 rounded-full border border-black/10" style={{ backgroundColor: preset.hexBackgroundColor }} />
-                    {preset.name}
-                  </button>
-                );
-              })}
-            </div>
-            {errors.presetId?.message ? <p className="text-sm text-destructive">{errors.presetId.message}</p> : null}
+          <Section title="Estilo" description="Elige el nombre del programa y el color de la tarjeta.">
             <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
               <Field label="Nombre del programa" error={errors.programName?.message}>
                 <Input {...form.register("programName")} placeholder="Club Diamante" />
@@ -389,13 +362,11 @@ export function TemplateForm({ clinicId, initialTemplate, presets, selectedPrese
 
           <Section title="Imágenes" description="Sube un archivo o pega un enlace.">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Logo" error={errors.logoUrl?.message} htmlFor="template-logo-url">
+              {/* No dark-background logo field: a card that has one keeps it (it stays in the form state and is
+                  saved unchanged, and the preview below still uses it on a dark colour), but it is no longer edited here. */}
+              <Field label="Logo" error={errors.logoUrl?.message} className="sm:col-span-2" htmlFor="template-logo-url">
                 <Input id="template-logo-url" aria-describedby={errors.logoUrl ? "template-logo-url-error" : undefined} aria-invalid={errors.logoUrl ? true : undefined} {...form.register("logoUrl")} placeholder="https://..." />
                 <ImageUploadButton kind="logo" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo" }} onUploaded={(url) => form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })} />
-              </Field>
-              <Field label="Logo para fondo oscuro (opcional)" error={errors.logoOnDarkUrl?.message} htmlFor="template-logo-on-dark-url">
-                <Input id="template-logo-on-dark-url" aria-describedby={errors.logoOnDarkUrl ? "template-logo-on-dark-url-error" : undefined} aria-invalid={errors.logoOnDarkUrl ? true : undefined} {...form.register("logoOnDarkUrl")} placeholder="https://..." />
-                <ImageUploadButton kind="logoOnDark" scope={scope} disabled={mutation.isPending} labels={{ ariaLabel: "Subir imagen del logo para fondo oscuro" }} onUploaded={(url) => form.setValue("logoOnDarkUrl", url, { shouldDirty: true, shouldValidate: true })} />
               </Field>
               <Field label="Imagen principal (opcional)" error={errors.heroImageUrl?.message} className="sm:col-span-2" htmlFor="template-hero-image-url">
                 <Input id="template-hero-image-url" aria-describedby={errors.heroImageUrl ? "template-hero-image-url-error" : undefined} aria-invalid={errors.heroImageUrl ? true : undefined} {...form.register("heroImageUrl")} placeholder="https://..." />
