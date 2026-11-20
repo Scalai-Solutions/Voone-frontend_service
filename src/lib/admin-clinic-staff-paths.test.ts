@@ -19,6 +19,7 @@ const USED_BY_MEMBER_SCREENS: Array<[method: string, path: string]> = [
   ["POST", "members/m_1/points"],
   ["POST", "members/m_1/pass"],
   ["POST", "members/m_1/visits"],
+  ["POST", "visits/v_1/void"],
   ["GET", "members/m_1/rewards"],
   ["POST", "members/m_1/rewards/r_1/redeem"],
   ["GET", "members/m_1/bonos"],

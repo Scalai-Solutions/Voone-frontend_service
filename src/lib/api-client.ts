@@ -257,7 +257,16 @@ export interface Member {
    * older backends; treat absent like null.
    */
   appleUpdatesRegistered?: boolean | null;
-  history: Array<{ id: string; label: string; points: number; date: string }>;
+  history: Array<{
+    id: string;
+    label: string;
+    points: number;
+    date: string;
+    /** The visit this row records, when it is one reception may void. */
+    visitId?: string;
+    /** True on the row that took a voided visit's progress back. */
+    voided?: boolean;
+  }>;
   /** On the member's own page, at a clinic with a live programme: their recommendations. */
   referral?: {
     referred: number;

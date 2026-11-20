@@ -13,6 +13,8 @@ const ALLOWED: Array<{ pattern: string[]; methods: string[] }> = [
   { pattern: ["members", "*", "points"], methods: ["POST"] },
   { pattern: ["members", "*", "pass"], methods: ["POST"] },
   { pattern: ["members", "*", "visits"], methods: ["POST"] },
+  // Taking back a visit recorded by mistake; the backend scopes it to the clinic in the path.
+  { pattern: ["visits", "*", "void"], methods: ["POST"] },
   { pattern: ["members", "*", "rewards"], methods: ["GET"] },
   { pattern: ["members", "*", "rewards", "*", "redeem"], methods: ["POST"] },
   { pattern: ["members", "*", "bonos"], methods: ["GET"] },
