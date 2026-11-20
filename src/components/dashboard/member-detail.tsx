@@ -161,8 +161,11 @@ export function MemberDetail({ memberId }: { memberId: string }) {
     });
   }
 
-  // Only a centre on a programme records visits, so only its history rows carry a visit id.
-  const voidableRowId = voidableVisitRowId(member.data.history);
+  // Only a centre on a programme records visits that can be taken back; an older points centre's
+  // credits also name a source, so the offer is made for a programme alone.
+  const voidableRowId = hasProgram
+    ? voidableVisitRowId(member.data.history)
+    : null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
