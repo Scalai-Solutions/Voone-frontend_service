@@ -153,6 +153,7 @@ export function AdminTemplateEditor({
   const [programName, setProgramName] = React.useState(
     template?.programName ?? DEFAULT_WALLET_PROGRAM_NAME,
   );
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [pointsLabel, setPointsLabel] = React.useState(
     template?.pointsLabel ?? DEFAULT_WALLET_POINTS_LABEL,
   );
@@ -342,58 +343,11 @@ export function AdminTemplateEditor({
                 className="rounded-xl bg-[#fffaf6]"
               />
             </EditorField>
-            <EditorField label="Template description">
-              <Input
-                value={description}
-                onChange={(event) => {
-                  setDescription(event.target.value);
-                  setSaved(false);
-                }}
-                placeholder="Reusable loyalty design for premium clinics"
-                className="rounded-xl bg-[#fffaf6]"
-              />
-            </EditorField>
-            <EditorField label="Preset">
-              <select
-                value={presetId}
-                onChange={(event) => {
-                  setPresetId(event.target.value);
-                  setSaved(false);
-                }}
-                className="h-10 rounded-xl border border-input bg-[#fffaf6] px-3 text-sm"
-              >
-                {presets.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.name}
-                  </option>
-                ))}
-              </select>
-            </EditorField>
             <EditorField label="Program name">
               <Input
                 value={programName}
                 onChange={(event) => {
                   setProgramName(event.target.value);
-                  setSaved(false);
-                }}
-                className="rounded-xl bg-[#fffaf6]"
-              />
-            </EditorField>
-            <EditorField label="Points label">
-              <Input
-                value={pointsLabel}
-                onChange={(event) => {
-                  setPointsLabel(event.target.value);
-                  setSaved(false);
-                }}
-                className="rounded-xl bg-[#fffaf6]"
-              />
-            </EditorField>
-            <EditorField label="Tier label">
-              <Input
-                value={tierLabel}
-                onChange={(event) => {
-                  setTierLabel(event.target.value);
                   setSaved(false);
                 }}
                 className="rounded-xl bg-[#fffaf6]"
@@ -410,7 +364,7 @@ export function AdminTemplateEditor({
                 className="rounded-xl bg-[#fffaf6]"
               />
             </EditorField>
-            <EditorField label="Hero image URL" hint="Google shows it as a banner (1032 × 336). Apple crops it to a strip (375 × 98), so keep the subject in the middle.">
+            <EditorField label="Hero image URL" hint="Google shows it as a banner (1032 × 336). Apple crops it to a wide strip (375 × 123) around the middle, so keep the subject there.">
               <Input
                 value={heroImageUrl}
                 onChange={(event) => {
@@ -442,6 +396,71 @@ export function AdminTemplateEditor({
               ))}
             </div>
           </div>
+          <div className="mt-6">
+            <button
+              type="button"
+              aria-expanded={showAdvanced}
+              onClick={() => setShowAdvanced((open) => !open)}
+              className="text-sm font-semibold text-[#8e4d41] underline-offset-4 hover:underline"
+            >
+              {showAdvanced ? "Hide advanced options" : "Advanced options"}
+            </button>
+            <p className="mt-1 text-xs text-[#927e72]">
+              Description, preset, labels, wallet buttons and text modules. They keep their values
+              while hidden.
+            </p>
+          </div>
+          {showAdvanced ? (
+            <div className="mt-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+            <EditorField label="Template description">
+              <Input
+                value={description}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  setSaved(false);
+                }}
+                placeholder="Reusable loyalty design for premium clinics"
+                className="rounded-xl bg-[#fffaf6]"
+              />
+            </EditorField>
+            <EditorField label="Preset">
+              <select
+                value={presetId}
+                onChange={(event) => {
+                  setPresetId(event.target.value);
+                  setSaved(false);
+                }}
+                className="h-10 rounded-xl border border-input bg-[#fffaf6] px-3 text-sm"
+              >
+                {presets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </EditorField>
+            <EditorField label="Points label">
+              <Input
+                value={pointsLabel}
+                onChange={(event) => {
+                  setPointsLabel(event.target.value);
+                  setSaved(false);
+                }}
+                className="rounded-xl bg-[#fffaf6]"
+              />
+            </EditorField>
+            <EditorField label="Tier label">
+              <Input
+                value={tierLabel}
+                onChange={(event) => {
+                  setTierLabel(event.target.value);
+                  setSaved(false);
+                }}
+                className="rounded-xl bg-[#fffaf6]"
+              />
+            </EditorField>
+              </div>
           <section className="mt-6 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -629,6 +648,8 @@ export function AdminTemplateEditor({
               ))}
             </div>
           </section>
+            </div>
+          ) : null}
           <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#eadfd8] pt-4">
             <p
               className={`text-xs ${status?.startsWith("Voone template saved") ? "text-[#2f7d57]" : status ? "text-destructive" : "text-[#927e72]"}`}
