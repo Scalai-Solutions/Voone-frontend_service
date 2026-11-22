@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ApiError, type Clinic, type Member, type WalletInfrastructure } from "@/lib/api-client";
+import { ApiError, type Clinic, type DashboardOverview, type Member, type WalletInfrastructure } from "@/lib/api-client";
 import { unresolvedCount, type ChangeRequestPage } from "@/lib/admin-change-requests";
 import type { ProgramListItem } from "@/lib/onboarding-api";
 import { staffFetch } from "@/lib/staff-api";
@@ -65,6 +65,38 @@ export function getAdminClinicPrograms(clinicId: string) {
   return adminFetch<{ programs: ProgramListItem[] }>(
     `/v1/admin/clinics/${encodeURIComponent(clinicId)}/onboarding/programs`
   ).then((response) => response.programs);
+}
+
+/**
+ * One clinic's own dashboard figures (members, points, revenue, redemptions, top clients), for
+ * the admin's analytics page. The backend scopes /dashboard/overview by clinicId alone, so this
+ * is the same answer the clinic sees. Null when it fails: the page shows "—", never invented 0s.
+ */
+export async function getAdminClinicOverview(clinicId: string): Promise<DashboardOverview | null> {
+  try {
+    return await adminFetch<DashboardOverview>(
+      `/v1/dashboard/overview?clinicId=${encodeURIComponent(clinicId)}`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A clinic's members list, as its own metrics page reads it, for the tier, Wallet and age
+ * breakdowns. The clinic routes answer only for an active centre, so an inactive one is null
+ * without a call, as is a failed one.
+ */
+export async function getAdminClinicMembers(
+  clinic: Pick<Clinic, "slug" | "isActive">,
+): Promise<Member[] | null> {
+  if (!clinic.isActive || !clinic.slug) return null;
+
+  try {
+    return await adminFetch<Member[]>(`/v1/clinics/${encodeURIComponent(clinic.slug)}/members`);
+  } catch {
+    return null;
+  }
 }
 
 export interface AutomationClinicSettings {

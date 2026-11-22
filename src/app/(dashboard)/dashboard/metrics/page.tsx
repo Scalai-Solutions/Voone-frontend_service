@@ -12,23 +12,9 @@ import { formatCount } from "@/lib/money";
 import { formatPoints } from "@/lib/points";
 import { PERMISSIONS, getCurrentSession, hasPermission } from "@/lib/auth";
 import { staffFetch } from "@/lib/staff-api";
-import { monthKeyIn, monthNameEs } from "@/lib/month-label";
-import { cn } from "@/lib/utils";
-
-const ageRanges = [
-  { label: "18-24", min: 18, max: 24 },
-  { label: "25-34", min: 25, max: 34 },
-  { label: "35-44", min: 35, max: 44 },
-  { label: "45-54", min: 45, max: 54 },
-  { label: "55+", min: 55, max: Number.POSITIVE_INFINITY },
-];
-
-const tierStyles: Record<string, string> = {
-  Diamond: "bg-[#d9e5ef] text-[#30465d]",
-  Gold: "bg-[#f2d09a] text-[#68451f]",
-  Silver: "bg-[#d8d8d4] text-[#4d4e4a]",
-  Nuevo: "bg-[#eadfd8] text-[#6f5c53]",
-};
+import { buildMetrics } from "@/lib/member-metrics";
+import { monthNameEs } from "@/lib/month-label";
+import { MetricCard, ProgressRow, RankingCard, TierTile } from "@/components/shared/metrics-kit";
 
 async function getMetricsMembers(session: NonNullable<Awaited<ReturnType<typeof getCurrentSession>>>): Promise<Member[]> {
   const response = await staffFetch(
@@ -118,18 +104,7 @@ export default async function MetricsPage() {
               <Sparkles className="h-5 w-5 text-[#b8864b]" />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {metrics.membersByTier.map((tier) => (
-                <div key={tier.tier} className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className={cn("rounded-full px-3 py-1.5 text-xs font-bold", tierStyles[tier.tier] ?? "bg-[#eadfd8] text-[#6f5c53]")}>{tier.tier}</span>
-                    <span className="font-serif text-3xl font-semibold">{tier.count}</span>
-                  </div>
-                  <div className="mt-4 h-1.5 rounded-full bg-[#eadfd8]">
-                    <div className="h-full rounded-full bg-[#b8864b]" style={{ width: `${percentage(tier.count, metrics.totalMembers)}%` }} />
-                  </div>
-                  <p className="mt-2 text-xs text-[#927e72]">{percentage(tier.count, metrics.totalMembers)}% de la base</p>
-                </div>
-              ))}
+              {metrics.membersByTier.map((tier) => <TierTile key={tier.tier} tier={tier.tier} count={tier.count} total={metrics.totalMembers} />)}
             </div>
           </section>
         </div>
@@ -150,120 +125,6 @@ export default async function MetricsPage() {
             emptyText="Sin clientes todavía"
           />
         </aside>
-      </div>
-    </section>
-  );
-}
-
-function memberAge(member: Member) {
-  if (member.birthDate) {
-    const today = new Date();
-    const date = new Date(`${member.birthDate}T00:00:00.000Z`);
-    let age = today.getFullYear() - date.getUTCFullYear();
-    const birthdayThisYear = new Date(Date.UTC(today.getFullYear(), date.getUTCMonth(), date.getUTCDate()));
-
-    if (today.getTime() < birthdayThisYear.getTime()) age -= 1;
-
-    return age;
-  }
-
-  return member.birthYear ? new Date().getFullYear() - member.birthYear : null;
-}
-
-function buildMetrics(members: Member[]) {
-  // The month the backend counts "this month" in: the Madrid calendar month.
-  const monthKey = monthKeyIn("Europe/Madrid");
-  const activeWalletMembers = members.filter((member) => Object.values(member.walletStatus).includes("added")).length;
-  const membersByTier = countBy(members.map((member) => member.tier)).map(([tier, count]) => ({ tier, count }));
-
-  return {
-    monthKey,
-    totalMembers: members.length,
-    totalTiers: membersByTier.length,
-    activeWalletMembers,
-    leadingTier: membersByTier[0],
-    membersByTier,
-    membersByAge: ageRanges.map((range) => ({
-      label: range.label,
-      count: members.filter((member) => {
-        const age = memberAge(member);
-        return typeof age === "number" && age >= range.min && age <= range.max;
-      }).length,
-    })),
-    // Ranked by current points balance (what the members list carries), shown in points.
-    topClientsAllTime: rankMembers(members, (member) => member.points),
-  };
-}
-
-function countBy(values: string[]) {
-  const counts = values.reduce<Map<string, number>>((items, value) => items.set(value, (items.get(value) ?? 0) + 1), new Map());
-
-  return Array.from(counts.entries()).sort((first, second) => second[1] - first[1]);
-}
-
-function rankMembers(members: Member[], scoreForMember: (member: Member) => number) {
-  return members
-    .map((member) => ({ member, score: scoreForMember(member) }))
-    .filter((item) => item.score > 0)
-    .sort((first, second) => second.score - first.score)
-    .slice(0, 5);
-}
-
-function percentage(value: number, total: number) {
-  if (total === 0) return 0;
-
-  return Math.round((value / total) * 100);
-}
-
-function MetricCard({ icon: Icon, eyebrow, value, detail, tone = "light" }: { icon: React.ComponentType<{ className?: string }>; eyebrow: string; value: string; detail: string; tone?: "dark" | "light" }) {
-  return (
-    <section className={cn("rounded-3xl p-5", tone === "dark" ? "bg-[#2d211e] text-white" : "border border-[#e2d5cc] bg-white/80 text-[#2e2421]")}>
-      <div className="flex items-center justify-between gap-4">
-        <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", tone === "dark" ? "text-[#dcb17b]" : "text-[#b7874a]")}>{eyebrow}</p>
-        <Icon className={cn("h-5 w-5", tone === "dark" ? "text-[#dcb17b]" : "text-[#b8864b]")} />
-      </div>
-      <p className="mt-4 font-serif text-4xl font-semibold">{value}</p>
-      <p className={cn("mt-2 text-sm", tone === "dark" ? "text-[#c9b7ad]" : "text-[#927e72]")}>{detail}</p>
-    </section>
-  );
-}
-
-function ProgressRow({ label, value, total }: { label: string; value: number; total: number }) {
-  const width = percentage(value, total);
-
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-4 text-sm">
-        <span className="font-semibold">{label}</span>
-        <span className="text-[#806d63]">{value} miembros</span>
-      </div>
-      <div className="mt-2 h-2 rounded-full bg-[#eadfd8]">
-        <div className="h-full rounded-full bg-[#9c7651]" style={{ width: `${width}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function RankingCard({ title, eyebrow, icon: Icon, rows, emptyText }: { title: string; eyebrow: string; icon: React.ComponentType<{ className?: string }>; rows: Array<{ id: string; name: string; detail: string; value: string }>; emptyText: string }) {
-  return (
-    <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{eyebrow}</p>
-          <h2 className="mt-2 font-serif text-2xl font-semibold">{title}</h2>
-        </div>
-        <Icon className="h-5 w-5 text-[#b8864b]" />
-      </div>
-      <div className="mt-5 space-y-3">
-        {rows.length ? rows.map((row, index) => (
-          <div key={row.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3">
-            <div className="min-w-0">
-              <p className="truncate font-semibold">{index + 1}. {row.name}</p>
-              <p className="mt-1 text-xs text-[#927e72]">{row.detail}</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-[#f1e3d6] px-3 py-1 text-xs font-bold text-[#805637]">{row.value}</span>
-          </div>
-        )) : <p className="rounded-2xl border border-[#eadfd8] bg-[#fffaf6] px-4 py-3 text-sm text-[#806d63]">{emptyText}</p>}
       </div>
     </section>
   );
