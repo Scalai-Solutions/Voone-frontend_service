@@ -13,6 +13,7 @@ import { isForwardableClinicStaffPath } from "./admin-clinic-staff-paths.ts";
  */
 const USED_BY_MEMBER_SCREENS: Array<[method: string, path: string]> = [
   ["GET", "members"],
+  ["GET", "members/tiers"],
   ["GET", "members/m_1"],
   ["PATCH", "members/m_1"],
   ["DELETE", "members/m_1"],

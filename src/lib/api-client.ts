@@ -725,6 +725,13 @@ function proxyFetch<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 async function proxyFetchUrl<T>(url: string, init: RequestInit): Promise<T> {
+  const response = await proxyResponse(url, init);
+
+  return response.json() as Promise<T>;
+}
+
+/** proxyFetchUrl's request and error handling, for a caller that also reads a header. */
+async function proxyResponse(url: string, init: RequestInit): Promise<Response> {
   const response = await fetch(url, {
     ...init,
     headers: {
@@ -747,7 +754,7 @@ async function proxyFetchUrl<T>(url: string, init: RequestInit): Promise<T> {
     );
   }
 
-  return response.json() as Promise<T>;
+  return response;
 }
 
 /** The staff routes, where the session picks the clinic. */
@@ -1094,21 +1101,49 @@ export function saveClinicGeoLocations(
   );
 }
 
-export function getMembers(
-  params: { q?: string; limit?: number; offset?: number } = {},
-  apiBase?: string,
-) {
+export type MemberListParams = { q?: string; tier?: string; limit?: number; offset?: number };
+
+const memberListPath = (params: MemberListParams) => {
   const query = new URLSearchParams();
 
   if (params.q) query.set("q", params.q);
+  if (params.tier) query.set("tier", params.tier);
   if (params.limit !== undefined) query.set("limit", String(params.limit));
   if (params.offset !== undefined) query.set("offset", String(params.offset));
 
-  return staffProxyFetch<Member[]>(
-    `/members${query.toString() ? `?${query}` : ""}`,
-    { method: "GET" },
-    apiBase,
-  );
+  return `/members${query.toString() ? `?${query}` : ""}`;
+};
+
+export function getMembers(params: MemberListParams = {}, apiBase?: string) {
+  return staffProxyFetch<Member[]>(memberListPath(params), { method: "GET" }, apiBase);
+}
+
+export type MemberPage = {
+  members: Member[];
+  /** Members matching the search and tier across every page; null if the backend did not say. */
+  total: number | null;
+};
+
+/** One page of members with the total matching the same filters (the X-Total-Count header). */
+export async function getMembersPage(
+  params: MemberListParams,
+  apiBase: string = STAFF_API_BASE,
+): Promise<MemberPage> {
+  const response = await proxyResponse(`${apiBase}${memberListPath(params)}`, { method: "GET" });
+  const header = response.headers.get("X-Total-Count");
+  const total = header === null ? Number.NaN : Number(header);
+
+  return {
+    members: (await response.json()) as Member[],
+    total: Number.isInteger(total) && total >= 0 ? total : null,
+  };
+}
+
+export type MemberTierCount = { tier: string; count: number };
+
+/** Every tier the clinic's members are shown under, with how many hold each. */
+export function getMemberTiers(apiBase?: string) {
+  return staffProxyFetch<MemberTierCount[]>("/members/tiers", { method: "GET" }, apiBase);
 }
 
 export function getAdminMembers() {
