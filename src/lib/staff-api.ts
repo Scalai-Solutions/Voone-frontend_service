@@ -74,12 +74,19 @@ export const staffFetch = async (path: string, init: RequestInit = {}): Promise<
 export const ADMIN_ACTOR_HEADERS = { "x-actor-role": "voone_admin" } as const;
 
 /**
+ * Response headers the browser needs and the backend sets on purpose. X-Total-Count is the
+ * number of members matching a list request, which the members screen pages by.
+ */
+const FORWARDED_HEADERS = ["X-Total-Count"] as const;
+
+/**
  * Forwards the backend's status and body unchanged.
  *
  * Deliberately transparent: the backend's 422 messages are the Spanish copy the form
  * displays, and its 409 on a second template is meaningful to the dashboard. Collapsing
  * them into a generic failure here would throw away the half of the design that makes
- * those errors useful. Nothing is added, so nothing new can leak.
+ * those errors useful. Nothing is added, so nothing new can leak; of the backend's own headers
+ * only Content-Type and the short list above are passed on.
  */
 export const forwardResponse = async (response: Response): Promise<Response> => {
   /**
@@ -94,9 +101,15 @@ export const forwardResponse = async (response: Response): Promise<Response> => 
   }
 
   const body = await response.text();
-
-  return new Response(body, {
-    status: response.status,
-    headers: { "Content-Type": response.headers.get("Content-Type") ?? "application/json" },
+  const headers = new Headers({
+    "Content-Type": response.headers.get("Content-Type") ?? "application/json",
   });
+
+  for (const name of FORWARDED_HEADERS) {
+    const value = response.headers.get(name);
+
+    if (value !== null) headers.set(name, value);
+  }
+
+  return new Response(body, { status: response.status, headers });
 };

@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarDays, Download, Filter, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Download, Filter, Pencil, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/shared/page-kit";
 import { LuxuryLoading } from "@/components/shared/luxury-loading";
 import { useCurrentClinic } from "@/features/clinics/api/useCurrentClinic";
-import { useInfiniteMembers } from "@/features/members/api/useMembers";
+import { MEMBERS_PAGE_SIZE, fetchAllMembers, useMemberTiers, usePagedMembers } from "@/features/members/api/useMembers";
 import { useStaffScope } from "@/features/members/staff-scope";
 import {
   createAudience,
@@ -69,38 +69,90 @@ const formatDate = (value: string | null) =>
     : "Sin visitas";
 
 export function MembersTable() {
-  const { membersHref } = useStaffScope();
+  const scope = useStaffScope();
+  const { membersHref } = scope;
   const [tab, setTab] = React.useState<"personas" | "audiencias">("personas");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [tierFilter, setTierFilter] = React.useState("all");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
-  const members = useInfiniteMembers(debouncedSearch);
-  const loadedMembers = React.useMemo(() => members.data?.pages.flat() ?? [], [members.data]);
-  const isSearching = searchTerm.trim() !== debouncedSearch.trim() || (members.isFetching && !members.isFetchingNextPage);
+  const [page, setPage] = React.useState(1);
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState(false);
+  const tableTopRef = React.useRef<HTMLDivElement | null>(null);
+  const tier = tierFilter === "all" ? undefined : tierFilter;
+  const members = usePagedMembers({ search: debouncedSearch, tier, page });
+  const tiers = useMemberTiers();
+  const rows = members.data?.members ?? [];
+  const matching = members.data?.total ?? null;
+  // Every tier's count added up is every member of the clinic, whatever the search.
+  const clinicTotal = tiers.data ? tiers.data.reduce((sum, row) => sum + row.count, 0) : null;
+  const tierNames = React.useMemo(() => (tiers.data ?? []).map((row) => row.tier), [tiers.data]);
+  const totalPages = matching === null ? null : Math.max(1, Math.ceil(matching / MEMBERS_PAGE_SIZE));
+  const filtered = debouncedSearch.trim() !== "" || tier !== undefined;
+  const isSearching = searchTerm.trim() !== debouncedSearch.trim() || (members.isFetching && members.isPlaceholderData);
 
   React.useEffect(() => {
-    const handle = window.setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    if (searchTerm === debouncedSearch) return;
+
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      // A new search starts again from the first page.
+      setPage(1);
+    }, 300);
 
     return () => window.clearTimeout(handle);
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
-  React.useEffect(() => {
-    const node = loadMoreRef.current;
+  // A page that no longer exists (the last member on it was deleted) falls back to the last one.
+  // Adjusted while rendering rather than in an effect, so the stale page is never painted.
+  if (totalPages !== null && page > totalPages && !members.isFetching) {
+    setPage(totalPages);
+  }
 
-    if (!node) return;
+  function chooseTier(next: string) {
+    setTierFilter(next);
+    setPage(1);
+  }
 
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && members.hasNextPage && !members.isFetchingNextPage) {
-        void members.fetchNextPage();
-      }
-    });
+  function goToPage(next: number) {
+    setPage(next);
+    tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
-    observer.observe(node);
+  async function exportMembersCsv() {
+    setExporting(true);
+    setExportError(false);
 
-    return () => observer.disconnect();
-  }, [members]);
+    try {
+      // Every matching member, not only the page on screen.
+      const all = await fetchAllMembers({ q: debouncedSearch.trim() || undefined, tier }, scope.apiBase);
+      const headers = ["Nombre", "Código", "Identificación", "Nivel", "Puntos", "Dinero gastado", "Última visita"];
+      const escape = (value: string | number | null | undefined) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+      const csvRows = all.map((member) => [
+        member.name,
+        member.code ?? "",
+        member.identity,
+        member.tier,
+        member.points,
+        member.moneySpent,
+        member.lastVisitedAt ?? "",
+      ]);
+      const csv = [headers, ...csvRows].map((row) => row.map(escape).join(",")).join("\n");
+      const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "members.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   if (members.isLoading) {
     return <LuxuryLoading label="Preparing member records" />;
@@ -110,31 +162,8 @@ export function MembersTable() {
     return <div className="rounded-[24px] border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">No se pudieron cargar los miembros. Revisa la conexión con la API e inténtalo de nuevo.</div>;
   }
 
-  const tiers = Array.from(new Set(loadedMembers.map((member) => member.tier)));
-  const filteredMembers = loadedMembers.filter((member) => tierFilter === "all" || member.tier === tierFilter);
-
-  function exportMembersCsv() {
-    const headers = ["Nombre", "Código", "Identificación", "Nivel", "Puntos", "Dinero gastado", "Última visita"];
-    const escape = (value: string | number | null | undefined) => `"${String(value ?? "").replaceAll('"', '""')}"`;
-    const rows = filteredMembers.map((member) => [
-      member.name,
-      member.code ?? "",
-      member.identity,
-      member.tier,
-      member.points,
-      member.moneySpent,
-      member.lastVisitedAt ?? "",
-    ]);
-    const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\n");
-    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "members.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  const firstShown = (page - 1) * MEMBERS_PAGE_SIZE + 1;
+  const lastShown = (page - 1) * MEMBERS_PAGE_SIZE + rows.length;
 
   return (
     <section className="space-y-6 text-[#2e2421]">
@@ -143,9 +172,12 @@ export function MembersTable() {
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#b7874a]">CRM de fidelización</p>
           <h1 className="mt-2 font-serif text-5xl font-semibold tracking-[-0.03em]">Miembros</h1>
         </div>
-        <Link href={`${membersHref}/new`} className="inline-flex items-center gap-2 rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]">
-          <Plus size={17} /> Añadir persona
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <MemberTotal total={clinicTotal} loading={tiers.isLoading} />
+          <Link href={`${membersHref}/new`} className="inline-flex items-center gap-2 rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]">
+            <Plus size={17} /> Añadir persona
+          </Link>
+        </div>
       </div>
 
       <div className="flex gap-2 border-b border-[#ded1c8]">
@@ -155,9 +187,9 @@ export function MembersTable() {
         <button onClick={() => setTab("audiencias")} className={cn("rounded-t-xl px-5 py-3 text-sm font-semibold", tab === "audiencias" ? "border-b-2 border-[#9e6740] text-[#75462f]" : "text-[#927e72]")}>Audiencias</button>
       </div>
 
-      {tab === "audiencias" ? <AudiencesTable members={loadedMembers} /> : (
+      {tab === "audiencias" ? <AudiencesTable tiers={tierNames} /> : (
         <>
-          <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-[#e2d5cc] bg-white/75 p-4">
+          <div ref={tableTopRef} className="flex scroll-mt-24 flex-wrap items-center gap-3 rounded-3xl border border-[#e2d5cc] bg-white/75 p-4">
             <label className="flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-[#ded1c8] bg-[#fffdfb] px-4 py-3 text-[#9a877c]">
               <Search size={19} />
               <span className="sr-only">Buscar miembros</span>
@@ -165,40 +197,130 @@ export function MembersTable() {
               {isSearching ? <span className="text-xs font-semibold text-[#b7874a]">Buscando...</span> : null}
             </label>
             <div className="relative">
-              <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="rounded-2xl border border-[#ded1c8] px-4 py-3 text-sm font-semibold">
-                <SlidersHorizontal size={16} className="mr-2 inline" />Filtros
+              <button type="button" onClick={() => setFiltersOpen((open) => !open)} className={cn("rounded-2xl border px-4 py-3 text-sm font-semibold", tier ? "border-[#b8864b] bg-[#f6eee8] text-[#75462f]" : "border-[#ded1c8]")}>
+                <SlidersHorizontal size={16} className="mr-2 inline" />Filtros{tier ? " · 1" : ""}
               </button>
               {filtersOpen ? (
                 <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-[#ded1c8] bg-[#fffaf6] p-4 shadow-xl">
                   <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#b7874a]" htmlFor="member-tier-filter">Nivel</label>
-                  <select id="member-tier-filter" value={tierFilter} onChange={(event) => setTierFilter(event.target.value)} className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
+                  <select id="member-tier-filter" value={tierFilter} onChange={(event) => chooseTier(event.target.value)} className="mt-2 h-10 w-full rounded-xl border border-[#ded1c8] bg-white px-3 text-sm outline-none">
                     <option value="all">Todos los niveles</option>
-                    {tiers.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
+                    {(tiers.data ?? []).map((row) => <option key={row.tier} value={row.tier}>{row.tier} ({formatCount(row.count)})</option>)}
                   </select>
+                  {tier ? <button type="button" onClick={() => chooseTier("all")} className="mt-3 text-xs font-semibold text-[#9b633e] hover:underline">Quitar filtro</button> : null}
                 </div>
               ) : null}
             </div>
-            <button type="button" onClick={exportMembersCsv} className="rounded-2xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white"><Download size={16} className="mr-2 inline" />Exportar</button>
+            <button type="button" onClick={() => void exportMembersCsv()} disabled={exporting || matching === 0} className="rounded-2xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#9e6d3d] disabled:cursor-not-allowed disabled:opacity-60"><Download size={16} className="mr-2 inline" />{exporting ? "Exportando..." : "Exportar"}</button>
           </div>
+          {exportError ? <p className="-mt-3 text-sm font-semibold text-[#b94135]">No se pudo exportar la lista. Inténtalo de nuevo.</p> : null}
 
-          {filteredMembers.length === 0 && !isSearching ? <EmptyState title="Aún no hay miembros" message="No hay miembros que coincidan con la búsqueda actual." action={{ href: `${membersHref}/new`, label: "Añadir persona" }} /> : null}
+          {filtered && matching !== null && !isSearching ? (
+            <p className="-mt-2 text-sm text-[#806d63]">
+              <span className="font-semibold text-[#2e2421]">{formatCount(matching)}</span> {matching === 1 ? "miembro coincide" : "miembros coinciden"} con {debouncedSearch.trim() && tier ? "la búsqueda y el nivel" : tier ? "el nivel" : "la búsqueda"}
+              {clinicTotal !== null ? <> · de {formatCount(clinicTotal)} en total</> : null}
+            </p>
+          ) : null}
 
-          {filteredMembers.length > 0 ? <div className="overflow-x-auto rounded-3xl border border-[#e2d5cc] bg-white/80">
-            <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left text-sm">
-              <thead className="bg-[#2d211e] text-[#fff9f4]">
-                <tr>{["Persona", "Sexo", "Edad", "Móvil", "Nivel", "Puntos", "Dinero gastado", "Última visita", "Acciones"].map((heading) => <th key={heading} className="px-5 py-4 font-semibold">{heading}</th>)}</tr>
-              </thead>
-              <tbody>
-                {filteredMembers.map((member) => <MemberRow key={member.id} member={member} />)}
-              </tbody>
-            </table>
+          {rows.length === 0 && !isSearching ? (
+            filtered
+              ? <EmptyState title="Sin resultados" message="No hay miembros que coincidan con la búsqueda actual." />
+              : <EmptyState title="Aún no hay miembros" message="Cuando alguien se dé de alta en tu club aparecerá aquí." action={{ href: `${membersHref}/new`, label: "Añadir persona" }} />
+          ) : null}
+
+          {rows.length > 0 ? <div className={cn("overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80 transition-opacity", members.isPlaceholderData && members.isFetching ? "opacity-60" : "opacity-100")} aria-busy={members.isFetching}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left text-sm">
+                <thead className="bg-[#2d211e] text-[#fff9f4]">
+                  <tr>{["Persona", "Sexo", "Edad", "Móvil", "Nivel", "Puntos", "Dinero gastado", "Última visita", "Acciones"].map((heading) => <th key={heading} className="px-5 py-4 font-semibold">{heading}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {rows.map((member) => <MemberRow key={member.id} member={member} />)}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#eadfd8] bg-[#fffaf6] px-5 py-4">
+              <p className="text-sm text-[#806d63]">
+                Mostrando <span className="font-semibold tabular-nums text-[#2e2421]">{formatCount(firstShown)}–{formatCount(lastShown)}</span>
+                {matching !== null ? <> de <span className="font-semibold tabular-nums text-[#2e2421]">{formatCount(matching)}</span> {matching === 1 ? "miembro" : "miembros"}</> : null}
+              </p>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                hasNext={totalPages === null ? rows.length === MEMBERS_PAGE_SIZE : page < totalPages}
+                onChange={goToPage}
+              />
+            </div>
           </div> : null}
-          <div ref={loadMoreRef} className="py-4 text-center text-sm font-semibold text-[#806d63]">
-            {members.isFetchingNextPage ? "Loading 10 more members..." : members.hasNextPage ? "Scroll for more members" : filteredMembers.length > 0 ? "All matching members loaded" : ""}
-          </div>
         </>
       )}
     </section>
+  );
+}
+
+const formatCount = (value: number) => value.toLocaleString("es-ES");
+
+/** The clinic's member total, beside the page title. */
+function MemberTotal({ total, loading }: { total: number | null; loading: boolean }) {
+  if (total === null && !loading) return null;
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-[#e2d5cc] bg-white/80 py-2 pl-2 pr-5 shadow-sm">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#2d211e] text-[#f1d6bd]"><Users size={18} /></span>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Total de miembros</p>
+        <p className="font-serif text-2xl font-semibold leading-tight tabular-nums">{total === null ? <span className="inline-block h-6 w-12 animate-pulse rounded bg-[#eadfd8] align-middle" /> : formatCount(total)}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Page numbers around the current one, with the first and last always reachable. */
+const pageItems = (page: number, totalPages: number): Array<number | "gap"> => {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  const start = Math.max(2, Math.min(page - 1, totalPages - 4));
+  const end = Math.min(totalPages - 1, Math.max(page + 1, 5));
+  const middle = Array.from({ length: end - start + 1 }, (_, index) => start + index);
+
+  return [1, ...(start > 2 ? ["gap" as const] : []), ...middle, ...(end < totalPages - 1 ? ["gap" as const] : []), totalPages];
+};
+
+function Pagination({ page, totalPages, hasNext, onChange }: { page: number; totalPages: number | null; hasNext: boolean; onChange: (page: number) => void }) {
+  if (totalPages === 1) return null;
+
+  const arrow = "inline-flex h-9 items-center gap-1 rounded-full border border-[#ded1c8] bg-white px-3 text-xs font-semibold text-[#5c4840] transition hover:bg-[#f6eee8] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white";
+
+  return (
+    <nav aria-label="Paginación de miembros" className="flex items-center gap-1.5">
+      <button type="button" onClick={() => onChange(page - 1)} disabled={page <= 1} className={arrow} aria-label="Página anterior">
+        <ChevronLeft size={15} /><span className="hidden sm:inline">Anterior</span>
+      </button>
+      {totalPages === null ? (
+        <span className="px-2 text-xs font-semibold tabular-nums text-[#806d63]">Página {page}</span>
+      ) : pageItems(page, totalPages).map((item, index) =>
+        item === "gap" ? (
+          <span key={`gap-${index}`} className="w-6 text-center text-xs text-[#a8958a]">…</span>
+        ) : (
+          <button
+            key={item}
+            type="button"
+            onClick={() => onChange(item)}
+            aria-current={item === page ? "page" : undefined}
+            aria-label={`Página ${item}`}
+            className={cn(
+              "h-9 min-w-9 rounded-full px-2 text-xs font-semibold tabular-nums transition",
+              item === page ? "bg-[#2d211e] text-[#fff9f4] shadow-sm" : "text-[#5c4840] hover:bg-[#f6eee8]",
+            )}
+          >
+            {item}
+          </button>
+        ),
+      )}
+      <button type="button" onClick={() => onChange(page + 1)} disabled={!hasNext} className={arrow} aria-label="Página siguiente">
+        <span className="hidden sm:inline">Siguiente</span><ChevronRight size={15} />
+      </button>
+    </nav>
   );
 }
 
@@ -227,7 +349,7 @@ function MemberRow({ member }: { member: Member }) {
   );
 }
 
-function AudiencesTable({ members }: { members: Member[] }) {
+function AudiencesTable({ tiers: clinicTiers }: { tiers: string[] }) {
   const queryClient = useQueryClient();
   const scope = useStaffScope();
   // The admin portal names the clinic; /api/staff/clinic only answers a clinic's own session.
@@ -255,7 +377,7 @@ function AudiencesTable({ members }: { members: Member[] }) {
   const [draftJoinedAfter, setDraftJoinedAfter] = React.useState("");
   const [creating, setCreating] = React.useState(false);
 
-  const tiers = Array.from(new Set(members.map((member) => member.tier))).sort();
+  const tiers = [...clinicTiers].sort((a, b) => a.localeCompare(b, "es"));
   const ageMin = wholeNumber(draftAgeMin);
   const ageMax = wholeNumber(draftAgeMax);
   const ageRangeInvalid = ageMin !== undefined && ageMax !== undefined && ageMin > ageMax;
