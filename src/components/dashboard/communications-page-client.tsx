@@ -23,6 +23,7 @@ import {
   sendSegmentNotification,
   type NotificationStatus,
 } from "@/lib/api-client";
+import { useUrlTab } from "@/lib/use-url-tab";
 import { cn } from "@/lib/utils";
 
 import { InsertLinkButton } from "./insert-link-button";
@@ -45,6 +46,8 @@ export interface AdminCommunicationsClinic {
   name: string;
   notificationsUsedThisMonth: number;
 }
+
+const NOTICE_TABS = ["manuales", "automaticos"] as const;
 
 /**
  * The centre's communications: manual messages and automations. The clinic dashboard renders it
@@ -78,9 +81,7 @@ export function CommunicationsPageClient({
   });
   const savedAudiences = audiencesQuery.data ?? [];
   const [composeOpen, setComposeOpen] = React.useState(false);
-  const [noticeTab, setNoticeTab] = React.useState<"manuales" | "automaticos">(
-    "manuales",
-  );
+  const [noticeTab, setNoticeTab] = useUrlTab(NOTICE_TABS, "manuales");
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
   const [audience, setAudience] = React.useState<Audience>(allMembersAudience);
@@ -247,6 +248,7 @@ export function CommunicationsPageClient({
           </p>
         </div>
         <button
+          data-tour="engage-compose"
           onClick={() => setComposeOpen(true)}
           className="rounded-full bg-[#b8864b] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#9e6d3d]"
         >
@@ -254,7 +256,7 @@ export function CommunicationsPageClient({
         </button>
       </div>
 
-      <div className="mt-7 grid max-w-[940px] gap-4 md:grid-cols-2">
+      <div data-tour="engage-stats" className="mt-7 grid max-w-[940px] gap-4 md:grid-cols-2">
         <div className="rounded-3xl bg-[#2d211e] p-5 text-white">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#dcb17b]">
             Mensajes manuales
@@ -304,7 +306,7 @@ export function CommunicationsPageClient({
         </div>
       ) : null}
 
-      <div className="mt-6 flex gap-1 overflow-x-auto rounded-2xl border border-[#e2d5cc] bg-white/60 p-1 no-scrollbar">
+      <div data-tour="engage-tabs" className="mt-6 flex gap-1 overflow-x-auto rounded-2xl border border-[#e2d5cc] bg-white/60 p-1 no-scrollbar">
         <button
           onClick={() => setNoticeTab("manuales")}
           className={cn(
@@ -333,7 +335,7 @@ export function CommunicationsPageClient({
       </div>
 
       <div className="mt-4 flex flex-col lg:flex-row">
-        <div className="min-w-0 flex-1 rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
+        <div data-tour="engage-panel" className="min-w-0 flex-1 rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">

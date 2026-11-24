@@ -8,6 +8,7 @@ import { newIdempotencyKey } from "@/lib/api-client";
 import { useCreditMember } from "@/features/members/api/useCreditMember";
 import { useMembers } from "@/features/members/api/useMembers";
 import { ProgramVisitPanel } from "@/components/dashboard/program-visit-panel";
+import { useTourHoldsCamera } from "@/features/tour/tour-provider";
 import { useRecordVisit, useStaffProgram } from "@/features/program/api/useStaffProgram";
 import { useTreatments } from "@/features/treatments/api/useTreatments";
 import { ApiError, lookupMemberByWalletCode, type Member } from "@/lib/api-client";
@@ -53,6 +54,9 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
   const [matchingMembers, setMatchingMembers] = React.useState<Member[]>([]);
   const [scanMessage, setScanMessage] = React.useState("Escanea el pase del cliente para empezar");
   const [notice, setNotice] = React.useState("");
+  // The clinic tutorial shows this page with the camera off, so it never triggers the browser's
+  // camera prompt; the camera starts as soon as the tutorial lets go.
+  const tourHoldsCamera = useTourHoldsCamera();
 
   React.useEffect(() => {
     selectedMemberRef.current = selectedMember;
@@ -200,7 +204,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
   );
 
   React.useEffect(() => {
-    const scannerActive = scannerOpen && !selectedMember;
+    const scannerActive = scannerOpen && !selectedMember && !tourHoldsCamera;
 
     if (!scannerActive || !videoRef.current) {
       scannerControlsRef.current?.stop();
@@ -239,7 +243,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
       controls?.stop();
       if (scannerControlsRef.current === controls) scannerControlsRef.current = null;
     };
-  }, [resolveScan, scannerOpen, selectedMember]);
+  }, [resolveScan, scannerOpen, selectedMember, tourHoldsCamera]);
 
   async function handleManualSearch() {
     const exactMember = findExactMember(manualMemberId);
@@ -342,11 +346,11 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
           <h1 className="mt-2 font-serif text-4xl font-semibold tracking-[-0.03em]">Escanear visita</h1>
           <p className="mt-2 text-sm text-[#927e72]">Registra una visita y aplica el tratamiento correcto.</p>
         </div>
-        <div className="rounded-full border border-[#decfc5] bg-white/70 px-4 py-2 text-xs font-semibold text-[#725c51]"><ScanLine size={15} className="mr-2 inline text-[#b8864b]" /> {scannerOpen && !selectedMember ? "Cámara activa" : "Cámara cerrada"}</div>
+        <div className="rounded-full border border-[#decfc5] bg-white/70 px-4 py-2 text-xs font-semibold text-[#725c51]"><ScanLine size={15} className="mr-2 inline text-[#b8864b]" /> {scannerOpen && !selectedMember && !tourHoldsCamera ? "Cámara activa" : "Cámara cerrada"}</div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
-        <div className={selectedMember ? "pointer-events-none fixed -z-10 h-px w-px overflow-hidden opacity-0" : "relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-[28px] bg-[#211918] p-5 shadow-[0_18px_50px_rgba(67,42,30,0.14)] lg:min-h-[440px]"} aria-hidden={Boolean(selectedMember)}>
+        <div data-tour="scan-camera" className={selectedMember ? "pointer-events-none fixed -z-10 h-px w-px overflow-hidden opacity-0" : "relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-[28px] bg-[#211918] p-5 shadow-[0_18px_50px_rgba(67,42,30,0.14)] lg:min-h-[440px]"} aria-hidden={Boolean(selectedMember)}>
           <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover opacity-20" muted playsInline />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(174,131,92,0.16),transparent_42%)]" />
           <div className="relative flex h-[245px] w-[245px] items-center justify-center rounded-[28px] border border-[#dfb97d]/50">
@@ -457,7 +461,7 @@ export function ScanToCredit({ initialMemberId }: { initialMemberId?: string }) 
             </div>
           ) : (
           <div className="space-y-4">
-          <div className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5">
+          <div data-tour="scan-manual-search" className="rounded-[24px] border border-[#e2d5cc] bg-white/80 p-5">
             <div className="flex items-center justify-between">
               <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">Miembro</p><h2 className="mt-2 font-serif text-2xl font-semibold">Buscar titular</h2></div>
               <Search className="text-[#b8864b]" />

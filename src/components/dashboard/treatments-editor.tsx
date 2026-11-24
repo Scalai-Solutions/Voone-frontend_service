@@ -104,6 +104,7 @@ export function TreatmentsEditor({
         {canRequest && catalogue.data ? (
           <button
             type="button"
+            data-tour="center-add-treatment"
             onClick={(event) =>
               openPanel(
                 {

@@ -19,6 +19,7 @@ import {
   type Member,
   type NotificationSegmentInput,
 } from "@/lib/api-client";
+import { useUrlTab } from "@/lib/use-url-tab";
 import { cn } from "@/lib/utils";
 import { formatEuros } from "@/lib/euros";
 import { formatPoints } from "@/lib/points";
@@ -68,10 +69,12 @@ const formatDate = (value: string | null) =>
     ? new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
     : "Sin visitas";
 
+const MEMBER_TABS = ["personas", "audiencias"] as const;
+
 export function MembersTable() {
   const scope = useStaffScope();
   const { membersHref } = scope;
-  const [tab, setTab] = React.useState<"personas" | "audiencias">("personas");
+  const [tab, setTab] = useUrlTab(MEMBER_TABS, "personas");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [tierFilter, setTierFilter] = React.useState("all");
@@ -189,7 +192,7 @@ export function MembersTable() {
 
       {tab === "audiencias" ? <AudiencesTable tiers={tierNames} /> : (
         <>
-          <div ref={tableTopRef} className="flex scroll-mt-24 flex-wrap items-center gap-3 rounded-3xl border border-[#e2d5cc] bg-white/75 p-4">
+          <div ref={tableTopRef} data-tour="members-toolbar" className="flex scroll-mt-24 flex-wrap items-center gap-3 rounded-3xl border border-[#e2d5cc] bg-white/75 p-4">
             <label className="flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-[#ded1c8] bg-[#fffdfb] px-4 py-3 text-[#9a877c]">
               <Search size={19} />
               <span className="sr-only">Buscar miembros</span>
@@ -211,7 +214,7 @@ export function MembersTable() {
                 </div>
               ) : null}
             </div>
-            <button type="button" onClick={() => void exportMembersCsv()} disabled={exporting || matching === 0} className="rounded-2xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#9e6d3d] disabled:cursor-not-allowed disabled:opacity-60"><Download size={16} className="mr-2 inline" />{exporting ? "Exportando..." : "Exportar"}</button>
+            <button type="button" data-tour="members-export" onClick={() => void exportMembersCsv()} disabled={exporting || matching === 0} className="rounded-2xl bg-[#b8864b] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#9e6d3d] disabled:cursor-not-allowed disabled:opacity-60"><Download size={16} className="mr-2 inline" />{exporting ? "Exportando..." : "Exportar"}</button>
           </div>
           {exportError ? <p className="-mt-3 text-sm font-semibold text-[#b94135]">No se pudo exportar la lista. Inténtalo de nuevo.</p> : null}
 
@@ -225,10 +228,10 @@ export function MembersTable() {
           {rows.length === 0 && !isSearching ? (
             filtered
               ? <EmptyState title="Sin resultados" message="No hay miembros que coincidan con la búsqueda actual." />
-              : <EmptyState title="Aún no hay miembros" message="Cuando alguien se dé de alta en tu club aparecerá aquí." action={{ href: `${membersHref}/new`, label: "Añadir persona" }} />
+              : <div data-tour="members-list" data-tour-empty=""><EmptyState title="Aún no hay miembros" message="Cuando alguien se dé de alta en tu club aparecerá aquí." action={{ href: `${membersHref}/new`, label: "Añadir persona" }} /></div>
           ) : null}
 
-          {rows.length > 0 ? <div className={cn("overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80 transition-opacity", members.isPlaceholderData && members.isFetching ? "opacity-60" : "opacity-100")} aria-busy={members.isFetching}>
+          {rows.length > 0 ? <div data-tour="members-list" className={cn("overflow-hidden rounded-3xl border border-[#e2d5cc] bg-white/80 transition-opacity", members.isPlaceholderData && members.isFetching ? "opacity-60" : "opacity-100")} aria-busy={members.isFetching}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left text-sm">
                 <thead className="bg-[#2d211e] text-[#fff9f4]">
@@ -453,7 +456,7 @@ function AudiencesTable({ tiers: clinicTiers }: { tiers: string[] }) {
             {tiers.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
           </select>
         </label>
-        <button type="button" onClick={() => setCreating((open) => !open)} className="rounded-xl bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-2 inline" />Añadir segmento</button>
+        <button type="button" data-tour="members-audiences-add" onClick={() => setCreating((open) => !open)} className="rounded-xl bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-2 inline" />Añadir segmento</button>
       </div>
 
       {creating ? (
