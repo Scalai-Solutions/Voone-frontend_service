@@ -14,7 +14,7 @@ export default function AvisoLegal() {
       <p>
         Titular: <strong>Voone Digital SL</strong>. NIF: <strong>B05593223</strong>. Domicilio:{" "}
         <strong>Calle Arrianza nº 8, Planta 6, Puerta D, 28008 Madrid</strong>. Correo: <a href="mailto:business@voone.ai">business@voone.ai</a>. Sitio web:{" "}
-        <a href="https://voone.ai">voone.ai</a>.
+        <a href="https://voone.es">voone.es</a>.
       </p>
 
       <h2>2. Objeto</h2>
