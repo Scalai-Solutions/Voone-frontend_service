@@ -57,12 +57,12 @@ export default async function SettingsPage() {
           </SettingsSection>
 
           {canManageTeam ? (
-            <SettingsSection eyebrow="Equipo" title="Cuentas asociadas" icon={UsersRound}>
+            <SettingsSection eyebrow="Equipo" title="Cuentas asociadas" icon={UsersRound} tourId="settings-team">
               <RolePermissionsManager initialClinic={clinic} />
             </SettingsSection>
           ) : null}
 
-          <SettingsSection eyebrow="Preferencias" title="Notificaciones" icon={Bell}>
+          <SettingsSection eyebrow="Preferencias" title="Notificaciones" icon={Bell} tourId="settings-notifications">
             <NotificationSettingsToggle clinicId={clinic.id} />
           </SettingsSection>
 
@@ -97,9 +97,9 @@ export default async function SettingsPage() {
   );
 }
 
-function SettingsSection({ eyebrow, title, icon: Icon, children }: { eyebrow: string; title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function SettingsSection({ eyebrow, title, icon: Icon, tourId, children }: { eyebrow: string; title: string; icon: React.ComponentType<{ className?: string }>; tourId?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
+    <section data-tour={tourId} className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
       <div className="flex items-start justify-between gap-4">
         <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7874a]">{eyebrow}</p><h2 className="mt-2 font-serif text-2xl font-semibold">{title}</h2></div>
         <Icon className="h-5 w-5 text-[#b8864b]" />

@@ -8,6 +8,9 @@ import { BarChart3, Bell, ClipboardList, LayoutDashboard, ScanLine, Settings, Us
 import { motion } from "motion/react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
+import { TutorialHelpButton, TutorialMenuItem } from "@/features/tour/tour-entry";
+import { TourLayer } from "@/features/tour/tour-layer";
+import { TourOffer } from "@/features/tour/tour-offer";
 import { cn } from "@/lib/utils";
 import type { VooneSession } from "@/lib/auth-shared";
 import { changeRequestRole } from "@/lib/change-request-guard";
@@ -92,6 +95,7 @@ export function ClinicDashboardShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  data-tour={`nav-${item.icon}`}
                   aria-label={item.emblem ? "Voone, volver al inicio" : item.label}
                   className={cn(
                     "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-xs font-semibold transition sm:px-4",
@@ -117,7 +121,7 @@ export function ClinicDashboardShell({
                 <p className="text-xs font-semibold leading-4">{session.name}</p>
                 <p className="text-[10px] leading-4 text-[#8c7870]">Perfil · {clinicName}</p>
               </Link>
-              <button type="button" onClick={() => setProfileOpen((open) => !open)} className="rounded-full border border-[#e4d8d1] bg-[#fbf8f6] p-2.5 text-[#8e4d41]" aria-label="Abrir ajustes de perfil" aria-expanded={profileOpen}>
+              <button type="button" data-tour="profile-gear" onClick={() => setProfileOpen((open) => !open)} className="rounded-full border border-[#e4d8d1] bg-[#fbf8f6] p-2.5 text-[#8e4d41]" aria-label="Abrir ajustes de perfil" aria-expanded={profileOpen}>
                 <Settings className="h-4 w-4" />
               </button>
               {profileOpen ? (
@@ -125,6 +129,7 @@ export function ClinicDashboardShell({
                   <Link href="/dashboard/settings" onClick={() => setProfileOpen(false)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><Settings className="h-4 w-4" /> Ajustes de perfil</Link>
                   <Link href="/dashboard/metrics" onClick={() => setProfileOpen(false)} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><BarChart3 className="h-4 w-4" /> Métricas</Link>
                   {changeRequestRole(session) ? <Link href="/dashboard/requests" onClick={() => setProfileOpen(false)} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]"><ClipboardList className="h-4 w-4" /> Mis solicitudes</Link> : null}
+                  <TutorialMenuItem onSelect={() => setProfileOpen(false)} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[#35241f] hover:bg-[#f4e8df]" />
                   <LogoutButton showLabel className="mt-1 w-full justify-start gap-2 rounded-xl border-0 bg-transparent px-3 py-2.5 text-sm font-semibold text-[#8e4d41] hover:bg-[#f4e8df]" variant="ghost" />
                 </div>
               ) : null}
@@ -133,13 +138,18 @@ export function ClinicDashboardShell({
         </motion.div>
       </header>
 
-      <div className="fixed bottom-3 left-3 z-50 xl:hidden">
+      <div className="fixed bottom-3 left-3 z-50 flex gap-2 xl:hidden">
         <LogoutButton className="rounded-full border-white/70 bg-background/90 shadow-xl backdrop-blur" />
+        <TutorialHelpButton className="rounded-full border-white/70 bg-background/90 shadow-xl backdrop-blur" />
       </div>
 
       <main className="relative z-10 mx-auto max-w-[1500px] px-4 pb-8 pt-8 sm:px-8 lg:px-10">
         {children}
       </main>
+
+      {/* The tutorial (TourProvider is mounted by the dashboard layout, around this shell). */}
+      <TourOffer />
+      <TourLayer />
     </div>
   );
 }

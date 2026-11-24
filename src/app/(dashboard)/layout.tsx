@@ -3,6 +3,7 @@ import {
   type ClinicShellNavItem,
 } from "@/components/dashboard/clinic-dashboard-shell";
 import { AccessPanel } from "@/components/shared/app-shell";
+import { TourProvider } from "@/features/tour/tour-provider";
 import {
   PERMISSIONS,
   getCurrentSession,
@@ -11,6 +12,7 @@ import {
   type Permission,
   type Role,
 } from "@/lib/auth";
+import { changeRequestRole } from "@/lib/change-request-guard";
 import { getCurrentStaffClinic } from "@/lib/current-clinic";
 
 const navItems: Array<
@@ -70,18 +72,29 @@ export default async function DashboardLayout({
   }
 
   const clinic = await getCurrentStaffClinic();
+  const visibleNavItems = navItems.filter(
+    (item) =>
+      hasRole(session, item.roles) &&
+      (!item.permission || hasPermission(session, item.permission)),
+  );
 
   return (
-    <ClinicDashboardShell
-      session={session}
-      clinicName={clinic.name}
-      navItems={navItems.filter(
-        (item) =>
-          hasRole(session, item.roles) &&
-          (!item.permission || hasPermission(session, item.permission)),
-      )}
+    // The tutorial lives above the shell so it survives page changes inside the dashboard.
+    <TourProvider
+      userId={session.userId}
+      role={session.role}
+      navHrefs={visibleNavItems.map((item) => item.href)}
+      // The same rules as the Mi centro page and the settings team section.
+      canRequest={hasPermission(session, PERMISSIONS.clinicEdit) && changeRequestRole(session) !== null}
+      canManageTeam={hasPermission(session, PERMISSIONS.teamManage)}
     >
-      {children}
-    </ClinicDashboardShell>
+      <ClinicDashboardShell
+        session={session}
+        clinicName={clinic.name}
+        navItems={visibleNavItems}
+      >
+        {children}
+      </ClinicDashboardShell>
+    </TourProvider>
   );
 }

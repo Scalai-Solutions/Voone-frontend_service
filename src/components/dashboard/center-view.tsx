@@ -16,6 +16,7 @@ import type { MilestoneRewardsInput, TierRewardInput } from "@/lib/api-client";
 import type { PresentedProgram } from "@/lib/onboarding-api";
 import { formatEuros, formatProgress } from "@/lib/euros";
 import { toPoints } from "@/lib/points";
+import { useUrlTab } from "@/lib/use-url-tab";
 import { cn } from "@/lib/utils";
 
 interface CenterViewProps {
@@ -25,7 +26,8 @@ interface CenterViewProps {
   canRequest: boolean;
 }
 
-type CenterTab = "tratamientos" | "recompensas" | "niveles" | "referidos" | "tarjeta";
+const CENTER_TABS = ["tratamientos", "recompensas", "niveles", "referidos", "tarjeta"] as const;
+type CenterTab = (typeof CENTER_TABS)[number];
 
 interface SetupItem {
   id: string;
@@ -145,7 +147,9 @@ function toTierRows(milestone: MilestoneRewardsInput | undefined): SetupItem[] {
 export function CenterView({ canEdit, canRequest }: CenterViewProps) {
   const currentClinic = useCurrentClinic();
   const clinic = currentClinic.data;
-  const [tab, setTab] = React.useState<CenterTab>("tratamientos");
+  const [urlTab, setTab] = useUrlTab<CenterTab>(CENTER_TABS, "tratamientos");
+  // The card tab only exists for editors of a centre with a card design; a link to it otherwise opens the default.
+  const tab: CenterTab = urlTab === "tarjeta" && !(canEdit && clinic?.template?.id) ? "tratamientos" : urlTab;
   // A centre with a live programme reads its rewards and levels from it; a 404 (null) means it is still
   // on the card design's own figures, which stay as the fallback.
   const staffProgram = useStaffProgram();
@@ -171,7 +175,7 @@ export function CenterView({ canEdit, canRequest }: CenterViewProps) {
       {currentClinic.isError ? <p className="mt-4 rounded-2xl border border-[#ead0bd] bg-[#fff8f2] px-4 py-3 text-sm font-semibold text-[#8a4d2a]">No se pudieron cargar los datos del centro.</p> : null}
 
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/60 p-1">
+      <div data-tour="center-tabs" className="flex flex-wrap gap-1 rounded-2xl border border-[#e2d5cc] bg-white/60 p-1">
         <button type="button" onClick={() => setTab("tratamientos")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tratamientos" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tratamientos</button>
         <button type="button" onClick={() => setTab("recompensas")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "recompensas" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Recompensas</button>
         <button type="button" onClick={() => setTab("niveles")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "niveles" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Niveles</button>
@@ -179,7 +183,7 @@ export function CenterView({ canEdit, canRequest }: CenterViewProps) {
         {canEdit && clinic?.template?.id ? <button type="button" onClick={() => setTab("tarjeta")} className={cn("rounded-xl px-4 py-3 text-sm font-semibold transition", tab === "tarjeta" ? "bg-[#2d211e] text-white shadow-sm" : "text-[#806b60] hover:bg-[#f4e9df]")}>Tarjeta Wallet</button> : null}
       </div>
       {canRequest ? (
-        <Link href="/dashboard/requests" className="inline-flex items-center gap-2 rounded-2xl border border-[#e2d5cc] bg-white/60 px-4 py-3 text-sm font-semibold text-[#806b60] transition hover:bg-[#f4e9df]">
+        <Link href="/dashboard/requests" data-tour="center-requests-link" className="inline-flex items-center gap-2 rounded-2xl border border-[#e2d5cc] bg-white/60 px-4 py-3 text-sm font-semibold text-[#806b60] transition hover:bg-[#f4e9df]">
           Mis solicitudes
           {openRequests.data ? <span className="rounded-full bg-[#b8864b] px-2 py-0.5 text-xs font-bold text-white" aria-label={`${openRequests.data} abiertas`}>{openRequests.data}</span> : null}
         </Link>
@@ -245,7 +249,7 @@ function SetupList({ title, description, requestKind, nameLabel, valueLabel, ini
           <h2 className="font-serif text-2xl font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-[#927e72]">{description}</p>
         </div>
-        {canRequest ? <button type="button" onClick={(event) => open("general", event)} className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />Solicitar un cambio</button> : null}
+        {canRequest ? <button type="button" data-tour="center-request-change" onClick={(event) => open("general", event)} className="rounded-full bg-[#b8864b] px-4 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />Solicitar un cambio</button> : null}
       </div>
 
       {canRequest && requesting === "general" ? (

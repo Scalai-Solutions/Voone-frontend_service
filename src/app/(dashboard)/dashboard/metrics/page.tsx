@@ -73,14 +73,14 @@ export default async function MetricsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="metrics-cards" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={UsersRound} eyebrow="Miembros" value={formatCount(metrics.totalMembers)} detail={`${metrics.activeWalletMembers} con Wallet activo`} tone="dark" />
         <MetricCard icon={Crown} eyebrow="Niveles" value={metrics.totalTiers.toString()} detail={`${metrics.leadingTier?.tier ?? "Sin nivel"} lidera la base`} />
         <MetricCard icon={PiggyBank} eyebrow="Dinero gastado" value={formatMoneySpentTotal(overview)} detail="Total pagado por tus clientes" />
         <MetricCard icon={Gift} eyebrow="Canjes este mes" value={formatRewardsRedeemedThisMonth(overview)} detail="Recompensas entregadas en el mes" />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div data-tour="metrics-breakdown" className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
         <div className="space-y-5">
           <section className="rounded-3xl border border-[#e2d5cc] bg-white/80 p-5">
             <div className="flex items-center justify-between gap-4">
