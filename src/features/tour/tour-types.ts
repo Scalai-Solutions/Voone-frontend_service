@@ -5,12 +5,25 @@
 
 import type { TourCopyKey, TourStopCopyKey } from "./tour-copy.ts";
 
-export type TourChapterId = "welcome" | "scan" | "members" | "center" | "engage" | "insights";
+export type TourChapterId = "welcome" | "home" | "scan" | "members" | "center" | "engage" | "insights" | "inspire";
 
-export type TourChapterIcon = "sparkles" | "scan" | "members" | "center" | "engage" | "insights";
+export type TourChapterIcon = "sparkles" | "home" | "scan" | "members" | "center" | "engage" | "insights" | "inspire";
+
+/** The parts of the visit panel the scan chapter walks through (they only exist after a scan). */
+export type VisitFocus = "lines" | "extras" | "bono" | "rewards";
+
+/** The Inspírate campaigns, one per step (tour-campaigns.ts). */
+export type CampaignId = "navidad" | "mujer" | "ultima-hora" | "novedades" | "black-friday";
 
 /** Illustrations drawn inside a bubble instead of (or beside) a spotlight. */
-export type TourSceneId = "welcome-emblem" | "scan-visit";
+export type TourSceneId =
+  | "welcome-emblem"
+  | "signup-referral"
+  | "signup-consent"
+  | `visit-${VisitFocus}`
+  | "card-recovery"
+  | "send-setup"
+  | `campaign-${CampaignId}`;
 
 /** What the chapter list and step filters know about the person taking the tour. */
 export interface TourContext {
@@ -44,7 +57,7 @@ export interface TourStep {
    * No target: the bubble sits in the middle of the screen.
    */
   target?: string | readonly string[];
-  /** A sweep: auto-advancing stops inside this one step. */
+  /** A sweep: stops inside this one step that the person steps through with Next and Back. */
   stops?: readonly TourStop[];
   copy: TourCopyKey;
   /** Used instead of `copy` when the target carries `data-tour-empty` (e.g. a list with no members yet). */

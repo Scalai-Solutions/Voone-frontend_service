@@ -3,7 +3,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { allTargetIds, chapterSeconds, chapterViews, nextChapterId, stepRoute, visibleSteps, TOUR_CHAPTERS } from "./tour-chapters.ts";
+import { CAMPAIGNS, MANUAL_MESSAGE_MAX } from "./tour-campaigns.ts";
+import { allTargetIds, chapterSeconds, chapterViews, HOME_ROUTE, nextChapterId, stepRoute, visibleSteps, TOUR_CHAPTERS } from "./tour-chapters.ts";
 
 /** The values `nav-${item.icon}` can take in the clinic shell (ClinicShellIcon). */
 const SHELL_ICONS = ["overview", "templates", "members", "scan", "engage", "settings"];
@@ -87,7 +88,8 @@ describe("clinic tutorial chapters", () => {
 
   it("hides chapters and sweep stops for nav items the person cannot see", () => {
     const views = chapterViews(staff).map((view) => view.chapter.id);
-    assert.ok(!views.includes("members") && !views.includes("center") && !views.includes("engage"));
+    assert.ok(!views.includes("members") && !views.includes("center") && !views.includes("engage") && !views.includes("inspire"));
+    assert.ok(views.includes("home"), "everyone can see the home page");
 
     const welcome = TOUR_CHAPTERS.find((chapter) => chapter.id === "welcome")!;
     const sweep = visibleSteps(welcome, staff).find((step) => step.stops);
@@ -110,16 +112,20 @@ describe("clinic tutorial chapters", () => {
 
   it("chains only through the essentials; optional chapters lead back to the hub", () => {
     const views = chapterViews(owner);
+    const essentials = views.filter((view) => !view.chapter.optional).map((view) => view.chapter.id);
+    assert.deepEqual(essentials, ["welcome", "home", "scan"]);
 
-    assert.equal(nextChapterId(views, "welcome", ["welcome"]), "scan");
+    assert.equal(nextChapterId(views, "welcome", ["welcome"]), "home");
+    assert.equal(nextChapterId(views, "home", ["welcome", "home"]), "scan");
     assert.equal(nextChapterId(views, "scan", ["scan"]), "welcome");
-    assert.equal(nextChapterId(views, "scan", ["welcome", "scan"]), null);
+    assert.equal(nextChapterId(views, "scan", ["welcome", "home", "scan"]), null);
     assert.equal(nextChapterId(views, "members", ["members"]), null);
+    assert.equal(nextChapterId(views, "inspire", ["inspire"]), null);
   });
 
-  it("lists the four optional chapters for an owner, and drops steps they lack permission for", () => {
+  it("lists the optional chapters for an owner, and drops steps they lack permission for", () => {
     const optional = chapterViews(owner).filter((view) => view.chapter.optional).map((view) => view.chapter.id);
-    assert.deepEqual(optional, ["members", "center", "engage", "insights"]);
+    assert.deepEqual(optional, ["members", "center", "engage", "insights", "inspire"]);
 
     const manager = { ...owner, role: "manager", canManageTeam: false };
     const insights = chapterViews(manager).find((view) => view.chapter.id === "insights")!;
@@ -128,5 +134,47 @@ describe("clinic tutorial chapters", () => {
     const editorWithoutRequests = { ...owner, role: "staff", canRequest: false };
     const center = chapterViews(editorWithoutRequests).find((view) => view.chapter.id === "center")!;
     assert.deepEqual(center.steps.map((step) => step.id), ["tabs"]);
+  });
+});
+
+describe("home chapter", () => {
+  const home = TOUR_CHAPTERS.find((chapter) => chapter.id === "home")!;
+
+  it("runs on the home page and opens the QR dialog only for the steps inside it", () => {
+    home.steps.forEach((_, index) => assert.equal(stepRoute(home.steps, index), HOME_ROUTE));
+
+    const tabs = home.steps.map((step) => step.tab ?? null);
+    assert.deepEqual(tabs, [null, "alta", "alta", "ventajas", null, null]);
+  });
+});
+
+describe("Inspírate campaigns", () => {
+  const inspire = TOUR_CHAPTERS.find((chapter) => chapter.id === "inspire")!;
+
+  it("fit a manual message, so pasting one never runs over the limit", () => {
+    for (const campaign of CAMPAIGNS) {
+      for (const audience of campaign.audiences) {
+        const length = [...audience.message].length;
+        assert.ok(length > 0 && length <= MANUAL_MESSAGE_MAX, `${campaign.id}/${audience.label}: ${length} characters`);
+        assert.ok(audience.segments.length > 0, `${campaign.id}/${audience.label} has no segment`);
+      }
+    }
+  });
+
+  it("only uses segment filters the Audiencias form has", () => {
+    const filter = /^(Nivel \S+|Con bono activo|Sin visitas desde \d+ días|Sexo: (Mujer|Hombre|Otro)|Edad (desde \d+|\d+–\d+))$/;
+
+    for (const campaign of CAMPAIGNS) {
+      for (const audience of campaign.audiences) {
+        for (const segment of audience.segments) {
+          for (const part of segment.split(" · ")) assert.match(part, filter, `${campaign.id}: "${part}"`);
+        }
+      }
+    }
+  });
+
+  it("gives every campaign exactly one step", () => {
+    const scenes = inspire.steps.map((step) => step.scene);
+    assert.deepEqual(scenes, CAMPAIGNS.map((campaign) => `campaign-${campaign.id}`));
   });
 });

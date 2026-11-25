@@ -11,6 +11,7 @@ import type {
   TourStep,
 } from "./tour-types.ts";
 
+export const HOME_ROUTE = "/dashboard";
 export const SCAN_ROUTE = "/dashboard/scan";
 const MEMBERS_ROUTE = "/dashboard/members";
 const CENTER_ROUTE = "/dashboard/templates";
@@ -35,7 +36,7 @@ export const TOUR_CHAPTERS: readonly TourChapter[] = [
       {
         id: "nav",
         copy: "welcome.nav",
-        seconds: 10,
+        seconds: 16,
         stops: [
           { target: "nav-templates", href: "/dashboard/templates", copy: "nav.templates" },
           { target: "nav-members", href: "/dashboard/members", copy: "nav.members" },
@@ -47,6 +48,23 @@ export const TOUR_CHAPTERS: readonly TourChapter[] = [
     ],
   },
   {
+    // Everyone on the team can see the home page, so this chapter needs no nav item.
+    id: "home",
+    icon: "home",
+    available: true,
+    tryIt: "home-qr",
+    steps: [
+      { id: "qr", route: HOME_ROUTE, target: "home-qr", copy: "home.qr" },
+      // The QR dialog follows ?tab= (signup-qr-panel.tsx): "alta" and "ventajas" open it, no tab closes it.
+      { id: "code", tab: "alta", target: "home-qr-code", copy: "home.code", seconds: 8 },
+      { id: "share", tab: "alta", target: "home-qr-share", copy: "home.share" },
+      { id: "club", tab: "ventajas", target: "home-qr-club", copy: "home.club", seconds: 9 },
+      // The sign-up form is a public page outside the dashboard, so it is drawn, not visited.
+      { id: "referral", copy: "home.referral", scene: "signup-referral", seconds: 8 },
+      { id: "consent", copy: "home.consent", scene: "signup-consent", seconds: 9 },
+    ],
+  },
+  {
     id: "scan",
     icon: "scan",
     available: true,
@@ -55,7 +73,11 @@ export const TOUR_CHAPTERS: readonly TourChapter[] = [
     steps: [
       { id: "camera", route: SCAN_ROUTE, target: "scan-camera", copy: "scan.camera", seconds: 8 },
       { id: "search", target: "scan-manual-search", copy: "scan.search" },
-      { id: "visit", copy: "scan.visit", scene: "scan-visit", seconds: 10 },
+      // Everything below only exists once a member is picked, so the visit panel is drawn.
+      { id: "lines", copy: "scan.lines", scene: "visit-lines", seconds: 10 },
+      { id: "extras", copy: "scan.extras", scene: "visit-extras", seconds: 10 },
+      { id: "bono", copy: "scan.bono", scene: "visit-bono", seconds: 10 },
+      { id: "rewards", copy: "scan.rewards", scene: "visit-rewards", seconds: 9 },
     ],
   },
   {
@@ -69,6 +91,7 @@ export const TOUR_CHAPTERS: readonly TourChapter[] = [
       { id: "toolbar", route: MEMBERS_ROUTE, tab: "personas", target: "members-toolbar", copy: "members.toolbar" },
       { id: "export", tab: "personas", target: "members-export", copy: "members.export" },
       { id: "list", tab: "personas", target: "members-list", copy: "members.list", emptyCopy: "members.list.empty" },
+      { id: "card", tab: "personas", target: "members-list", copy: "members.card", scene: "card-recovery", seconds: 10 },
       { id: "audiences", tab: "audiencias", target: "members-audiences-add", copy: "members.audiences", placement: "bottom" },
     ],
   },
@@ -95,8 +118,11 @@ export const TOUR_CHAPTERS: readonly TourChapter[] = [
     tryIt: "engage-compose",
     steps: [
       { id: "compose", route: ENGAGE_ROUTE, tab: "manuales", target: "engage-compose", copy: "engage.compose" },
+      { id: "personalise", tab: "manuales", target: "engage-personalise", copy: "engage.personalise", seconds: 8 },
+      // Segment and schedule live in the "Configurar envío" dialog, so they are drawn beside its button.
+      { id: "send", tab: "manuales", target: "engage-configure", copy: "engage.sendSetup", scene: "send-setup", seconds: 10 },
       { id: "stats", tab: "manuales", target: "engage-stats", copy: "engage.stats" },
-      { id: "automations", tab: "automaticos", target: "engage-panel", copy: "engage.automations", placement: "top" },
+      { id: "automations", tab: "automaticos", target: "engage-panel", copy: "engage.automations", placement: "top", seconds: 10 },
     ],
   },
   {
@@ -112,6 +138,22 @@ export const TOUR_CHAPTERS: readonly TourChapter[] = [
       { id: "breakdown", target: "metrics-breakdown", copy: "insights.breakdown", placement: "top" },
       { id: "team", route: SETTINGS_ROUTE, target: "settings-team", copy: "insights.team", requires: "canManageTeam" },
       { id: "notifications", route: SETTINGS_ROUTE, target: "settings-notifications", copy: "insights.notifications" },
+    ],
+  },
+  {
+    id: "inspire",
+    icon: "inspire",
+    available: true,
+    optional: true,
+    requiresHref: ENGAGE_ROUTE,
+    tryIt: "engage-compose",
+    // Centred ideas over the Comunicaciones page, so "Pruébalo ahora" lands next to the compose button.
+    steps: [
+      { id: "navidad", route: ENGAGE_ROUTE, tab: "manuales", copy: "inspire.navidad", scene: "campaign-navidad", seconds: 15 },
+      { id: "mujer", tab: "manuales", copy: "inspire.mujer", scene: "campaign-mujer", seconds: 12 },
+      { id: "ultima-hora", tab: "manuales", copy: "inspire.ultimaHora", scene: "campaign-ultima-hora", seconds: 10 },
+      { id: "novedades", tab: "manuales", copy: "inspire.novedades", scene: "campaign-novedades", seconds: 12 },
+      { id: "black-friday", tab: "manuales", copy: "inspire.blackFriday", scene: "campaign-black-friday", seconds: 12 },
     ],
   },
 ];
