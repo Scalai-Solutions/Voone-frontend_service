@@ -6,6 +6,12 @@ import { Check, Copy, Download, QrCode as QrCodeIcon, X } from "lucide-react";
 import { QrCode } from "@/components/shared/qr-code";
 import { Button } from "@/components/ui/button";
 import { QR_TARGETS, downloadQrPdf, type QrTarget } from "@/lib/qr-pdf";
+import { useUrlTab } from "@/lib/use-url-tab";
+
+/** The dialog lives in the URL (`?tab=alta` / `?tab=ventajas`), so it can be linked to and the clinic tutorial can open it. */
+const QR_VIEWS = ["cerrado", "alta", "ventajas"] as const;
+type QrView = (typeof QR_VIEWS)[number];
+const VIEW_FOR: Record<QrTarget, QrView> = { signup: "alta", club: "ventajas" };
 
 /**
  * The clinic's sign-up QR, at print size.
@@ -17,9 +23,10 @@ import { QR_TARGETS, downloadQrPdf, type QrTarget } from "@/lib/qr-pdf";
  * and there is no origin-detection hydration mismatch. Only the copy button needs a client.
  */
 export function SignupQrPanel({ signupUrl, clubUrl }: { signupUrl: string; clubUrl?: string | null }) {
-  const [open, setOpen] = React.useState(false);
+  const [view, setView] = useUrlTab(QR_VIEWS, "cerrado");
   const [copied, setCopied] = React.useState(false);
-  const [target, setTarget] = React.useState<QrTarget>("signup");
+  const open = view !== "cerrado";
+  const target: QrTarget = view === "ventajas" && clubUrl ? "club" : "signup";
   const qrRef = React.useRef<HTMLDivElement>(null);
   const text = QR_TARGETS[target];
   const url = target === "club" && clubUrl ? clubUrl : signupUrl;
@@ -34,7 +41,7 @@ export function SignupQrPanel({ signupUrl, clubUrl }: { signupUrl: string; clubU
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)} className="rounded-full bg-[#f1d6bd] px-5 py-3 font-semibold text-[#402d26] hover:bg-[#f6e2cf]">
+      <Button type="button" data-tour="home-qr" onClick={() => setView("alta")} className="rounded-full bg-[#f1d6bd] px-5 py-3 font-semibold text-[#402d26] hover:bg-[#f6e2cf]">
         <QrCodeIcon className="mr-2 h-4 w-4" /> Ver QR
       </Button>
 
@@ -47,13 +54,13 @@ export function SignupQrPanel({ signupUrl, clubUrl }: { signupUrl: string; clubU
                 <h2 id="signup-qr-title" className="mt-2 font-serif text-3xl font-semibold">{text.title}</h2>
                 <p className="mt-2 text-sm leading-6 text-[#806d63]">{text.hint}</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full p-2 text-[#806d63] hover:bg-[#f6eee8]" aria-label="Cerrar QR">
+              <button type="button" onClick={() => setView("cerrado")} className="rounded-full p-2 text-[#806d63] hover:bg-[#f6eee8]" aria-label="Cerrar QR">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {clubUrl ? (
-              <div className="mt-5 grid grid-cols-2 gap-1 rounded-full bg-[#f6eee8] p-1" role="tablist" aria-label="Qué enlace mostrar">
+              <div data-tour="home-qr-club" className="mt-5 grid grid-cols-2 gap-1 rounded-full bg-[#f6eee8] p-1" role="tablist" aria-label="Qué enlace mostrar">
                 {(Object.keys(QR_TARGETS) as QrTarget[]).map((key) => (
                   <button
                     key={key}
@@ -61,7 +68,7 @@ export function SignupQrPanel({ signupUrl, clubUrl }: { signupUrl: string; clubU
                     role="tab"
                     aria-selected={target === key}
                     onClick={() => {
-                      setTarget(key);
+                      setView(VIEW_FOR[key]);
                       setCopied(false);
                     }}
                     className={`rounded-full px-3 py-2 text-xs font-semibold transition ${target === key ? "bg-white text-[#2e2421] shadow-sm" : "text-[#806d63] hover:text-[#2e2421]"}`}
@@ -72,12 +79,14 @@ export function SignupQrPanel({ signupUrl, clubUrl }: { signupUrl: string; clubU
               </div>
             ) : null}
 
-            <div ref={qrRef} className="mt-6 flex justify-center">
-              <QrCode value={url} size={240} title={text.title} />
+            <div data-tour="home-qr-code">
+              <div ref={qrRef} className="mt-6 flex justify-center">
+                <QrCode value={url} size={240} title={text.title} />
+              </div>
+              <p className="mt-4 break-all rounded-2xl bg-[#fffaf6] px-4 py-3 text-center text-xs text-[#806d63]">{url}</p>
             </div>
-            <p className="mt-4 break-all rounded-2xl bg-[#fffaf6] px-4 py-3 text-center text-xs text-[#806d63]">{url}</p>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div data-tour="home-qr-share" className="mt-5 grid gap-3 sm:grid-cols-2">
               <Button type="button" variant="outline" className="rounded-xl" onClick={copy}>
                 {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
                 {copied ? "Copiado" : "Copiar enlace"}

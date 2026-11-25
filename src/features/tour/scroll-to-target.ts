@@ -31,7 +31,18 @@ export function scrollTargetIntoView(el: Element, { bottomInset, smooth }: { bot
   // Too tall to fit: show its top. Otherwise centre it in the band.
   const delta = rect.height > bandHeight ? rect.top - bandTop : rect.top + rect.height / 2 - (bandTop + bandHeight / 2);
 
-  window.scrollBy({ top: delta, behavior });
+  // Inside a dialog that scrolls on its own (the home QR dialog), scroll the dialog, not the page.
+  (scrollParent(el) ?? window).scrollBy({ top: delta, behavior });
+}
+
+/** The nearest ancestor that actually scrolls vertically, or null for the page itself. */
+function scrollParent(el: Element): HTMLElement | null {
+  for (let node = el.parentElement; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) return node;
+  }
+
+  return null;
 }
 
 /**

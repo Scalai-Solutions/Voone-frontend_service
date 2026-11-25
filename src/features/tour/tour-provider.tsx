@@ -87,12 +87,15 @@ export function TourProvider({
       if (route && route !== here) {
         const href = tab ? `${route}?tab=${encodeURIComponent(tab)}` : route;
         startTransition(() => router.push(href, { scroll: false }));
-      } else if (tab) {
-        // Same page, other tab: the page reads its tab from the URL (useUrlTab), and Next syncs
-        // replaceState with useSearchParams without a server round trip.
+      } else if (tab || route) {
+        // Same page: the page reads its tab from the URL (useUrlTab), and Next syncs replaceState
+        // with useSearchParams without a server round trip. A page's step with no tab clears it,
+        // which puts the page back on its default (the home QR dialog closes, for one). Steps
+        // that run on any page (no route) leave the person's own tab alone.
         const url = new URL(window.location.href);
-        if (url.searchParams.get("tab") !== tab) {
-          url.searchParams.set("tab", tab);
+        if ((url.searchParams.get("tab") ?? undefined) !== tab) {
+          if (tab) url.searchParams.set("tab", tab);
+          else url.searchParams.delete("tab");
           window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
         }
       }

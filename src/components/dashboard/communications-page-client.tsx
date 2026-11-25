@@ -389,7 +389,7 @@ export function CommunicationsPageClient({
                     {body.length}/{maxLength}
                   </span>
                 </label>
-                <div className="flex flex-wrap items-start gap-2">
+                <div data-tour="engage-personalise" className="flex flex-wrap items-start gap-2">
                   <InsertNameButton
                     fieldRef={inlineBodyRef}
                     value={body}
@@ -404,6 +404,7 @@ export function CommunicationsPageClient({
                   />
                 </div>
                 <button
+                  data-tour="engage-configure"
                   onClick={() => setComposeOpen(true)}
                   className="mt-3 rounded-full bg-[#b8864b] px-4 py-2.5 text-sm font-semibold text-white"
                 >

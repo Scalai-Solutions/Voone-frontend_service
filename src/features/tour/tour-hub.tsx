@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, BarChart3, Bell, RotateCcw, ScanLine, Sparkles, Users, WalletCards, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, BarChart3, Bell, House, Lightbulb, RotateCcw, ScanLine, Sparkles, Users, WalletCards, X, type LucideIcon } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 
 import { cn } from "@/lib/utils";
@@ -13,11 +13,13 @@ import type { TourChapterIcon, TourChapterView } from "./tour-types";
 
 const ICONS: Record<TourChapterIcon, LucideIcon> = {
   sparkles: Sparkles,
+  home: House,
   scan: ScanLine,
   members: Users,
   center: WalletCards,
   engage: Bell,
   insights: BarChart3,
+  inspire: Lightbulb,
 };
 
 const list: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.12 } } };

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ArrowRight, CameraOff, Loader2, MousePointerClick, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CameraOff, Info, Loader2, MousePointerClick, X } from "lucide-react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/utils";
@@ -18,7 +18,6 @@ import { placeBubble, scrollTargetIntoView } from "./scroll-to-target";
 import { useTourTarget } from "./use-tour-target";
 
 const SPOT_PADDING = 8;
-const SWEEP_STOP_MS = 1800;
 const BUBBLE_WIDTH = 380;
 /** Below this width the bubble becomes a bottom sheet. */
 const SHEET_BREAKPOINT = 640;
@@ -59,13 +58,6 @@ export function TourOverlay() {
   const isLast = state.stepIndex === steps.length - 1;
   const lastStop = !stops || stopIndex === stops.length - 1;
   const nextId = chapter ? nextChapterId(tour.chapters, chapter.id, [...state.completed, chapter.id]) : null;
-
-  // Auto-advance a sweep once its current stop is on screen.
-  React.useEffect(() => {
-    if (!stops || lastStop || target.status !== "found") return;
-    const timer = window.setTimeout(() => setStop({ key: stepKey, index: stopIndex + 1 }), SWEEP_STOP_MS);
-    return () => window.clearTimeout(timer);
-  }, [lastStop, stepKey, stopIndex, stops, target.status]);
 
   React.useEffect(() => {
     const el = bubbleRef.current;
@@ -223,7 +215,12 @@ export function TourOverlay() {
           ) : null}
           {copy.note ? (
             <p className="mt-3 flex items-start gap-2 rounded-2xl border border-[#ead9c9] bg-[#fffaf6] px-3 py-2.5 text-xs leading-5 text-[#806d63]">
-              <CameraOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b8864b]" /> {copy.note}
+              {copy.noteIcon === "camera" ? (
+                <CameraOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b8864b]" />
+              ) : (
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b8864b]" />
+              )}{" "}
+              {copy.note}
             </p>
           ) : null}
         </motion.div>
@@ -345,7 +342,8 @@ export function TourOverlay() {
           aria-modal="true"
           aria-labelledby={titleId}
           onKeyDown={trapFocus}
-          className="fixed left-0 top-0 rounded-[26px] border border-[#e3d5cd] bg-[#fffaf6] p-5 shadow-[0_30px_80px_-30px_rgba(24,17,15,0.75)]"
+          // Scenes can make a bubble tall: it scrolls inside rather than running off the screen.
+          className="fixed left-0 top-0 max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain rounded-[26px] border border-[#e3d5cd] bg-[#fffaf6] p-5 shadow-[0_30px_80px_-30px_rgba(24,17,15,0.75)]"
           style={{ width: Math.min(BUBBLE_WIDTH, viewport.width - 32) }}
           initial={reduce ? false : { opacity: 0, scale: 0.94, x: position.left, y: position.top }}
           animate={{ opacity: 1, scale: 1, x: position.left, y: position.top }}
