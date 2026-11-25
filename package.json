@@ -33,7 +33,7 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^0.542.0",
     "motion": "^12.23.12",
-    "next": "16.3.4",
+    "next": "16.4.6",
     "next-auth": "^4.24.15",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
@@ -50,7 +50,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.6",
     "railway": "^3.11.0",
     "tailwindcss": "^4",
     "typescript": "^5"
