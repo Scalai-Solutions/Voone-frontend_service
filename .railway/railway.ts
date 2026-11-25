@@ -45,6 +45,13 @@ export default defineRailway(() => {
       // Absolute base for the sign-up URL a clinic's QR code encodes.
       NEXT_PUBLIC_APP_URL: preserve(),
 
+      // The public origin of the marketing site (sitemap, canonical links), and the hosts that
+      // redirect to it: voone.ai stays registered for two years so printed QR posters and links
+      // inside installed wallet cards keep working. Declared here because this file deletes any
+      // variable it does not name. See src/lib/legacy-host-redirects.ts.
+      NEXT_PUBLIC_SITE_URL: "https://voone.es",
+      LEGACY_HOSTS: "voone.ai,www.voone.ai",
+
       // The single operator account the credentials provider checks against. Not per-user
       // authentication — the User model has no password column — but enough that the
       // browser no longer grants itself a role. Both halves are preserved rather than
